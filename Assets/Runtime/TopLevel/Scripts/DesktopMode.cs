@@ -2,6 +2,7 @@
 
 using System.Collections;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities;
+using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.Interface.MultibarMenu;
 using UnityEngine;
 
@@ -121,6 +122,18 @@ namespace FiveSQD.WebVerse.Runtime
         public GameObject steamVRInput;
 
         /// <summary>
+        /// The Desktop Platform Input.
+        /// </summary>
+        [Tooltip("The Desktop Platform Input.")]
+        public BasePlatformInput desktopPlatformInput;
+
+        /// <summary>
+        /// The VR Platform Input.
+        /// </summary>
+        [Tooltip("The VR Platform Input.")]
+        public BasePlatformInput vrPlatformInput;
+
+        /// <summary>
         /// Whether or not VR is enabled.
         /// </summary>
         private bool vrEnabled;
@@ -137,6 +150,8 @@ namespace FiveSQD.WebVerse.Runtime
             vrRig.SetActive(true);
             desktopInput.SetActive(false);
             steamVRInput.SetActive(true);
+            runtime.platformInput = vrPlatformInput;
+            runtime.inputManager.platformInput = vrPlatformInput;
             runtime.vr = true;
             vrMultibar.SetUpVRMultibarVRButton();
         }
@@ -159,6 +174,8 @@ namespace FiveSQD.WebVerse.Runtime
             vrRig.SetActive(false);
             desktopInput.SetActive(true);
             steamVRInput.SetActive(false);
+            runtime.platformInput = desktopPlatformInput;
+            runtime.inputManager.platformInput = desktopPlatformInput;
             runtime.vr = false;
         }
 

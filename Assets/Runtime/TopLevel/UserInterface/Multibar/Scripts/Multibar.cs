@@ -119,7 +119,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
 
         /// <summary>
         /// The settings menu.
-        /// </summary>
+        /// </summary>h
         public GameObject settingsMenu;
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// </summary>
         /// <param name="mode">Mode to initialize in.</param>
         /// <param name="settings">Settings.</param>
-        public void Initialize(MultibarMode mode, DesktopSettings settings)
+        public void Initialize(MultibarMode mode, DesktopSettings settings = null)
         {
             rightClickMenu.SetActive(false);
             multibarDropdown.SetActive(false);
@@ -270,7 +270,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// <param name="data">Pointer event data.</param>
         public void OnPointerEnter(PointerEventData data)
         {
-            
+
         }
 
         /// <summary>
@@ -558,7 +558,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         {
             vrButtonObject.SetActive(false);
             noVRButtonObject.SetActive(true);
-            desktopMode.EnableVR();
+            desktopMode?.EnableVR();
         }
 
         /// <summary>
@@ -568,9 +568,9 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         {
             vrButtonObject.SetActive(true);
             noVRButtonObject.SetActive(false);
-            desktopMode.DisableVR();
+            desktopMode?.DisableVR();
         }
-        
+
         /// <summary>
         /// Set up VR/No VR buttons for VR multibar. Will set to VR state
         /// (as VR multibar will be disabled when in Non VR state).
@@ -670,7 +670,10 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
             }
             tutorialMenuScript.Initialize(new Action(() =>
             {
-                settings.SetTutorialState(DesktopSettings.TutorialState.DO_NOT_SHOW);
+                if (settings != null)
+                {
+                    settings.SetTutorialState(DesktopSettings.TutorialState.DO_NOT_SHOW);
+                }
             }));
         }
 
@@ -679,8 +682,8 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// </summary>
         private void InitializeDesktopMode()
         {
-            desktopToggleTooltip.SetActive(true);
-            vrToggleTooltip.SetActive(false);
+            desktopToggleTooltip?.SetActive(true);
+            vrToggleTooltip?.SetActive(false);
         }
 
         /// <summary>
@@ -700,11 +703,11 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
             desktopToggleTooltip.SetActive(false);
             vrToggleTooltip.SetActive(false);
             multibarDropdown.SetActive(false);
-            historyMenu.SetActive(false);
-            settingsMenu.SetActive(false);
-            consoleMenu.SetActive(false);
-            aboutMenu.SetActive(false);
-            exitMenu.SetActive(false);
+            if (historyMenu != null) historyMenu.SetActive(false);
+            if (settingsMenu != null) settingsMenu.SetActive(false);
+            if (consoleMenu != null) consoleMenu.SetActive(false);
+            if (aboutMenu != null) aboutMenu.SetActive(false);
+            if (exitMenu != null) exitMenu.SetActive(false);
         }
 
         /// <summary>
@@ -727,7 +730,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// <param name="siteURL">Site URL.</param>
         private void AddToHistory(DateTime timestamp, string siteName, string siteURL)
         {
-            desktopMode.desktopHistory.AddItemToHistory(timestamp, siteName, siteURL);
+            desktopMode?.desktopHistory.AddItemToHistory(timestamp, siteName, siteURL);
         }
 
         /// <summary>

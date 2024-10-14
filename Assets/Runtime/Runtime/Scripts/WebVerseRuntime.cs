@@ -19,6 +19,7 @@ using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.WebView;
 using FiveSQD.WebVerse.Output;
+using FiveSQD.WebVerse.Input.SteamVR;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -275,6 +276,12 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("Platform Input.")]
         public BasePlatformInput platformInput;
+
+        /// <summary>
+        /// The VR Rig.
+        /// </summary>
+        [Tooltip("The VR Rig.")]
+        public VRRig vrRig;
 
         /// <summary>
         /// The base path of the current world.
@@ -690,6 +697,7 @@ namespace FiveSQD.WebVerse.Runtime
             inputManagerGO.transform.SetParent(transform);
             inputManager = inputManagerGO.AddComponent<InputManager>();
             inputManager.platformInput = platformInput;
+            inputManager.vRRig = vrRig;
             inputManager.Initialize();
 
             // Set up Output Manager.

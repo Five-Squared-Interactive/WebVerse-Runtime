@@ -20,11 +20,6 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// Text to show.
         /// </summary>
         public string tooltipText;
-        
-        /// <summary>
-        /// Position to give.
-        /// </summary>
-        public Vector2 tooltipPosition;
 
         /// <summary>
         /// Threshold for activation in seconds.
@@ -74,7 +69,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
             {
                 hoverTime = -1;
                 tooltipActivated = true;
-                tooltip.EnableTooltip(tooltipText, tooltipPosition);
+                tooltip.EnableTooltip(tooltipText);
             }
         }
     }

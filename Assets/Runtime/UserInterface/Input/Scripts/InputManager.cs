@@ -1,5 +1,6 @@
 // Copyright (c) 2019-2024 Five Squared Interactive. All rights reserved.
 
+using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 using System;
@@ -17,6 +18,11 @@ namespace FiveSQD.WebVerse.Input
         /// Platform input.
         /// </summary>
         public BasePlatformInput platformInput;
+
+        /// <summary>
+        /// VR rig.
+        /// </summary>
+        public VRRig vRRig;
 
         /// <summary>
         /// Whether or not input is enabled.
@@ -703,6 +709,12 @@ namespace FiveSQD.WebVerse.Input
         /// </summary>
         public void Reset()
         {
+            if (vRRig != null)
+            {
+                vRRig.Terminate();
+                vRRig.Initialize();
+            }
+
             inputEnabled = false;
 
             moveFunctions = new List<string>();

@@ -3,6 +3,7 @@
 using UnityEngine;
 using FiveSQD.WebVerse.Utilities;
 using System.IO;
+using FiveSQD.WebVerse.Interface.MultibarMenu;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -48,10 +49,28 @@ namespace FiveSQD.WebVerse.Runtime
         public string testWorldLoadTimeout;
 
         /// <summary>
+        /// Multibar Enabled used in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Multibar Enabled used in Unity Editor tests.")]
+        public string testMultibarEnabled = "true";
+
+        /// <summary>
         /// WebVerse Runtime.
         /// </summary>
         [Tooltip("WebVerse Runtime.")]
         public WebVerseRuntime runtime;
+
+        /// <summary>
+        /// Desktop Multibar.
+        /// </summary>
+        [Tooltip("Desktop Multibar.")]
+        public Multibar desktopMultibar;
+
+        /// <summary>
+        /// Holder for the Multibar.
+        /// </summary>
+        [Tooltip("Holder for the Multibar.")]
+        public GameObject multibarHolder;
 
         /// <summary>
         /// Load a world.
@@ -84,8 +103,18 @@ namespace FiveSQD.WebVerse.Runtime
 
         private void Awake()
         {
-
             LoadRuntime();
+
+            bool multibarEnabled = GetMultibarEnabled();
+            if (multibarEnabled)
+            {
+                multibarHolder.SetActive(true);
+                desktopMultibar.Initialize(Multibar.MultibarMode.Desktop);
+            }
+            else
+            {
+                multibarHolder.SetActive(false);
+            }
         }
 
         /// <summary>
@@ -182,8 +211,8 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get the Max Local Storage Entry Length, provided by command line in built app, and by 'testMaxEntryLength'
-        /// variable in Editor mode.
+        /// Get the Max Local Storage Entry Length, provided by URL query parameters in built app,
+        /// and by 'testMaxEntryLength' variable in Editor mode.
         /// </summary>
         /// <returns>Max Local Storage Entry Length.</returns>
         private int GetMaxEntryLength()
@@ -220,8 +249,8 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get the Max Local Storage Key Length, provided by command line in built app, and by 'testMaxKeyLength'
-        /// variable in Editor mode.
+        /// Get the Max Local Storage Key Length, provided by URL query parameters in built app,
+        /// and by 'testMaxKeyLength' variable in Editor mode.
         /// </summary>
         /// <returns>Max Local Storage Key Length.</returns>
         private int GetMaxKeyLength()
@@ -258,8 +287,8 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get the Files Directory, provided by command line in built app, and by 'testFilesDirectory'
-        /// variable in Editor mode.
+        /// Get the Files Directory, provided by URL query parameters in built app,
+        /// and by 'testFilesDirectory' variable in Editor mode.
         /// </summary>
         /// <returns>Files Directory.</returns>
         private string GetFilesDirectory()
@@ -296,8 +325,8 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get the World URL, provided by command line in built app, and by 'testWorldURL'
-        /// variable in Editor mode.
+        /// Get the World URL, provided by URL query parameters in built app,
+        /// and by 'testWorldURL' variable in Editor mode.
         /// </summary>
         /// <returns>World URL.</returns>
         private string GetWorldURL()
@@ -334,8 +363,8 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get the World Load Timeout, provided by command line in built app, and by 'testWorldLoadTimeout'
-        /// variable in Editor mode.
+        /// Get the World Load Timeout, provided by URL query parameters in built app,
+        /// and by 'testWorldLoadTimeout' variable in Editor mode.
         /// </summary>
         /// <returns>World Load Timeout.</returns>
         private float GetWorldLoadTimeout()
@@ -369,6 +398,44 @@ namespace FiveSQD.WebVerse.Runtime
 #endif
 
             return float.Parse(timeout);
+        }
+
+        /// <summary>
+        /// Get Multibar Enabled, provided by URL query parameters in built app,
+        /// and by 'testMultibarEnabled' variable in Editor mode.
+        /// </summary>
+        /// <returns>Whether Multibar is enabled.</returns>
+        private bool GetMultibarEnabled()
+        {
+            string multibarEnabled = "";
+#if UNITY_EDITOR
+            multibarEnabled = testMultibarEnabled;
+#elif UNITY_WEBGL
+            int queryStart = Application.absoluteURL.IndexOf("?") + 1;
+            if (queryStart > 1 && queryStart < Application.absoluteURL.Length - 1)
+            {
+                string query = Application.absoluteURL.Substring(queryStart);
+                
+                string[] sections = query.Split(new char[] { '&' }, System.StringSplitOptions.RemoveEmptyEntries);
+                foreach (string section in sections)
+                {
+                    int valueStart = section.IndexOf("=") + 1;
+                    string[] keyValue = section.Split('=');
+                    if (keyValue.Length >= 2)
+                    {
+                        string key = keyValue[0];
+                        string value = section.Substring(valueStart);
+                        if (key.ToLower() == "multibar_enabled")
+                        {
+                            multibarEnabled = value;
+                            break;
+                        }
+                    }
+                }
+            }
+#endif
+
+            return multibarEnabled.ToLower() == "true" ? true : false;
         }
     }
 }

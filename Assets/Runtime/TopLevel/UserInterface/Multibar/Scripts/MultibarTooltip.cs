@@ -24,11 +24,13 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// Enable the tooltip.
         /// </summary>
         /// <param name="tooltip">Tooltip text to show.</param>
-        /// <param name="position">Position for tooltip.</param>
-        public void EnableTooltip(string tooltip, Vector2 position)
+        public void EnableTooltip(string tooltip)
         {
             tooltipText.text = tooltip;
-            rectTransform.anchoredPosition = position;
+            foreach (MultibarTooltip mtt in FindObjectsOfType<MultibarTooltip>())
+            {
+                mtt.gameObject.SetActive(false);
+            }
             gameObject.SetActive(true);
         }
 

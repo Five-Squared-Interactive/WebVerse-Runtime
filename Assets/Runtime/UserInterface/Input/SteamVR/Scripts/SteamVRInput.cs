@@ -6,7 +6,6 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.XR;
-//using UnityEngine.Events;
 
 namespace FiveSQD.WebVerse.Input.SteamVR
 {
@@ -38,75 +37,6 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         /// </summary>
         [Tooltip("The right controller.")]
         public XRController rightController;
-
-        /*
-        /// <summary>
-        /// Event to invoke when left menu button has been held.
-        /// </summary>
-        [Tooltip("Event to invoke when left menu button has been held.")]
-        public UnityEvent leftMenuHoldEvent;
-
-        /// <summary>
-        /// Event to invoke when right menu button has been held.
-        /// </summary>
-        [Tooltip("Event to invoke when right menu button has been held.")]
-        public UnityEvent rightMenuHoldEvent;
-
-        /// <summary>
-        /// Threshold in seconds for a hold.
-        /// </summary>
-        [Tooltip("Threshold in seconds for a hold.")]
-        public float holdThreshold = 2f;
-
-        /// <summary>
-        /// Current hold time for left menu button.
-        /// </summary>
-        private float leftMenuHoldTime = 0f;
-
-        /// <summary>
-        /// Current hold time for right menu button.
-        /// </summary>
-        private float rightMenuHoldTime = 0f;
-
-        /// <summary>
-        /// Whether or not the left menu hold event has been activated.
-        /// </summary>
-        private bool leftMenuHoldActivated = false;
-
-        /// <summary>
-        /// Whether or not the right menu hold event has been activated.
-        /// </summary>
-        private bool rightMenuHoldActivated = false;
-        */
-
-        /*
-        private void Update()
-        {
-            float deltaTime = Time.deltaTime;
-
-            if (leftMenuHoldTime >= 0)
-            {
-                leftMenuHoldTime += deltaTime;
-
-                if (leftMenuHoldTime >= holdThreshold && leftMenuHoldActivated == false)
-                {
-                    leftMenuHoldEvent.Invoke();
-                    leftMenuHoldActivated = true;
-                }
-            }
-
-            if (rightMenuHoldTime >= 0)
-            {
-                rightMenuHoldTime += deltaTime;
-
-                if (rightMenuHoldTime >= holdThreshold && rightMenuHoldActivated == false)
-                {
-                    rightMenuHoldEvent.Invoke();
-                    rightMenuHoldActivated = true;
-                }
-            }
-        }
-        */
 
         /// <summary>
         /// Invoked on a left menu.
