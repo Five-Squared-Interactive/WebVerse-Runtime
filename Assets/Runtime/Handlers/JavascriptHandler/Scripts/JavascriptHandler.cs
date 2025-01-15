@@ -180,7 +180,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript
 
         public void Reset()
         {
-            engine.ResetCallStack();
+            engine.Advanced.ResetCallStack();
             engine = new Engine();
             RegisterAllAPIs();
             EntityAPIHelper.InitializeEntityMapping();

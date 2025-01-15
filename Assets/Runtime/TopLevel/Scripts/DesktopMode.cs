@@ -210,6 +210,7 @@ namespace FiveSQD.WebVerse.Runtime
                 runtime.inputManager.platformInput = desktopPlatformInput;
             }
             runtime.vr = false;
+            desktopMultibar.SetUpDesktopMultibarVRButton(false);
             SetCanvasEventCamera(desktopCamera);
             skySphereFollower.transformToFollow = desktopCamera.transform;
         }

@@ -27,7 +27,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         public void EnableTooltip(string tooltip)
         {
             tooltipText.text = tooltip;
-            foreach (MultibarTooltip mtt in FindObjectsOfType<MultibarTooltip>())
+            foreach (MultibarTooltip mtt in FindObjectsByType<MultibarTooltip>(FindObjectsSortMode.None))
             {
                 mtt.gameObject.SetActive(false);
             }

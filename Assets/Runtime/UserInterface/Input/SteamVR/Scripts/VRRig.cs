@@ -28,67 +28,55 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         /// The left top-level controller manager.
         /// </summary>
         [Tooltip("The left top-level controller manager.")]
-        public ActionBasedControllerManager leftControllerManager;
+        public ControllerInputActionManager leftControllerManager;
 
         /// <summary>
         /// The right top-level controller manager.
         /// </summary>
         [Tooltip("The right top-level controller manager.")]
-        public ActionBasedControllerManager rightControllerManager;
+        public ControllerInputActionManager rightControllerManager;
 
         /// <summary>
         /// The left UI ray interactor.
         /// </summary>
         [Tooltip("The left UI ray interactor.")]
-        public XRRayInteractor leftRayInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor leftNearFarInteractor;
 
         /// <summary>
         /// The right UI ray interactor.
         /// </summary>
         [Tooltip("The right UI ray interactor.")]
-        public XRRayInteractor rightRayInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor rightNearFarInteractor;
 
         /// <summary>
         /// The left teleport ray interactor.
         /// </summary>
         [Tooltip("The left teleport ray interactor.")]
-        public XRRayInteractor leftTeleportInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor leftTeleportInteractor;
 
         /// <summary>
         /// The right teleport ray interactor.
         /// </summary>
         [Tooltip("The right teleport ray interactor.")]
-        public XRRayInteractor rightTeleportInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor rightTeleportInteractor;
 
         /// <summary>
         /// The left poke interactor.
         /// </summary>
         [Tooltip("The left poke interactor.")]
-        public XRPokeInteractor leftPokeInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor leftPokeInteractor;
 
         /// <summary>
         /// The right poke interactor.
         /// </summary>
         [Tooltip("The right poke interactor.")]
-        public XRPokeInteractor rightPokeInteractor;
-
-        /// <summary>
-        /// The left direct interactor.
-        /// </summary>
-        [Tooltip("The left direct interactor.")]
-        public XRDirectInteractor leftDirectInteractor;
-
-        /// <summary>
-        /// The right direct interactor.
-        /// </summary>
-        [Tooltip("The right direct interactor.")]
-        public XRDirectInteractor rightDirectInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor rightPokeInteractor;
 
         /// <summary>
         /// The gaze interactor.
         /// </summary>
         [Tooltip("The gaze interactor.")]
-        public XRGazeInteractor gazeInteractor;
+        public UnityEngine.XR.Interaction.Toolkit.Interactors.XRGazeInteractor gazeInteractor;
 
         /// <summary>
         /// The input modality manager.
@@ -100,43 +88,43 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         /// The snap turn provider.
         /// </summary>
         [Tooltip("The snap turn provider.")]
-        public ActionBasedSnapTurnProvider snapTurnProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.SnapTurnProvider snapTurnProvider;
 
         /// <summary>
         /// The continuous turn provider.
         /// </summary>
         [Tooltip("The continuous turn provider.")]
-        public ActionBasedContinuousTurnProvider continuousTurnProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider continuousTurnProvider;
 
         /// <summary>
         /// The dynamic move provider.
         /// </summary>
         [Tooltip("The dynamic move provider.")]
-        public DynamicMoveProvider dynamicMoveProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.DynamicMoveProvider dynamicMoveProvider;
 
         /// <summary>
         /// The left grab move provider.
         /// </summary>
         [Tooltip("The left grab move provider.")]
-        public GrabMoveProvider leftGrabMoveProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.GrabMoveProvider leftGrabMoveProvider;
 
         /// <summary>
         /// The right grab move provider.
         /// </summary>
         [Tooltip("The right grab move provider.")]
-        public GrabMoveProvider rightGrabMoveProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.GrabMoveProvider rightGrabMoveProvider;
 
         /// <summary>
         /// The two handed grab move provider.
         /// </summary>
         [Tooltip("The two handed grab move provider.")]
-        public TwoHandedGrabMoveProvider twoHandedGrabMoveProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.TwoHandedGrabMoveProvider twoHandedGrabMoveProvider;
 
         /// <summary>
         /// The teleportation provider.
         /// </summary>
         [Tooltip("The teleportation provider.")]
-        public TeleportationProvider teleportationProvider;
+        public UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation.TeleportationProvider teleportationProvider;
 
         /// <summary>
         /// Origin of the rig.
@@ -168,7 +156,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             get
             {
-                if (leftRayInteractor.enabled == true)
+                if (leftNearFarInteractor.enabled == true)
                 {
                     return PointerMode.UI;
                 }
@@ -188,13 +176,13 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 {
                     case PointerMode.Teleport:
                         leftTeleportInteractor.enabled = true;
-                        leftRayInteractor.enabled = false;
+                        leftNearFarInteractor.enabled = false;
                         teleportationProvider.enabled = true;
                         break;
 
                     case PointerMode.UI:
                         leftTeleportInteractor.enabled = false;
-                        leftRayInteractor.enabled = true;
+                        leftNearFarInteractor.enabled = true;
                         if (rightPointerMode != PointerMode.Teleport)
                         {
                             teleportationProvider.enabled = false;
@@ -204,7 +192,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                     case PointerMode.None:
                     default:
                         leftTeleportInteractor.enabled = false;
-                        leftRayInteractor.enabled = false;
+                        leftNearFarInteractor.enabled = false;
                         if (rightPointerMode != PointerMode.Teleport)
                         {
                             teleportationProvider.enabled = false;
@@ -221,7 +209,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             get
             {
-                if (rightRayInteractor.enabled == true)
+                if (rightNearFarInteractor.enabled == true)
                 {
                     return PointerMode.UI;
                 }
@@ -241,13 +229,13 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 {
                     case PointerMode.Teleport:
                         rightTeleportInteractor.enabled = true;
-                        rightRayInteractor.enabled = false;
+                        rightNearFarInteractor.enabled = false;
                         teleportationProvider.enabled = true;
                         break;
 
                     case PointerMode.UI:
                         rightTeleportInteractor.enabled = false;
-                        rightRayInteractor.enabled = true;
+                        rightNearFarInteractor.enabled = true;
                         if (leftPointerMode != PointerMode.Teleport)
                         {
                             teleportationProvider.enabled = false;
@@ -257,7 +245,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                     case PointerMode.None:
                     default:
                         rightTeleportInteractor.enabled = false;
-                        rightRayInteractor.enabled = false;
+                        rightNearFarInteractor.enabled = false;
                         if (leftPointerMode != PointerMode.Teleport)
                         {
                             teleportationProvider.enabled = false;
@@ -287,7 +275,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 else
                 {
                     leftPokeInteractor.enabled = false;
-                    leftDirectInteractor.gameObject.SetActive(false);
+                    leftPokeInteractor.gameObject.SetActive(false);
                 }
             }
         }
@@ -312,7 +300,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 else
                 {
                     rightPokeInteractor.enabled = false;
-                    rightDirectInteractor.gameObject.SetActive(false);
+                    rightPokeInteractor.gameObject.SetActive(false);
                 }
             }
         }
@@ -324,18 +312,18 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             get
             {
-                return leftDirectInteractor.enabled;
+                return leftNearFarInteractor.enabled;
             }
 
             set
             {
                 if (value == true)
                 {
-                    leftDirectInteractor.enabled = true;
+                    leftNearFarInteractor.enabled = true;
                 }
                 else
                 {
-                    leftDirectInteractor.enabled = false;
+                    leftNearFarInteractor.enabled = false;
                 }
             }
         }
@@ -347,18 +335,18 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             get
             {
-                return rightDirectInteractor.enabled;
+                return rightNearFarInteractor.enabled;
             }
 
             set
             {
                 if (value == true)
                 {
-                    rightDirectInteractor.enabled = true;
+                    rightNearFarInteractor.enabled = true;
                 }
                 else
                 {
-                    rightDirectInteractor.enabled = false;
+                    rightNearFarInteractor.enabled = false;
                 }
             }
         }

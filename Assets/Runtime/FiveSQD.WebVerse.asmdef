@@ -13,7 +13,8 @@
         "GUID:e40ba710768534012815d3193fa296cb",
         "GUID:fe685ec1767f73d42b749ea8045bfe43",
         "GUID:dc960734dc080426fa6612f1c5fe95f3",
-        "GUID:8f07e33567e0ee542b40769c456c6b53"
+        "GUID:8f07e33567e0ee542b40769c456c6b53",
+        "GUID:cd6342e5cfb9a4035838bb5b11cd5ce0"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -23,7 +24,8 @@
         "Jint.dll",
         "Esprima.dll",
         "Newtonsoft.Json.dll",
-        "Mono.Data.Sqlite.dll"
+        "Mono.Data.Sqlite.dll",
+        "Acornima.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],
