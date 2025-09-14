@@ -10,9 +10,9 @@ using FiveSQD.WebVerse.Utilities;
 namespace FiveSQD.WebVerse.Runtime
 {
     /// <summary>
-    /// Class for Desktop Settings.
+    /// Class for Native Settings.
     /// </summary>
-    public class DesktopSettings : MonoBehaviour
+    public class NativeSettings : MonoBehaviour
     {
         /// <summary>
         /// Tutorial State.
@@ -105,7 +105,7 @@ namespace FiveSQD.WebVerse.Runtime
         private string dbPath;
 
         /// <summary>
-        /// Initialize Desktop Settings.
+        /// Initialize Native Settings.
         /// </summary>
         /// <param name="sqliteVersion">SQLite Version.</param>
         /// <param name="pathToDB">Path to Database.</param>
@@ -117,7 +117,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Terminate Desktop Settings.
+        /// Terminate Native Settings.
         /// </summary>
         public void Terminate()
         {
@@ -141,7 +141,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetHomeURL] Home URL not a string.");
+                Logging.LogWarning("[NativeSettings->GetHomeURL] Home URL not a string.");
                 return null;
             }
         }
@@ -164,7 +164,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(storageModeKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetStorageMode] Storage Mode not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetStorageMode] Storage Mode not set. Defaulting.");
                 SetStorageMode(defaultStorageMode);
                 return defaultStorageMode;
             }
@@ -172,7 +172,7 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 if ((string) rawResult != "persistent" && (string) rawResult != "cache")
                 {
-                    Logging.LogWarning("[DesktopSettings->GetStorageMode] Storage Mode invalid. Defaulting.");
+                    Logging.LogWarning("[NativeSettings->GetStorageMode] Storage Mode invalid. Defaulting.");
                     SetStorageMode(defaultStorageMode);
                     return defaultStorageMode;
                 }
@@ -180,7 +180,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetStorageMode] Storage Mode not a string. Defaulting");
+                Logging.LogWarning("[NativeSettings->GetStorageMode] Storage Mode not a string. Defaulting");
                 SetStorageMode(defaultStorageMode);
                 return defaultStorageMode;
             }
@@ -204,7 +204,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(maxStorageEntriesKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetMaxStorageEntries] Max Storage Entries not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetMaxStorageEntries] Max Storage Entries not set. Defaulting.");
                 SetMaxStorageEntries(defaultMaxStorageEntries);
                 return defaultMaxStorageEntries;
             }
@@ -215,7 +215,7 @@ namespace FiveSQD.WebVerse.Runtime
             else
             {
                 Logging.Log(rawResult.GetType().ToString());
-                Logging.LogWarning("[DesktopSettings->GetMaxStorageEntries] Max Storage Entries not a long. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetMaxStorageEntries] Max Storage Entries not a long. Defaulting.");
                 SetMaxStorageEntries(defaultMaxStorageEntries);
                 return defaultMaxStorageEntries;
             }
@@ -239,7 +239,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(maxStorageKeyLengthKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetMaxStorageKeyLength] Max Storage Key Length not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetMaxStorageKeyLength] Max Storage Key Length not set. Defaulting.");
                 SetMaxStorageKeyLength(defaultMaxStorageKeyLength);
                 return defaultMaxStorageKeyLength;
             }
@@ -249,7 +249,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetMaxStorageKeyLength] Max Storage Key Length not a long. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetMaxStorageKeyLength] Max Storage Key Length not a long. Defaulting.");
                 SetMaxStorageKeyLength(defaultMaxStorageKeyLength);
                 return defaultMaxStorageKeyLength;
             }
@@ -273,7 +273,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(maxStorageEntryLengthKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetMaxStorageEntryLength] Max Storage Entry Length not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetMaxStorageEntryLength] Max Storage Entry Length not set. Defaulting.");
                 SetMaxStorageEntryLength(defaultMaxStorageEntryLength);
                 return defaultMaxStorageEntryLength;
             }
@@ -283,7 +283,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetMaxStorageEntryLength] Max Storage Entry Length not a long. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetMaxStorageEntryLength] Max Storage Entry Length not a long. Defaulting.");
                 SetMaxStorageEntryLength(defaultMaxStorageEntryLength);
                 return defaultMaxStorageEntryLength;
             }
@@ -307,7 +307,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(cacheDirectoryKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetCacheDirectory] Cache Directory not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetCacheDirectory] Cache Directory not set. Defaulting.");
                 SetCacheDirectory(defaultCacheDirectory);
                 return defaultCacheDirectory;
             }
@@ -317,7 +317,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetCacheDirectory] Cache Directory not a string. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetCacheDirectory] Cache Directory not a string. Defaulting.");
                 SetCacheDirectory(defaultCacheDirectory);
                 return defaultCacheDirectory;
             }
@@ -341,7 +341,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(worldLoadTimeoutKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetWorldLoadTimeout] World Load Timeout not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetWorldLoadTimeout] World Load Timeout not set. Defaulting.");
                 SetWorldLoadTimeout(defaultWorldLoadTimeout);
                 return defaultWorldLoadTimeout;
             }
@@ -351,7 +351,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetWorldLoadTimeout] World Load Timeout not a long. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetWorldLoadTimeout] World Load Timeout not a long. Defaulting.");
                 SetWorldLoadTimeout(defaultWorldLoadTimeout);
                 return defaultWorldLoadTimeout;
             }
@@ -375,7 +375,7 @@ namespace FiveSQD.WebVerse.Runtime
             object rawResult = GetItem(tutorialStateKey);
             if (rawResult == null)
             {
-                Logging.LogWarning("[DesktopSettings->GetTutorialState] Tutorial State not set. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetTutorialState] Tutorial State not set. Defaulting.");
                 SetTutorialState((TutorialState) defaultTutorialState);
                 return defaultTutorialState;
             }
@@ -385,7 +385,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetTutorialState] Tutorial State not a long. Defaulting.");
+                Logging.LogWarning("[NativeSettings->GetTutorialState] Tutorial State not a long. Defaulting.");
                 SetTutorialState(defaultTutorialState);
                 return defaultTutorialState;
             }
@@ -461,7 +461,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopSettings->GetItem] More than 1 result found.");
+                Logging.LogWarning("[NativeSettings->GetItem] More than 1 result found.");
                 return readResults[0];
             }
 #endif

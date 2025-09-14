@@ -109,7 +109,7 @@ namespace FiveSQD.WebVerse.Runtime
             if (multibarEnabled)
             {
                 multibarHolder.SetActive(true);
-                desktopMultibar.Initialize(Multibar.MultibarMode.Desktop);
+                desktopMultibar.Initialize(Multibar.MultibarMode.Mobile);
             }
             else
             {

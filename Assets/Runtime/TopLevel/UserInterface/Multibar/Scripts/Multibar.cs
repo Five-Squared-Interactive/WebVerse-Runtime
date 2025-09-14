@@ -20,7 +20,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// <summary>
         /// Mode for Multibar.
         /// </summary>
-        public enum MultibarMode { Desktop = 0, VR = 1 }
+        public enum MultibarMode { Desktop = 0, VR = 1, Mobile = 2 }
 
         /// <summary>
         /// Whether or not the Multibar is VR.
@@ -180,7 +180,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// <summary>
         /// Settings.
         /// </summary>
-        private DesktopSettings settings;
+        private NativeSettings settings;
 
         /// <summary>
         /// Whether or not control is pressed.
@@ -192,7 +192,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// </summary>
         /// <param name="mode">Mode to initialize in.</param>
         /// <param name="settings">Settings.</param>
-        public void Initialize(MultibarMode mode, DesktopSettings settings = null)
+        public void Initialize(MultibarMode mode, NativeSettings settings = null)
         {
             rightClickMenu.SetActive(false);
             multibarDropdown.SetActive(false);
@@ -227,6 +227,10 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
                     InitializeDesktopMode();
                     break;
 
+                case MultibarMode.Mobile:
+                    InitializeMobileMode();
+                    break;
+
                 default:
                     Logging.LogError("[Multibar->Initialize] Invalid mode. Defaulting to desktop.");
                     InitializeDesktopMode();
@@ -250,9 +254,18 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
                     multibarInput.keyboard.SetActive(false);
                 }
             }
-            desktopToggleTooltip.SetActive(false);
-            vrToggleTooltip.SetActive(false);
-            multibarDropdown.SetActive(false);
+            if (desktopToggleTooltip != null)
+            {
+                desktopToggleTooltip.SetActive(false);
+            }
+            if (vrToggleTooltip != null)
+            {
+                vrToggleTooltip.SetActive(false);
+            }
+            if (multibarDropdown != null)
+            {
+                multibarDropdown.SetActive(false);
+            }
         }
 
         /// <summary>
@@ -682,7 +695,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
             {
                 if (settings != null)
                 {
-                    settings.SetTutorialState(DesktopSettings.TutorialState.DO_NOT_SHOW);
+                    settings.SetTutorialState(NativeSettings.TutorialState.DO_NOT_SHOW);
                 }
             }));
         }
@@ -703,6 +716,14 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         {
             desktopToggleTooltip.SetActive(false);
             vrToggleTooltip.SetActive(true);
+        }
+
+        /// <summary>
+        /// Initialize mobile mode.
+        /// </summary>
+        private void InitializeMobileMode()
+        {
+
         }
 
         /// <summary>

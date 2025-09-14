@@ -1,6 +1,5 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
-using System.Collections;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.Interface.MultibarMenu;
@@ -9,9 +8,9 @@ using UnityEngine;
 namespace FiveSQD.WebVerse.Runtime
 {
     /// <summary>
-    /// WebVerse Desktop Mode.
+    /// WebVerse Mobile Mode.
     /// </summary>
-    public class DesktopMode : MonoBehaviour
+    public class MobileMode : MonoBehaviour
     {
         /// <summary>
         /// Path to WebVerse settings file.
@@ -62,94 +61,46 @@ namespace FiveSQD.WebVerse.Runtime
         public string testWorldLoadTimeout;
 
         /// <summary>
-        /// Tutorial State to use in Unity Editor tests.
-        /// </summary>
-        [Tooltip("Tutorial State to use in Unity Editor tests.")]
-        public NativeSettings.TutorialState testTutorialState = NativeSettings.TutorialState.UNINITIALIZED;
-
-        /// <summary>
         /// WebVerse Runtime.
         /// </summary>
         [Tooltip("WebVerse Runtime.")]
         public WebVerseRuntime runtime;
 
         /// <summary>
-        /// Desktop Multibar.
+        /// Multibar.
         /// </summary>
-        [Tooltip("Desktop Multibar.")]
-        public Multibar desktopMultibar;
+        [Tooltip("Multibar.")]
+        public Multibar multibar;
 
         /// <summary>
-        /// VR Multibar.
+        /// Native Settings.
         /// </summary>
-        [Tooltip("VR Multibar;")]
-        public Multibar vrMultibar;
+        [Tooltip("Native Settings.")]
+        public NativeSettings nativeSettings;
 
         /// <summary>
-        /// Desktop Settings.
+        /// Native History.
         /// </summary>
-        [Tooltip("Desktop Settings.")]
-        public NativeSettings desktopSettings;
+        [Tooltip("Native History.")]
+        public NativeHistory nativeHistory;
 
         /// <summary>
-        /// Desktop History.
+        /// The Mobile Rig.
         /// </summary>
-        [Tooltip("Desktop History.")]
-        public NativeHistory desktopHistory;
+        [Tooltip("The Mobile Rig.")]
+        public GameObject mobileRig;
 
         /// <summary>
-        /// The Desktop Rig.
+        /// The Mobile Input.
         /// </summary>
-        [Tooltip("The Desktop Rig.")]
-        public GameObject desktopRig;
+        [Tooltip("The Mobile Input.")]
+        public GameObject mobileInput;
 
         /// <summary>
-        /// The VR Rig.
+        /// The Mobile Platform Input.
         /// </summary>
-        [Tooltip("The VR Rig.")]
-        public GameObject vrRig;
-
-        /// <summary>
-        /// The VR Camera.
-        /// </summary>
-        [Tooltip("The VR Camera.")]
-        public Camera desktopCamera;
-
-        /// <summary>
-        /// The Desktop Camera.
-        /// </summary>
-        [Tooltip("The Desktop Camera.")]
-        public Camera vrCamera;
-
-        /// <summary>
-        /// The top-level VR rig.
-        /// </summary>
-        [Tooltip("The top-level VR rig.")]
-        public GameObject topLevelVRRig;
-
-        /// <summary>
-        /// The Desktop Input.
-        /// </summary>
-        [Tooltip("The Desktop Input.")]
-        public GameObject desktopInput;
-
-        /// <summary>
-        /// The SteamVR Input.
-        /// </summary>
-        [Tooltip("The SteamVR Input.")]
-        public GameObject steamVRInput;
-
-        /// <summary>
-        /// The Desktop Platform Input.
-        /// </summary>
-        [Tooltip("The Desktop Platform Input.")]
-        public BasePlatformInput desktopPlatformInput;
-
-        /// <summary>
-        /// The VR Platform Input.
-        /// </summary>
-        [Tooltip("The VR Platform Input.")]
-        public BasePlatformInput vrPlatformInput;
+        [Tooltip("The Mobile Platform Input.")]
+        public BasePlatformInput mobilePlatformInput;
 
         /// <summary>
         /// Sky sphere follower.
@@ -157,87 +108,20 @@ namespace FiveSQD.WebVerse.Runtime
         [Tooltip("Sky sphere follower.")]
         public StraightFour.Environment.SkySphereFollower skySphereFollower;
 
-        /// <summary>
-        /// Whether or not VR is enabled.
-        /// </summary>
-        private bool vrEnabled;
-
-        /// <summary>
-        /// Enable VR.
-        /// </summary>
-        public void EnableVR()
-        {
-            vrEnabled = true;
-            vrMultibar.gameObject.SetActive(true);
-            StartCoroutine(EnableVRCoroutine());
-            desktopRig.SetActive(false);
-            vrRig.transform.position = desktopRig.transform.position;
-            vrRig.SetActive(true);
-            topLevelVRRig.SetActive(true);
-            desktopInput.SetActive(false);
-            steamVRInput.SetActive(true);
-            runtime.platformInput = vrPlatformInput;
-            runtime.inputManager.platformInput = vrPlatformInput;
-            runtime.vr = true;
-            vrMultibar.SetUpVRMultibarVRButton();
-            SetCanvasEventCamera(vrCamera);
-            skySphereFollower.transformToFollow = vrCamera.transform;
-        }
-
-        /// <summary>
-        /// Disable VR.
-        /// </summary>
-        public void DisableVR()
-        {
-            if (vrEnabled)
-            {
-                Logging.Log("[FocusedMode->DisableVR] Stopping XR...");
-                UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.StopSubsystems();
-                UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.DeinitializeLoader();
-                Logging.Log("[FocusedMode->DisableVR] XR stopped completely.");
-            }
-            vrEnabled = false;
-            vrMultibar.gameObject.SetActive(false);
-            vrRig.SetActive(false);
-            desktopRig.transform.position = vrRig.transform.position;
-            desktopRig.SetActive(true);
-            topLevelVRRig.SetActive(false);
-            desktopInput.SetActive(true);
-            steamVRInput.SetActive(false);
-            runtime.platformInput = desktopPlatformInput;
-            if (runtime.inputManager != null)
-            {
-                runtime.inputManager.platformInput = desktopPlatformInput;
-            }
-            runtime.vr = false;
-            desktopMultibar.SetUpDesktopMultibarVRButton(false);
-            SetCanvasEventCamera(desktopCamera);
-            skySphereFollower.transformToFollow = desktopCamera.transform;
-        }
-
         private void Awake()
         {
-            vrEnabled = false;
-            DisableVR();
-            desktopSettings.Initialize("3", settingsFilePath);
-            desktopHistory.Initialize("3", historyFilePath);
+            nativeSettings.Initialize("3", settingsFilePath);
+            nativeHistory.Initialize("3", historyFilePath);
 
             LoadRuntime();
 
-            desktopMultibar.Initialize(Multibar.MultibarMode.Desktop, desktopSettings);
-            vrMultibar.Initialize(Multibar.MultibarMode.VR, desktopSettings);
+            multibar.Initialize(Multibar.MultibarMode.Mobile, nativeSettings);
 
-            NativeSettings.TutorialState tutorialState = GetTutorialState();
-            if (tutorialState != NativeSettings.TutorialState.DO_NOT_SHOW)
-            {
-                desktopMultibar.Tutorial();
-            }
-
-            string homeURL = desktopSettings.GetHomeURL();
+            string homeURL = nativeSettings.GetHomeURL();
             if (!string.IsNullOrEmpty(homeURL))
             {
-                desktopMultibar.SetURL(homeURL);
-                desktopMultibar.Enter();
+                multibar.SetURL(homeURL);
+                multibar.Enter();
             }
         }
 
@@ -294,34 +178,6 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Enable VR in a coroutine.
-        /// </summary>
-        /// <returns>Coroutine.</returns>
-        private IEnumerator EnableVRCoroutine()
-        {
-            if (UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null )
-            {
-                UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.StopSubsystems();
-                UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.DeinitializeLoader();
-            }
-            
-            Logging.Log("[FocusedMode->EnableVRCoroutine] Initializing XR...");
-            yield return UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.InitializeLoader();
-
-            if (UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader == null)
-            {
-                Logging.LogError("[FocusedMode->EnableVRCoroutine] Initializing XR Failed. Check Editor or Player log for details.");
-                vrEnabled = false;
-                desktopMultibar.NoVR();
-            }
-            else
-            {
-                Logging.Log("[FocusedMode->EnableVRCoroutine] Starting XR...");
-                UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.StartSubsystems();
-            }
-        }
-
-        /// <summary>
         /// Sets the event camera for all canvas entities.
         /// </summary>
         /// <param name="eventCamera">Event camera to set all canvas entities' event camera to.</param>
@@ -351,7 +207,7 @@ namespace FiveSQD.WebVerse.Runtime
 #if UNITY_EDITOR
             storageMode = testStorageMode;
 #else
-            storageMode = desktopSettings.GetStorageMode();
+            storageMode = nativeSettings.GetStorageMode();
 #endif
             if (storageMode.ToLower() == "persistent")
             {
@@ -378,7 +234,7 @@ namespace FiveSQD.WebVerse.Runtime
 #if UNITY_EDITOR
             return uint.Parse(testMaxEntries);
 #else
-            return desktopSettings.GetMaxStorageEntries();
+            return nativeSettings.GetMaxStorageEntries();
 #endif
         }
 
@@ -392,7 +248,7 @@ namespace FiveSQD.WebVerse.Runtime
 #if UNITY_EDITOR
             return uint.Parse(testMaxEntryLength);
 #else
-            return desktopSettings.GetMaxStorageEntryLength();
+            return nativeSettings.GetMaxStorageEntryLength();
 #endif
         }
 
@@ -406,7 +262,7 @@ namespace FiveSQD.WebVerse.Runtime
 #if UNITY_EDITOR
             return uint.Parse(testMaxKeyLength);
 #else
-            return desktopSettings.GetMaxStorageKeyLength();
+            return nativeSettings.GetMaxStorageKeyLength();
 #endif
         }
 
@@ -420,7 +276,7 @@ namespace FiveSQD.WebVerse.Runtime
 #if UNITY_EDITOR
             return testFilesDirectory;
 #else
-            return desktopSettings.GetCacheDirectory();
+            return nativeSettings.GetCacheDirectory();
 #endif
         }
 
@@ -434,21 +290,7 @@ namespace FiveSQD.WebVerse.Runtime
 #if UNITY_EDITOR
             return float.Parse(testWorldLoadTimeout);
 #else
-            return desktopSettings.GetWorldLoadTimeout();
-#endif
-        }
-
-        /// <summary>
-        /// Get the Tutorial State, provided by settings file in built app, and by 'testTutorialState'
-        /// variable in Editor mode.
-        /// </summary>
-        /// <returns>Tutorial State.</returns>
-        private NativeSettings.TutorialState GetTutorialState()
-        {
-#if UNITY_EDITOR
-            return testTutorialState;
-#else
-            return desktopSettings.GetTutorialState();
+            return nativeSettings.GetWorldLoadTimeout();
 #endif
         }
     }

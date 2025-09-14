@@ -11,9 +11,9 @@ using System;
 namespace FiveSQD.WebVerse.Runtime
 {
     /// <summary>
-    /// Class for Desktop History.
+    /// Class for Native History.
     /// </summary>
-    public class DesktopHistory : MonoBehaviour
+    public class NativeHistory : MonoBehaviour
     {
         /// <summary>
         /// Version number for sqlite.
@@ -26,7 +26,7 @@ namespace FiveSQD.WebVerse.Runtime
         private string dbPath;
 
         /// <summary>
-        /// Initialize Desktop History.
+        /// Initialize Native History.
         /// </summary>
         /// <param name="sqliteVersion">SQLite version.</param>
         /// <param name="pathToDB">Path to SQLite database.</param>
@@ -38,7 +38,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Terminate Desktop History.
+        /// Terminate Native History.
         /// </summary>
         public void Terminate()
         {
@@ -46,7 +46,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Clear Desktop History.
+        /// Clear Native History.
         /// </summary>
         public void ClearHistory()
         {
@@ -54,7 +54,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Add Item to Desktop History.
+        /// Add Item to Native History.
         /// </summary>
         /// <param name="timestamp">Timestamp.</param>
         /// <param name="siteName">Site name.</param>
@@ -65,9 +65,9 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get All Items from Desktop History.
+        /// Get All Items from Native History.
         /// </summary>
-        /// <returns>Array of Desktop History Entries, Each Containing Timestamp, Site Name, and Site URL.</returns>
+        /// <returns>Array of Native History Entries, Each Containing Timestamp, Site Name, and Site URL.</returns>
         public Tuple<DateTime, string, string>[] GetAllItemsFromHistory()
         {
             Tuple<long, string, string>[] items = GetAllItems();
@@ -91,7 +91,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Set an Item in Desktop History.
+        /// Set an Item in Native History.
         /// </summary>
         /// <param name="timestamp">Entry timestamp.</param>
         /// <param name="siteName">Entry site name.</param>
@@ -120,7 +120,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Get an Item from Desktop History.
+        /// Get an Item from Native History.
         /// </summary>
         /// <param name="timestamp">Entry timestamp.</param>
         /// <returns>The entry corresponding to the timestamp, or null if none exist.</returns>
@@ -153,14 +153,14 @@ namespace FiveSQD.WebVerse.Runtime
             }
             else
             {
-                Logging.LogWarning("[DesktopHistory->GetItem] More than 1 result found.");
+                Logging.LogWarning("[NativeHistory->GetItem] More than 1 result found.");
                 return readResults[0];
             }
 #endif
         }
 
         /// <summary>
-        /// Get all Items from Desktop History.
+        /// Get all Items from Native History.
         /// </summary>
         /// <returns>All entries, or null if none exist.</returns>
         private Tuple<long, string, string>[] GetAllItems()
@@ -194,7 +194,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Remove an Item from Desktop History.
+        /// Remove an Item from Native History.
         /// </summary>
         /// <param name="timestamp">Entry timestamp.</param>
         private void RemoveItem(long timestamp)
@@ -214,7 +214,7 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
-        /// Remove all Items from Desktop History.
+        /// Remove all Items from Native History.
         /// </summary>
         private void RemoveAllItems()
         {
