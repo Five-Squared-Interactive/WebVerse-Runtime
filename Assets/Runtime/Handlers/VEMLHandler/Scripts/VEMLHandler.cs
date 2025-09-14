@@ -2294,7 +2294,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
 
                 StraightFour.StraightFour.ActiveWorld.entityManager.LoadTerrainEntity(
                     (float) entity.length, (float) entity.width, (float) entity.height,
-                    heights, layers.ToArray(), VEMLUtilities.ParseCSVLayerMasksToInternalFormat(entity.layermasks), null, positionValue, rotationValue, Guid.Parse(entity.id),
+                    heights, layers.ToArray(), VEMLUtilities.ParseCSVLayerMasksToInternalFormat(entity.layermasks), null, positionValue, rotationValue, false, Guid.Parse(entity.id),
                     entity.tag, onLoadEvent);
             }
             else if (entity.type == "voxel")
@@ -2338,7 +2338,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     layers.ToArray(), VEMLUtilities.ParseCSVLayerMasks(entity.layermasks), null,
                     new Javascript.APIs.WorldTypes.Vector3(positionValue.x, positionValue.y, positionValue.z),
                     new Javascript.APIs.WorldTypes.Quaternion(rotationValue.x, rotationValue.y, rotationValue.z, rotationValue.w),
-                    entity.id, entity.tag, onLoadEvent);
+                    false, entity.id, entity.tag, onLoadEvent);
             }
 
             return true;

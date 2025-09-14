@@ -22,40 +22,102 @@ namespace FiveSQD.WebVerse.Utilities
         private static List<Action<string, Type>> callbacks = new List<Action<string, Type>>();
 
         /// <summary>
+        /// Current logging configuration.
+        /// </summary>
+        private static LoggingConfiguration configuration = LoggingConfiguration.CreateDefault();
+
+        /// <summary>
+        /// Set the logging configuration.
+        /// </summary>
+        /// <param name="config">The logging configuration to use.</param>
+        public static void SetConfiguration(LoggingConfiguration config)
+        {
+            configuration = config;
+        }
+
+        /// <summary>
+        /// Get the current logging configuration.
+        /// </summary>
+        /// <returns>Current logging configuration.</returns>
+        public static LoggingConfiguration GetConfiguration()
+        {
+            return configuration;
+        }
+
+        /// <summary>
+        /// Check if a log type is enabled based on current configuration.
+        /// </summary>
+        /// <param name="type">The log type to check.</param>
+        /// <returns>True if the log type is enabled, false otherwise.</returns>
+        public static bool IsLogTypeEnabled(Type type)
+        {
+            switch (type)
+            {
+                case Type.Default:
+                    return configuration.enableDefault;
+                case Type.Debug:
+                    return configuration.enableDebug;
+                case Type.Warning:
+                    return configuration.enableWarning;
+                case Type.Error:
+                    return configuration.enableError;
+                case Type.ScriptDefault:
+                    return configuration.enableScriptDefault;
+                case Type.ScriptDebug:
+                    return configuration.enableScriptDebug;
+                case Type.ScriptWarning:
+                    return configuration.enableScriptWarning;
+                case Type.ScriptError:
+                    return configuration.enableScriptError;
+                default:
+                    return true;
+            }
+        }
+
+        /// <summary>
         /// Log a message.
         /// </summary>
         /// <param name="message">Message to log.</param>
         /// <param name="type">Type of the message.</param>
         public static void Log(string message, Type type = Type.Default)
         {
-            // Forward to Unity's Logging System.
-            switch (type)
+            // Check if this log type is enabled
+            if (!IsLogTypeEnabled(type))
             {
-                case Type.Debug:
-                    // TODO: Only in development build.
-                    Debug.Log(message);
-                    break;
-
-                case Type.Warning:
-                    Debug.LogWarning(message);
-                    break;
-
-                case Type.Error:
-                    Debug.LogError(message);
-                    break;
-
-                case Type.Default:
-                default:
-                    Debug.Log(message);
-                    break;
+                return;
             }
 
-            // Forward to callbacks.
-            foreach (Action<string, Type> callback in callbacks)
+            // Forward to Unity's Logging System only if console output is enabled.
+            if (configuration.enableConsoleOutput)
             {
-                if (callback != null)
+                switch (type)
                 {
-                    callback.Invoke(message, type);
+                    case Type.Debug:
+                        // TODO: Only in development build.
+                        Debug.Log(message);
+                        break;
+
+                    case Type.Warning:
+                        Debug.LogWarning(message);
+                        break;
+
+                    case Type.Error:
+                        Debug.LogError(message);
+                        break;
+
+                    case Type.Default:
+                    default:
+                        Debug.Log(message);
+                        break;
+                }
+
+                // Forward to callbacks.
+                foreach (Action<string, Type> callback in callbacks)
+                {
+                    if (callback != null)
+                    {
+                        callback.Invoke(message, type);
+                    }
                 }
             }
         }

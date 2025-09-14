@@ -114,6 +114,11 @@ namespace FiveSQD.WebVerse.Runtime
             /// World Load Timeout.
             /// </summary>
             public float timeout;
+
+            /// <summary>
+            /// Logging configuration.
+            /// </summary>
+            public LoggingConfiguration loggingConfiguration;
         }
 
         /// <summary>
@@ -450,6 +455,9 @@ namespace FiveSQD.WebVerse.Runtime
         /// <param name="settings">The runtime settings to use.</param>
         public void Initialize(RuntimeSettings settings)
         {
+            // Apply logging configuration first
+            Logging.SetConfiguration(settings.loggingConfiguration);
+
             LocalStorageManager.LocalStorageMode mode = LocalStorageManager.LocalStorageMode.Uninitialized;
             if (settings.storageMode.ToLower() == "cache")
             {
@@ -495,9 +503,10 @@ namespace FiveSQD.WebVerse.Runtime
         /// <param name="maxKeyLength">Maximum length of a storage entry key.</param>
         /// <param name="filesDirectory">Directory to use for files.</param>
         /// <param name="timeout">World Load Timeout.</param>
+        /// <param name="loggingConfiguration">Logging configuration to use. If not provided, uses default configuration.</param>
         public void Initialize(LocalStorageManager.LocalStorageMode storageMode,
             int maxEntries, int maxEntryLength, int maxKeyLength, string filesDirectory,
-            float timeout = 120)
+            float timeout = 120, LoggingConfiguration? loggingConfiguration = null)
         {
             if (Instance != null)
             {
@@ -506,6 +515,16 @@ namespace FiveSQD.WebVerse.Runtime
             }
 
             Instance = this;
+
+            // Apply logging configuration
+            if (loggingConfiguration.HasValue)
+            {
+                Logging.SetConfiguration(loggingConfiguration.Value);
+            }
+            else
+            {
+                Logging.SetConfiguration(LoggingConfiguration.CreateDefault());
+            }
 
             InitializeComponents(storageMode, maxEntries, maxEntryLength,
                 maxKeyLength, filesDirectory, timeout);
@@ -629,6 +648,13 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 state = RuntimeState.LoadingWorld;
                 currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
+                StraightFour.Utilities.LoggingConfig loggingConfig = new StraightFour.Utilities.LoggingConfig()
+                {
+                    enableDebug = Logging.GetConfiguration().enableDebug,
+                    enableError = Logging.GetConfiguration().enableError,
+                    enableWarning = Logging.GetConfiguration().enableWarning,
+                    enableDefault = Logging.GetConfiguration().enableDefault
+                };
                 StraightFour.StraightFour.LoadWorld(title, queryParams);
                 vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete);
             };

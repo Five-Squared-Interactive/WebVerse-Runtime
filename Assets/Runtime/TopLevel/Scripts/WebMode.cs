@@ -55,6 +55,36 @@ namespace FiveSQD.WebVerse.Runtime
         public string testMultibarEnabled = "true";
 
         /// <summary>
+        /// Logging Configuration to use in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Logging Configuration to use in Unity Editor tests.")]
+        public bool testLoggingEnableConsoleOutput = true;
+
+        /// <summary>
+        /// Enable default logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable default logging in Unity Editor tests.")]
+        public bool testLoggingEnableDefault = true;
+
+        /// <summary>
+        /// Enable debug logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable debug logging in Unity Editor tests.")]
+        public bool testLoggingEnableDebug = true;
+
+        /// <summary>
+        /// Enable warning logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable warning logging in Unity Editor tests.")]
+        public bool testLoggingEnableWarning = true;
+
+        /// <summary>
+        /// Enable error logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable error logging in Unity Editor tests.")]
+        public bool testLoggingEnableError = true;
+
+        /// <summary>
         /// WebVerse Runtime.
         /// </summary>
         [Tooltip("WebVerse Runtime.")]
@@ -163,8 +193,10 @@ namespace FiveSQD.WebVerse.Runtime
                 worldLoadTimeout = 120;
             }
 
+            LoggingConfiguration loggingConfig = GetLoggingConfiguration();
+
             runtime.Initialize(LocalStorage.LocalStorageManager.LocalStorageMode.Cache,
-                maxEntries, maxEntryLength, maxKeyLength, filesDirectory, worldLoadTimeout);
+                maxEntries, maxEntryLength, maxKeyLength, filesDirectory, worldLoadTimeout, loggingConfig);
 
             if (!string.IsNullOrEmpty(worldURL))
             {
@@ -358,7 +390,7 @@ namespace FiveSQD.WebVerse.Runtime
                 }
             }
 #endif
-            
+
             return worldURL;
         }
 
@@ -436,6 +468,74 @@ namespace FiveSQD.WebVerse.Runtime
 #endif
 
             return multibarEnabled.ToLower() == "true" ? true : false;
+        }
+        
+        /// <summary>
+        /// Get the Logging Configuration, provided by URL query parameters in built app, and by test variables
+        /// in Editor mode.
+        /// </summary>
+        /// <returns>Logging Configuration.</returns>
+        private LoggingConfiguration GetLoggingConfiguration()
+        {
+#if UNITY_EDITOR
+            return new LoggingConfiguration
+            {
+                enableConsoleOutput = testLoggingEnableConsoleOutput,
+                enableDefault = testLoggingEnableDefault,
+                enableDebug = testLoggingEnableDebug,
+                enableWarning = testLoggingEnableWarning,
+                enableError = testLoggingEnableError,
+                enableScriptDefault = testLoggingEnableDefault,
+                enableScriptDebug = testLoggingEnableDebug,
+                enableScriptWarning = testLoggingEnableWarning,
+                enableScriptError = testLoggingEnableError
+            };
+#elif UNITY_WEBGL
+            // For WebGL, get configuration from URL parameters
+            LoggingConfiguration config = LoggingConfiguration.CreateDefault();
+            
+            int queryStart = Application.absoluteURL.IndexOf("?") + 1;
+            if (queryStart > 1 && queryStart < Application.absoluteURL.Length - 1)
+            {
+                string query = Application.absoluteURL.Substring(queryStart);
+                
+                string[] sections = query.Split(new char[] { '&' }, System.StringSplitOptions.RemoveEmptyEntries);
+                foreach (string section in sections)
+                {
+                    string[] keyValue = section.Split('=');
+                    if (keyValue.Length >= 2)
+                    {
+                        string key = keyValue[0].ToLower();
+                        string value = keyValue[1].ToLower();
+                        bool boolValue = value == "true";
+                        
+                        switch (key)
+                        {
+                            case "logging_console_output":
+                                config.enableConsoleOutput = boolValue;
+                                break;
+                            case "logging_enable_default":
+                                config.enableDefault = boolValue;
+                                break;
+                            case "logging_enable_debug":
+                                config.enableDebug = boolValue;
+                                break;
+                            case "logging_enable_warning":
+                                config.enableWarning = boolValue;
+                                break;
+                            case "logging_enable_error":
+                                config.enableError = boolValue;
+                                break;
+                        }
+                    }
+                }
+            }
+            
+            return config;
+#else
+            // In other builds, use production configuration
+            return LoggingConfiguration.CreateProduction();
+#endif
         }
     }
 }

@@ -68,6 +68,36 @@ namespace FiveSQD.WebVerse.Runtime
         public DesktopSettings.TutorialState testTutorialState = DesktopSettings.TutorialState.UNINITIALIZED;
 
         /// <summary>
+        /// Logging Configuration to use in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Logging Configuration to use in Unity Editor tests.")]
+        public bool testLoggingEnableConsoleOutput = true;
+
+        /// <summary>
+        /// Enable default logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable default logging in Unity Editor tests.")]
+        public bool testLoggingEnableDefault = true;
+
+        /// <summary>
+        /// Enable debug logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable debug logging in Unity Editor tests.")]
+        public bool testLoggingEnableDebug = true;
+
+        /// <summary>
+        /// Enable warning logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable warning logging in Unity Editor tests.")]
+        public bool testLoggingEnableWarning = true;
+
+        /// <summary>
+        /// Enable error logging in Unity Editor tests.
+        /// </summary>
+        [Tooltip("Enable error logging in Unity Editor tests.")]
+        public bool testLoggingEnableError = true;
+
+        /// <summary>
         /// WebVerse Runtime.
         /// </summary>
         [Tooltip("WebVerse Runtime.")]
@@ -289,8 +319,10 @@ namespace FiveSQD.WebVerse.Runtime
                 worldLoadTimeout = 120;
             }
 
+            LoggingConfiguration loggingConfig = GetLoggingConfiguration();
+
             runtime.Initialize(storageMode, (int) maxEntries, (int) maxEntryLength, (int) maxKeyLength,
-                filesDirectory, worldLoadTimeout);
+                filesDirectory, worldLoadTimeout, loggingConfig);
         }
 
         /// <summary>
@@ -449,6 +481,32 @@ namespace FiveSQD.WebVerse.Runtime
             return testTutorialState;
 #else
             return desktopSettings.GetTutorialState();
+#endif
+        }
+
+        /// <summary>
+        /// Get the Logging Configuration, provided by settings file in built app, and by test variables
+        /// in Editor mode.
+        /// </summary>
+        /// <returns>Logging Configuration.</returns>
+        private LoggingConfiguration GetLoggingConfiguration()
+        {
+#if UNITY_EDITOR
+            return new LoggingConfiguration
+            {
+                enableConsoleOutput = testLoggingEnableConsoleOutput,
+                enableDefault = testLoggingEnableDefault,
+                enableDebug = testLoggingEnableDebug,
+                enableWarning = testLoggingEnableWarning,
+                enableError = testLoggingEnableError,
+                enableScriptDefault = testLoggingEnableDefault,
+                enableScriptDebug = testLoggingEnableDebug,
+                enableScriptWarning = testLoggingEnableWarning,
+                enableScriptError = testLoggingEnableError
+            };
+#else
+            // In production, use a more conservative configuration
+            return LoggingConfiguration.CreateProduction();
 #endif
         }
     }

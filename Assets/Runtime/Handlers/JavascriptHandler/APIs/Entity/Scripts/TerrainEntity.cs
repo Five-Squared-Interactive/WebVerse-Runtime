@@ -35,7 +35,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <returns>The heightmap terrain entity object.</returns>
         public static TerrainEntity CreateHeightmap(BaseEntity parent, float length, float width, float height, float[][] heights,
             TerrainEntityLayer[] layers, TerrainEntityLayerMaskCollection layerMasks, Vector3 position, Quaternion rotation,
-            string id = null, string tag = null, string onLoaded = null)
+            string id = null, string tag = null, string onLoaded = null, bool stitchTerrains = false)
         {
             Guid guid;
             if (string.IsNullOrEmpty(id))
@@ -87,7 +87,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             };
 
             StraightFour.StraightFour.ActiveWorld.entityManager.LoadTerrainEntity(length, width, height, heights,
-                convertedLayers.ToArray(), convertedLayerMasks, pBE, pos, rot, guid, tag, onLoadAction);
+                convertedLayers.ToArray(), convertedLayerMasks, pBE, pos, rot, stitchTerrains, guid, tag, onLoadAction);
 
             return te;
         }
@@ -112,10 +112,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <returns>The hybrid terrain entity object.</returns>
         public static TerrainEntity CreateHybrid(BaseEntity parent, float length, float width, float height, float[][] heights,
             TerrainEntityLayer[] layers, TerrainEntityLayerMaskCollection layerMasks, TerrainEntityModification[] modifications,
-            Vector3 position, Quaternion rotation, string id = null, string tag = null, string onLoaded = null)
+            Vector3 position, Quaternion rotation, string id = null, string tag = null, string onLoaded = null, bool stitchTerrains = false)
         {
             return EntityAPIHelper.LoadHybridTerrainEntityAsync(parent, length, width, height, heights,
-                layers, layerMasks, modifications, position, rotation, id, tag, onLoaded);
+                layers, layerMasks, modifications, position, rotation, stitchTerrains, id, tag, onLoaded);
         }
 
         /// <summary>

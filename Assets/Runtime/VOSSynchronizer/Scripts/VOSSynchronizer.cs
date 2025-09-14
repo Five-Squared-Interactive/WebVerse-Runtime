@@ -2054,7 +2054,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                             addTerrainEntityMessage.width, addTerrainEntityMessage.height, addTerrainEntityMessage.heights,
                             layers.ToArray(), Handlers.VEML.VEMLUtilities.ParseCSVLayerMasksToInternalFormat(addTerrainEntityMessage.layerMask),
                             parentEntity, ToOffsetPosition(addTerrainEntityMessage.position.ToVector3()),
-                            addTerrainEntityMessage.rotation.ToQuaternion(), Guid.Parse(addTerrainEntityMessage.id),
+                            addTerrainEntityMessage.rotation.ToQuaternion(), false, Guid.Parse(addTerrainEntityMessage.id),
                             addTerrainEntityMessage.tag, null);
                     }
                     else if (addTerrainEntityMessage.type == "voxel")
@@ -2139,7 +2139,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                             formattedMods.ToArray(), ToOffsetPosition(addTerrainEntityMessage.position.ToAPIVector3()),
                             new Handlers.Javascript.APIs.WorldTypes.Quaternion(addTerrainEntityMessage.rotation.x,
                                 addTerrainEntityMessage.rotation.y, addTerrainEntityMessage.rotation.z, addTerrainEntityMessage.rotation.w),
-                            addTerrainEntityMessage.id, addTerrainEntityMessage.tag, null);
+                                false, addTerrainEntityMessage.id, addTerrainEntityMessage.tag, null);
                     }
                     else
                     {
@@ -3071,7 +3071,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                         entityInfo.width, entityInfo.height, entityInfo.heights, layers.ToArray(),
                             Handlers.VEML.VEMLUtilities.ParseCSVLayerMasksToInternalFormat(entityInfo.layerMask), parentEntity,
                             ToOffsetPosition(entityInfo.position.ToVector3()), entityInfo.rotation.ToQuaternion(),
-                            Guid.Parse(entityInfo.id), null);
+                            false, Guid.Parse(entityInfo.id), null);
                         ne = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(Guid.Parse(entityInfo.id));
                     }
                     else if (entityInfo.subType == "voxel")
@@ -3158,7 +3158,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                                 entityInfo.position.y, entityInfo.position.z)),
                             new Handlers.Javascript.APIs.WorldTypes.Quaternion(entityInfo.rotation.x,
                                 entityInfo.rotation.y, entityInfo.rotation.z, entityInfo.rotation.w),
-                            entityInfo.id, entityInfo.tag, null);
+                                false, entityInfo.id, entityInfo.tag, null);
                         ne = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(Guid.Parse(entityInfo.id));
                     }
 
