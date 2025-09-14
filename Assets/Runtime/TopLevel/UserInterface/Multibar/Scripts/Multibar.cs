@@ -731,8 +731,14 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// </summary>
         private void CloseAllMenus()
         {
-            desktopToggleTooltip.SetActive(false);
-            vrToggleTooltip.SetActive(false);
+            if (desktopToggleTooltip != null)
+            {
+                desktopToggleTooltip.SetActive(false);
+            }
+            if (vrToggleTooltip != null)
+            {
+                vrToggleTooltip.SetActive(false);
+            }
             multibarDropdown.SetActive(false);
             if (historyMenu != null) historyMenu.SetActive(false);
             if (settingsMenu != null) settingsMenu.SetActive(false);
