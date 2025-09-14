@@ -65,7 +65,7 @@ namespace FiveSQD.WebVerse.Runtime
         /// Tutorial State to use in Unity Editor tests.
         /// </summary>
         [Tooltip("Tutorial State to use in Unity Editor tests.")]
-        public DesktopSettings.TutorialState testTutorialState = DesktopSettings.TutorialState.UNINITIALIZED;
+        public NativeSettings.TutorialState testTutorialState = NativeSettings.TutorialState.UNINITIALIZED;
 
         /// <summary>
         /// Logging Configuration to use in Unity Editor tests.
@@ -119,13 +119,13 @@ namespace FiveSQD.WebVerse.Runtime
         /// Desktop Settings.
         /// </summary>
         [Tooltip("Desktop Settings.")]
-        public DesktopSettings desktopSettings;
+        public NativeSettings desktopSettings;
 
         /// <summary>
         /// Desktop History.
         /// </summary>
         [Tooltip("Desktop History.")]
-        public DesktopHistory desktopHistory;
+        public NativeHistory desktopHistory;
 
         /// <summary>
         /// The Desktop Rig.
@@ -257,8 +257,8 @@ namespace FiveSQD.WebVerse.Runtime
             desktopMultibar.Initialize(Multibar.MultibarMode.Desktop, desktopSettings);
             vrMultibar.Initialize(Multibar.MultibarMode.VR, desktopSettings);
 
-            DesktopSettings.TutorialState tutorialState = GetTutorialState();
-            if (tutorialState != DesktopSettings.TutorialState.DO_NOT_SHOW)
+            NativeSettings.TutorialState tutorialState = GetTutorialState();
+            if (tutorialState != NativeSettings.TutorialState.DO_NOT_SHOW)
             {
                 desktopMultibar.Tutorial();
             }
@@ -475,7 +475,7 @@ namespace FiveSQD.WebVerse.Runtime
         /// variable in Editor mode.
         /// </summary>
         /// <returns>Tutorial State.</returns>
-        private DesktopSettings.TutorialState GetTutorialState()
+        private NativeSettings.TutorialState GetTutorialState()
         {
 #if UNITY_EDITOR
             return testTutorialState;
