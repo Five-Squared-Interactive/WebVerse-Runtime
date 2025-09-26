@@ -28,7 +28,7 @@ jobs:
         projectPath:
           - .
         unityVersion:
-          - 2021.3.26f1
+          - 6000.0.35f1
         testMode:
           - playmode
     steps:
@@ -45,14 +45,14 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: ${{ matrix.testMode }} Test Results
           coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;generateBadgeReport;assemblyFilters:+my.assembly.*'
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: actions/cache@v2
         with:
           projectPath: .
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: actions/upload-artifact@v2
         if: always()
         with:
@@ -79,28 +79,28 @@ jobs:
           fetch-depth: 0
           lfs: true
           projectPath: Unity/
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: actions/cache@v2
         with:
           projectPath: Unity/
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: game-ci/unity-builder@v2
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           projectPath: Unity/
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWebGL
       - uses: actions/upload-artifact@v2
         with:
           projectPath: Unity/
           name: Lightweight-${{ matrix.targetPlatform }}
           path: build/lightweight/${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
   build-windows-focused-desktop:
     needs: unit-tests
     runs-on: ubuntu-latest
@@ -115,28 +115,28 @@ jobs:
           fetch-depth: 0
           lfs: true
           projectPath: Unity/
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: actions/cache@v2
         with:
           projectPath: Unity/
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: game-ci/unity-builder@v2
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           projectPath: Unity/
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWindowsFocusedMode
       - uses: actions/upload-artifact@v2
         with:
           projectPath: Unity/
           name: Focused-${{ matrix.targetPlatform }}
           path: build/focused-desktop/${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
   build-windows-focused-steamvr:
     needs: unit-tests
     runs-on: ubuntu-latest
@@ -151,25 +151,25 @@ jobs:
           fetch-depth: 0
           lfs: true
           projectPath: Unity/
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: actions/cache@v2
         with:
           projectPath: Unity/
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
       - uses: game-ci/unity-builder@v2
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           projectPath: Unity/
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWindowsFocusedModeSteamVR
       - uses: actions/upload-artifact@v2
         with:
           projectPath: Unity/
           name: FocusedSteamVR-${{ matrix.targetPlatform }}
           path: build/focused-steamvr/${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
