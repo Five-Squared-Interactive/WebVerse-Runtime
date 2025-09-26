@@ -28,7 +28,7 @@ jobs:
         projectPath:
           - .
         unityVersion:
-          - 6000.0.35f1
+          - 2023.3.21f1
         testMode:
           - playmode
     steps:
@@ -45,7 +45,7 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: ${{ matrix.testMode }} Test Results
           coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;generateBadgeReport;assemblyFilters:+my.assembly.*'
-          unityVersion: 6000.0.35f1
+          unityVersion: 2023.3.21f1
       - uses: actions/cache@v4
         with:
           path: Library
@@ -84,7 +84,7 @@ jobs:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 6000.0.35f1
+          unityVersion: 2023.3.21f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWebGL
       - uses: actions/upload-artifact@v4
         with:
@@ -113,7 +113,7 @@ jobs:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 6000.0.35f1
+          unityVersion: 2023.3.21f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWindowsFocusedMode
       - uses: actions/upload-artifact@v4
         with:
@@ -142,7 +142,7 @@ jobs:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 6000.0.35f1
+          unityVersion: 2023.3.21f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWindowsFocusedModeSteamVR
       - uses: actions/upload-artifact@v4
         with:
