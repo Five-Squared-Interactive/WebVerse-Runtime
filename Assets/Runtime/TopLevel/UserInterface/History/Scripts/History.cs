@@ -15,9 +15,9 @@ namespace FiveSQD.WebVerse.Interface.History
     public class History : MonoBehaviour
     {
         /// <summary>
-        /// The desktop mode script.
+        /// The native history script.
         /// </summary>
-        public DesktopMode desktopMode;
+        public NativeHistory nativeHistory;
 
         /// <summary>
         /// Prefab for a history button.
@@ -73,7 +73,7 @@ namespace FiveSQD.WebVerse.Interface.History
         /// </summary>
         private void SetUpHistoryButtons()
         {
-            Tuple<DateTime, string, string>[] history = desktopMode.desktopHistory.GetAllItemsFromHistory();
+            Tuple<DateTime, string, string>[] history = nativeHistory.GetAllItemsFromHistory();
             foreach (Tuple<DateTime, string, string> historyItem in history)
             {
                 GameObject newHistoryButton = Instantiate(historyButtonPrefab);

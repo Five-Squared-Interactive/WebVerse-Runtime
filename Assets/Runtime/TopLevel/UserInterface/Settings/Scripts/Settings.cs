@@ -15,7 +15,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
         /// <summary>
         /// Desktop mode script.
         /// </summary>
-        public DesktopMode desktopMode;
+        public NativeSettings nativeSettings;
 
         /// <summary>
         /// Home URL input.
@@ -57,8 +57,8 @@ namespace FiveSQD.WebVerse.Interface.Settings
         /// </summary>
         public void Initialize()
         {
-            homeURLInput.text = desktopMode.desktopSettings.GetHomeURL();
-            string storageMode = desktopMode.desktopSettings.GetStorageMode();
+            homeURLInput.text = nativeSettings.GetHomeURL();
+            string storageMode = nativeSettings.GetStorageMode();
             if (storageMode == "persistent")
             {
                 storageModeDropdown.value = 0;
@@ -71,11 +71,11 @@ namespace FiveSQD.WebVerse.Interface.Settings
             {
                 Logging.LogError("[Settings->Initialize] Invalid Storage Mode.");
             }
-            maxStorageEntriesInput.text = desktopMode.desktopSettings.GetMaxStorageEntries().ToString();
-            maxStorageKeyLengthInput.text = desktopMode.desktopSettings.GetMaxStorageKeyLength().ToString();
-            maxStorageEntryLengthInput.text = desktopMode.desktopSettings.GetMaxStorageEntryLength().ToString();
-            cacheDirectoryInput.text = desktopMode.desktopSettings.GetCacheDirectory();
-            worldLoadTimeoutInput.text = desktopMode.desktopSettings.GetWorldLoadTimeout().ToString();
+            maxStorageEntriesInput.text = nativeSettings.GetMaxStorageEntries().ToString();
+            maxStorageKeyLengthInput.text = nativeSettings.GetMaxStorageKeyLength().ToString();
+            maxStorageEntryLengthInput.text = nativeSettings.GetMaxStorageEntryLength().ToString();
+            cacheDirectoryInput.text = nativeSettings.GetCacheDirectory();
+            worldLoadTimeoutInput.text = nativeSettings.GetWorldLoadTimeout().ToString();
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
         {
             if (!string.IsNullOrEmpty(home))
             {
-                desktopMode.desktopSettings.SetHomeURL(home);
+                nativeSettings.SetHomeURL(home);
             }
         }
 
@@ -126,7 +126,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
                 Logging.LogError("[Settings->UpdateStorageMode] Invalid storage mode.");
                 return;
             }
-            desktopMode.desktopSettings.SetStorageMode(modeString);
+            nativeSettings.SetStorageMode(modeString);
         }
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
             if (!string.IsNullOrEmpty(maxEntries))
             {
                 uint maxEntriesVal = uint.Parse(maxEntries);
-                desktopMode.desktopSettings.SetMaxStorageEntries(maxEntriesVal);
+                nativeSettings.SetMaxStorageEntries(maxEntriesVal);
             }
         }
 
@@ -151,7 +151,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
             if (!string.IsNullOrEmpty(maxKeyLen))
             {
                 uint maxKeyLenVal = uint.Parse(maxKeyLen);
-                desktopMode.desktopSettings.SetMaxStorageKeyLength(maxKeyLenVal);
+                nativeSettings.SetMaxStorageKeyLength(maxKeyLenVal);
             }
         }
 
@@ -164,7 +164,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
             if (!string.IsNullOrEmpty(maxEntryLen))
             {
                 uint maxEntryLenVal = uint.Parse(maxEntryLen);
-                desktopMode.desktopSettings.SetMaxStorageEntryLength(maxEntryLenVal);
+                nativeSettings.SetMaxStorageEntryLength(maxEntryLenVal);
             }
         }
 
@@ -176,7 +176,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
         {
             if (!string.IsNullOrEmpty(cacheDirectory))
             {
-                desktopMode.desktopSettings.SetCacheDirectory(cacheDirectory);
+                nativeSettings.SetCacheDirectory(cacheDirectory);
             }
         }
 
@@ -189,7 +189,7 @@ namespace FiveSQD.WebVerse.Interface.Settings
             if (!string.IsNullOrEmpty(worldLoadTimeout))
             {
                 uint worldLoadTimeoutVal = uint.Parse(worldLoadTimeout);
-                desktopMode.desktopSettings.SetWorldLoadTimeout(worldLoadTimeoutVal);
+                nativeSettings.SetWorldLoadTimeout(worldLoadTimeoutVal);
             }
         }
     }
