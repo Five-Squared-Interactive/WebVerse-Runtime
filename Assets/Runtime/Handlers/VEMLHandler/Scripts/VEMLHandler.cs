@@ -1524,7 +1524,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     if (entity is mesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshEntity((mesh) entity, baseURI) == false)
+                        if (ProcessMeshEntity((mesh)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing mesh entity.");
                             return false;
@@ -1533,7 +1533,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is container)
                     {
                         loadingEntities++;
-                        if (ProcessContainerEntity((container) entity, baseURI) == false)
+                        if (ProcessContainerEntity((container)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing container entity.");
                             return false;
@@ -1542,7 +1542,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is character)
                     {
                         loadingEntities++;
-                        if (ProcessCharacterEntity((character) entity, baseURI) == false)
+                        if (ProcessCharacterEntity((character)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing character entity.");
                             return false;
@@ -1551,7 +1551,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is light)
                     {
                         loadingEntities++;
-                        if (ProcessLightEntity((light) entity, baseURI) == false)
+                        if (ProcessLightEntity((light)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing light entity.");
                             return false;
@@ -1560,7 +1560,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is terrain)
                     {
                         loadingEntities++;
-                        if (ProcessTerrainEntity((terrain) entity, baseURI) == false)
+                        if (ProcessTerrainEntity((terrain)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing terrain entity.");
                             return false;
@@ -1569,7 +1569,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is text)
                     {
                         loadingEntities++;
-                        if (ProcessTextEntity((text) entity, baseURI) == false)
+                        if (ProcessTextEntity((text)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing text entity.");
                             return false;
@@ -1578,7 +1578,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is button)
                     {
                         loadingEntities++;
-                        if (ProcessButtonEntity((button) entity, baseURI) == false)
+                        if (ProcessButtonEntity((button)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing button entity.");
                             return false;
@@ -1587,7 +1587,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is canvas)
                     {
                         loadingEntities++;
-                        if (ProcessCanvasEntity((canvas) entity, baseURI) == false)
+                        if (ProcessCanvasEntity((canvas)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing canvas entity.");
                             return false;
@@ -1596,7 +1596,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is html)
                     {
                         loadingEntities++;
-                        if (ProcessHTMLEntity((html) entity, baseURI) == false)
+                        if (ProcessHTMLEntity((html)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing HTML entity.");
                             return false;
@@ -1605,7 +1605,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is input)
                     {
                         loadingEntities++;
-                        if (ProcessInputEntity((input) entity, baseURI) == false)
+                        if (ProcessInputEntity((input)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing input entity.");
                             return false;
@@ -1614,7 +1614,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is voxel)
                     {
                         loadingEntities++;
-                        if (ProcessVoxelEntity((voxel) entity, baseURI) == false)
+                        if (ProcessVoxelEntity((voxel)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing voxel entity.");
                             return false;
@@ -1623,7 +1623,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is audio)
                     {
                         loadingEntities++;
-                        if (ProcessAudioEntity((audio) entity, baseURI) == false)
+                        if (ProcessAudioEntity((audio)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing audio entity.");
                             return false;
@@ -1632,7 +1632,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is image)
                     {
                         loadingEntities++;
-                        if (ProcessImageEntity((image) entity, baseURI) == false)
+                        if (ProcessImageEntity((image)entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing image entity.");
                             return false;
@@ -1641,7 +1641,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is cubemesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.cubeMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.cubeMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing cube mesh entity.");
                             return false;
@@ -1650,7 +1650,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is spheremesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.sphereMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.sphereMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing sphere mesh entity.");
                             return false;
@@ -1659,7 +1659,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is capsulemesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.capsuleMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.capsuleMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing capsule mesh entity.");
                             return false;
@@ -1668,7 +1668,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is cylindermesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.cylinderMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.cylinderMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing cylinder mesh entity.");
                             return false;
@@ -1677,7 +1677,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is planemesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.planeMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.planeMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing plane mesh entity.");
                             return false;
@@ -1686,7 +1686,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is torusmesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.torusMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.torusMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing torus mesh entity.");
                             return false;
@@ -1695,7 +1695,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is conemesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.coneMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.coneMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing cone mesh entity.");
                             return false;
@@ -1704,7 +1704,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is rectangularpyramidmesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.rectangularPyramidMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.rectangularPyramidMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing rectangular pyramid mesh entity.");
                             return false;
@@ -1713,7 +1713,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is tetrahedronmesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.tetrahedronMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.tetrahedronMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing tetrahedron mesh entity.");
                             return false;
@@ -1722,7 +1722,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is prismmesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.prismMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.prismMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing prism mesh entity.");
                             return false;
@@ -1731,7 +1731,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is archmesh)
                     {
                         loadingEntities++;
-                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.archMeshPrefab, baseURI))
+                        if (ProcessMeshPrimitiveEntity(entity, Javascript.APIs.Entity.EntityAPIHelper.archMeshPrefab, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing arch mesh entity.");
                             return false;
@@ -1740,7 +1740,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is water)
                     {
                         loadingEntities++;
-                        if (ProcessWaterEntity((water) entity, baseURI))
+                        if (ProcessWaterEntity((water) entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing water entity.");
                             return false;
@@ -1749,7 +1749,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is waterblocker)
                     {
                         loadingEntities++;
-                        if (ProcessWaterBlockerEntity((waterblocker) entity, baseURI))
+                        if (ProcessWaterBlockerEntity((waterblocker) entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing water blocker entity.");
                             return false;
@@ -1758,7 +1758,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is automobile)
                     {
                         loadingEntities++;
-                        if (ProcessAutomobileEntity((automobile) entity, baseURI))
+                        if (ProcessAutomobileEntity((automobile) entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing automobile entity.");
                             return false;
@@ -1767,7 +1767,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     else if (entity is airplane)
                     {
                         loadingEntities++;
-                        if (ProcessAirplaneEntity((airplane) entity, baseURI))
+                        if (ProcessAirplaneEntity((airplane) entity, baseURI) == false)
                         {
                             LogSystem.LogWarning("[VEMLHandler->ProcessEntity] Error processing airplane entity.");
                             return false;
@@ -3374,6 +3374,8 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 }
 
                 loadedEntity.SetVisibility(true);
+                loadedEntity.SetInteractionState(BaseEntity.InteractionState.Static);
+                loadedEntity.SetScale(sizeValue);
 #if USE_WEBINTERFACE
                 if (!string.IsNullOrEmpty(entity.synchronizer))
                 {

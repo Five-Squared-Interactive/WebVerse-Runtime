@@ -139,6 +139,54 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return he;
         }
 
+        /// <summary>
+        /// Create an HTML entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the HTML entity configuration.</param>
+        /// <param name="parent">Parent entity for the HTML entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created HTML entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, htmlEntity) =>
+            {
+                if (!success || htmlEntity == null ||
+                    !(htmlEntity is StraightFour.Entity.HTMLEntity ||
+                    htmlEntity is StraightFour.Entity.HTMLUIElementEntity))
+                {
+                    Logging.LogError("[HTMLEntity:Create] Error loading HTML entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        if (htmlEntity is StraightFour.Entity.HTMLEntity)
+                        {
+                            WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                                onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                    (StraightFour.Entity.HTMLEntity) htmlEntity) });
+                        }
+                        else if (htmlEntity is StraightFour.Entity.HTMLUIElementEntity)
+                        {
+                            WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                                onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                    (StraightFour.Entity.HTMLUIElementEntity) htmlEntity) });
+                        }
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadHTMLEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         internal HTMLEntity(bool canvasEntity)
         {
             if (canvasEntity)

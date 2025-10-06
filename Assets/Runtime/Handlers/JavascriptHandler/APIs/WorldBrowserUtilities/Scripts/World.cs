@@ -1,5 +1,6 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using FiveSQD.WebVerse.Interface.MultibarMenu;
 using FiveSQD.WebVerse.Runtime;
 
 namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities
@@ -43,6 +44,40 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities
                 default:
                     return "error";
             }
+        }
+
+        /// <summary>
+        /// Load a World from a URL.
+        /// </summary>
+        /// <param name="url">The URL of the World to load.</param>
+        public static void LoadWorld(string url)
+        {
+            WebVerseRuntime.Instance.LoadWorld(url, new System.Action<string>((name) =>
+            {
+                foreach (Multibar multibar in Multibar.GetMultibars())
+                {
+                    multibar.AddToHistory(System.DateTime.Now, name, url);
+                    multibar.ToggleMultibar();
+                    multibar.ToggleMultibar();
+                }
+            }));
+        }
+
+        /// <summary>
+        /// Load a Web Page from a URL.
+        /// </summary>
+        /// <param name="url">The URL of the Web Page to load.</param>
+        public static void LoadWebPage(string url)
+        {
+            WebVerseRuntime.Instance.LoadWebPage(url, new System.Action<string>((name) =>
+            {
+                foreach (Multibar multibar in Multibar.GetMultibars())
+                {
+                    multibar.AddToHistory(System.DateTime.Now, name, url);
+                    multibar.ToggleMultibar();
+                    multibar.ToggleMultibar();
+                }
+            }));
         }
     }
 }

@@ -34,6 +34,42 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Environment
         }
 
         /// <summary>
+        /// Set the threshold for updating world offset.
+        /// </summary>
+        /// <param name="threshold">Threshold distance.</param>
+        public static void SetWorldOffsetUpdateThreshold(float threshold)
+        {
+            StraightFour.StraightFour.ActiveWorld.worldOffsetUpdateThreshold = threshold;
+        }
+
+        /// <summary>
+        /// Get the threshold for updating world offset.
+        /// </summary>
+        /// <returns>Threshold distance.</returns>
+        public static float GetWorldOffsetUpdateThreshold()
+        {
+            return StraightFour.StraightFour.ActiveWorld.worldOffsetUpdateThreshold;
+        }
+
+        /// <summary>
+        /// Set the character entity to track for the camera.
+        /// </summary>
+        /// <param name="entity">Character entity to track, or null to stop tracking.</param>
+        public static void SetTrackedCharacterEntity(BaseEntity entity)
+        {
+            StraightFour.Entity.BaseEntity be = EntityAPIHelper.GetPrivateEntity(entity);
+            if (be != null && be is StraightFour.Entity.CharacterEntity)
+            {
+                StraightFour.StraightFour.ActiveWorld.SetTrackedCharacterEntity(
+                    (StraightFour.Entity.CharacterEntity)be);
+            }
+            else
+            {
+                StraightFour.StraightFour.ActiveWorld.SetTrackedCharacterEntity(null);
+            }
+        }
+
+        /// <summary>
         /// Set the sky to a texture.
         /// </summary>
         /// <param name="texture">URI of the texture to set the sky to.</param>

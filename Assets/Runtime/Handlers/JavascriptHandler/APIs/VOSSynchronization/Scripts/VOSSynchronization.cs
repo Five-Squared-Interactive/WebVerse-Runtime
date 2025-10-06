@@ -176,7 +176,6 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.VOSSynchronization
             Action onJoinAction = null;
             if (!string.IsNullOrEmpty(callback))
             {
-                Logging.Log("huh");
                 onJoinAction = () => {
                     WebVerseRuntime.Instance.javascriptHandler.Run(callback);
                 };

@@ -188,6 +188,14 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         private bool controlPressed;
 
         /// <summary>
+        /// Get all multibars in the scene.
+        /// </summary>
+        public static Multibar[] GetMultibars()
+        {
+            return FindObjectsByType<Multibar>(FindObjectsSortMode.None);
+        }
+
+        /// <summary>
         /// Initialize the multibar.
         /// </summary>
         /// <param name="mode">Mode to initialize in.</param>
@@ -211,7 +219,8 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
                 }
                 else
                 {
-                    keyboard.onEnter += new Action<string>((url) => {
+                    keyboard.onEnter += new Action<string>((url) =>
+                    {
                         Enter();
                     });
                 }
@@ -769,7 +778,7 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
         /// <param name="timestamp">Timestamp.</param>
         /// <param name="siteName">Site name.</param>
         /// <param name="siteURL">Site URL.</param>
-        private void AddToHistory(DateTime timestamp, string siteName, string siteURL)
+        public void AddToHistory(DateTime timestamp, string siteName, string siteURL)
         {
             desktopMode?.desktopHistory.AddItemToHistory(timestamp, siteName, siteURL);
         }

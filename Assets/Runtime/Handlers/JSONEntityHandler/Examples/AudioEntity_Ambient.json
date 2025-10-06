@@ -1,0 +1,23 @@
+{
+  "type": "audio",
+  "id": "550e8400-e29b-41d4-a716-446655440052",
+  "tag": "AmbientSound",
+  "position": {
+    "x": -10.0,
+    "y": 2.0,
+    "z": 15.0
+  },
+  "rotation": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "audioFile": "Assets/Audio/forest_ambience.wav",
+  "loop": true,
+  "priority": 200,
+  "volume": 0.3,
+  "pitch": 0.9,
+  "stereoPan": -0.2,
+  "playOnLoad": true
+}

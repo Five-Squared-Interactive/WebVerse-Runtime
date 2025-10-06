@@ -78,6 +78,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return be;
         }
 
+        /// <summary>
+        /// Create a button entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the button entity configuration.</param>
+        /// <param name="parent">Parent entity for the button entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created button entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, buttonEntity) =>
+            {
+                if (!success || buttonEntity == null || !(buttonEntity is StraightFour.Entity.ButtonEntity))
+                {
+                    Logging.LogError("[ButtonEntity:Create] Error loading button entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.ButtonEntity) buttonEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadButtonEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         internal ButtonEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.ButtonEntity);

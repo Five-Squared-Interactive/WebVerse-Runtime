@@ -1,0 +1,20 @@
+{
+  "type": "character",
+  "id": "550e8400-e29b-41d4-a716-446655440023",
+  "tag": "FloatingAvatar",
+  "position": { "x": 0, "y": 10, "z": 0 },
+  "rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+  "scale": { "x": 0.8, "y": 0.8, "z": 0.8 },
+  "isSize": false,
+  "meshObject": "Characters/Avatar/avatar.gltf",
+  "meshResources": [
+    "Characters/Avatar/avatar.gltf",
+    "Characters/Avatar/textures/skin.png",
+    "Characters/Avatar/textures/clothing.png"
+  ],
+  "meshOffset": { "x": 0, "y": 0, "z": 0 },
+  "meshRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+  "avatarLabelOffset": { "x": 0, "y": 1.8, "z": 0 },
+  "fixHeight": false,
+  "checkForUpdateIfCached": true
+}

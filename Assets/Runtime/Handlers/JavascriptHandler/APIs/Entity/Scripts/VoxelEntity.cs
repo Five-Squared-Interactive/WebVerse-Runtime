@@ -61,6 +61,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return ve;
         }
 
+        /// <summary>
+        /// Create a voxel entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the voxel entity configuration.</param>
+        /// <param name="parent">Parent entity for the voxel entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created voxel entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, voxelEntity) =>
+            {
+                if (!success || voxelEntity == null || !(voxelEntity is StraightFour.Entity.VoxelEntity))
+                {
+                    Logging.LogError("[VoxelEntity:Create] Error loading voxel entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.VoxelEntity) voxelEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadVoxelEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         public VoxelEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.VoxelEntity);
