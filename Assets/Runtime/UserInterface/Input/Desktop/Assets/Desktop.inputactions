@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "Desktop",
     "maps": [
         {
@@ -213,19 +214,19 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "+",
+                    "name": "Numpad +",
                     "type": "Button",
                     "id": "e96ab946-5744-4870-81b6-05fef0573f81",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "*",
+                    "name": "Numpad *",
                     "type": "Button",
                     "id": "bd914e91-4cfa-489b-b83f-ca0648a2fae8",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -234,7 +235,7 @@
                     "name": "0",
                     "type": "Button",
                     "id": "ff2bddd8-d24d-467c-92c5-ccbef403ef14",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -555,100 +556,100 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "=",
+                    "name": "Key =",
                     "type": "Button",
                     "id": "b10b719f-b8e3-4b75-b881-e817b8a1b2f5",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "-",
+                    "name": "Key -",
                     "type": "Button",
                     "id": "3f5bb367-b824-435d-aad0-3ebb694b2e89",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "]",
+                    "name": "Key ]",
                     "type": "Button",
                     "id": "76973286-8cd4-4c88-aff8-46fba54150af",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "[",
+                    "name": "Key [",
                     "type": "Button",
                     "id": "72dc4274-17f0-4004-b8d7-fcb1f90b9c61",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "\\",
+                    "name": "Key \\",
                     "type": "Button",
                     "id": "55884886-75ef-447c-8cf2-29b690e6b347",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "/",
+                    "name": "Key /",
                     "type": "Button",
                     "id": "579228be-4de9-4ebb-b158-ecf2bfab9903",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": ".",
+                    "name": "Key .",
                     "type": "Button",
                     "id": "79487d8e-6fb4-4aff-8c11-d5b602e25be6",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": ",",
+                    "name": "Key ,",
                     "type": "Button",
                     "id": "4a5b1a23-9d15-4fb4-ae9e-80f94e2d68a9",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": ";",
+                    "name": "Key ;",
                     "type": "Button",
                     "id": "de63f9ef-e4c4-4e4f-86c0-1b2fc773df6d",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "'",
+                    "name": "Key '",
                     "type": "Button",
                     "id": "14048d1a-7b9b-4c39-b2a6-3e5514a20ab4",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "`",
+                    "name": "Key `",
                     "type": "Button",
                     "id": "65b5abed-bee0-42fc-9869-dc0a2cecc8d9",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -1349,11 +1350,11 @@
                 {
                     "name": "",
                     "id": "db23b27b-deee-4215-8cb7-1af1b151796a",
-                    "path": "<Keyboard>/#(+)",
+                    "path": "<Keyboard>/numpadPlus",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "+",
+                    "action": "Numpad +",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1364,7 +1365,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "*",
+                    "action": "Numpad *",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1771,7 +1772,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "=",
+                    "action": "Key =",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1782,7 +1783,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "-",
+                    "action": "Key -",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1793,7 +1794,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "]",
+                    "action": "Key ]",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1804,7 +1805,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "[",
+                    "action": "Key [",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1815,7 +1816,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "\\",
+                    "action": "Key \\",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1826,7 +1827,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "/",
+                    "action": "Key /",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1837,7 +1838,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": ".",
+                    "action": "Key .",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1848,7 +1849,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": ",",
+                    "action": "Key ,",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1859,7 +1860,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": ";",
+                    "action": "Key ;",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1870,7 +1871,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "'",
+                    "action": "Key '",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1881,7 +1882,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "`",
+                    "action": "Key `",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

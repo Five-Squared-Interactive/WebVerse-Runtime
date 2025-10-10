@@ -111,31 +111,31 @@ namespace FiveSQD.WebVerse.Input.Desktop
                 }
             }
         }
-        private bool _gravityEnabled = true;
+        private bool _gravityEnabled = false;
 
         /// <summary>
         /// Whether WASD motion is enabled for desktop locomotion.
         /// </summary>
-        public bool wasdMotionEnabled { get; set; } = true;
+        public bool wasdMotionEnabled { get; set; } = false;
 
         /// <summary>
         /// Whether mouse look is enabled for desktop locomotion.
         /// </summary>
-        public bool mouseLookEnabled { get; set; } = true;
+        public bool mouseLookEnabled { get; set; } = false;
         
         /// <summary>
         /// Whether jump is enabled for desktop locomotion.
         /// </summary>
-        public bool jumpEnabled { get; set; } = true;
+        public bool jumpEnabled { get; set; } = false;
 
         /// <summary>
         /// Initialize the Desktop rig.
         /// </summary>
         public void Initialize()
         {
-            gravityEnabled = true;
-            wasdMotionEnabled = true;
-            mouseLookEnabled = true;
+            gravityEnabled = false;
+            wasdMotionEnabled = false;
+            mouseLookEnabled = false;
             rigFollowers = new List<BaseEntity>();
 
             // Try to find the avatar entity if not assigned

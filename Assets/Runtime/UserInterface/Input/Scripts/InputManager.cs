@@ -3069,7 +3069,20 @@ namespace FiveSQD.WebVerse.Input
         /// <returns>A raycast from the pointer, or null.</returns>
         public Tuple<RaycastHit, Vector3> GetPointerRaycast(Vector3 direction, int pointerIndex = 0)
         {
-            return platformInput.GetPointerRaycast(direction, pointerIndex);
+            if (platformInput == null)
+            {
+                return null;
+            }
+
+            Tuple<RaycastHit, Vector3> raycast = platformInput.GetPointerRaycast(direction, pointerIndex);
+            if (raycast != null)
+            {
+                RaycastHit hit = raycast.Item1;
+                hit.point -= StraightFour.StraightFour.ActiveWorld.worldOffset;
+                return new Tuple<RaycastHit, Vector3>(hit, raycast.Item2);
+            }
+
+            return null;
         }
     }
 }

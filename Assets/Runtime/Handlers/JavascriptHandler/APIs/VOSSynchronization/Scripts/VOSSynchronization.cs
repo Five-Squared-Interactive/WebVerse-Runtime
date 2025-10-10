@@ -183,7 +183,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.VOSSynchronization
 
             Tuple<WebVerse.VOSSynchronization.VOSSynchronizer, Guid, string> newSynchronizerAndSession = null;
             Action onSynchronizerJoinedAction = () => {
-                newSynchronizerAndSession.Item1.GetSessionState(onJoinAction);
+                if (onJoinAction != null)
+                {
+                    newSynchronizerAndSession.Item1.GetSessionState(onJoinAction);
+                }
             };
 
             newSynchronizerAndSession

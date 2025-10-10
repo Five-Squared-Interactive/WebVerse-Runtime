@@ -2504,6 +2504,11 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                             {
                                 foreach (VOSSynchronizationMessages.ClientInfo clientInfo in sessionStateMessage.clients)
                                 {
+                                    if (synchronizedUsers.ContainsKey(clientInfo.id))
+                                    {
+                                        Logging.LogWarning("[VOSSynchronizer->OnMessage] Duplicate client ID in session state.");
+                                        continue;
+                                    }
                                     synchronizedUsers.Add(clientInfo.id, clientInfo.tag);
                                 }
                             }

@@ -1718,14 +1718,14 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
             isInitialized = true;
             
             // Validate dependencies
-            if (!IsReady())
+            /*if (!IsReady())
             {
                 Logging.LogWarning("[JSONEntityHandler->Initialize] Handler initialized but dependencies not ready. Some operations may fail until EntityManager is available.");
             }
             else
             {
                 Logging.Log("[JSONEntityHandler->Initialize] Handler initialized and ready for entity processing.");
-            }
+            }*/
         }
 
         public override void Terminate()
@@ -2791,9 +2791,13 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                     if (normalizedData.terrainType == "hybrid" && normalizedData.modifications != null)
                     {
                         // Note: Cannot use Unity Logging in background thread
-                        System.Console.WriteLine("[Background] Starting modifications pre-processing...");
+                        System.Console.WriteLine($"[Background] Starting modifications pre-processing for {normalizedData.modifications.Length} modifications...");
                         apiModifications = JSONEntityHandler.ConvertToAPIModificationsThreadSafe(normalizedData.modifications);
-                        System.Console.WriteLine("[Background] Modifications pre-processing completed.");
+                        System.Console.WriteLine($"[Background] Modifications pre-processing completed. Generated {apiModifications?.Length ?? 0} API modifications.");
+                    }
+                    else
+                    {
+                        System.Console.WriteLine($"[Background] No modifications to process. TerrainType: {normalizedData.terrainType}, Modifications: {normalizedData.modifications?.Length ?? 0}");
                     }
                 }
                 catch (Exception ex)
@@ -2854,6 +2858,7 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
         {
             JSONTerrainEntity terrainData = null;
             JSONTerrainEntity normalizedData = null;
+            FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[] apiModifications = null;
             bool hasError = false;
             string errorMessage = "";
             
@@ -2907,13 +2912,30 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
             
             yield return null; // Yield control after normalization
 
+            // Phase 3.5: Process modifications for hybrid terrain (on main thread)
+            if (normalizedData.terrainType == "hybrid" && normalizedData.modifications != null)
+            {
+                try
+                {
+                    apiModifications = ConvertToAPIModifications(normalizedData.modifications);
+                }
+                catch (Exception ex)
+                {
+                    Logging.LogError($"[JSONEntityHandler->LoadTerrainEntityFromJSONCoroutine] Modifications processing error: {ex.Message}");
+                    onComplete?.Invoke(false, null, null);
+                    yield break;
+                }
+                
+                yield return null; // Yield control after modifications processing
+            }
+
             // Phase 4: Create entity
             try
             {
                 Guid? entityId = CreateTerrainEntity(normalizedData, parentEntity, (id, entity) =>
                 {
                     onComplete?.Invoke(true, entity?.id, entity);
-                });
+                }, apiModifications);
             }
             catch (Exception ex)
             {
@@ -4066,7 +4088,7 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                 var apiLayers = ConvertToAPILayers(terrainData.layers);
                 var apiLayerMasks = ConvertToAPILayerMasks(terrainData.layerMasks);
                 var apiModifications = preProcessedModifications ?? ConvertToAPIModifications(terrainData.modifications);
-
+                
                 System.Action<Javascript.APIs.Entity.TerrainEntity> onLoadedCallback = (terrainEntity) =>
                 {
                     if (terrainEntity == null)
@@ -4249,11 +4271,11 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                 }
 
                 float modificationSize = jsonMod.brushsize;
-                if (modificationSize == 0) 
+                if (modificationSize <= 0) 
                 {
-                    modificationSize = 1.0f; // Default to 1.0 if both are 0
+                    modificationSize = 1.0f; // Default to 1.0 if size is 0 or negative
                 }
-
+                
                 apiModifications[i] = new Javascript.APIs.Entity.TerrainEntityModification(
                     operation, position, brushType, jsonMod.layer, modificationSize);
                 
@@ -4270,11 +4292,12 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
         /// <returns>Array of API terrain entity modifications</returns>
         private static FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[] ConvertToAPIModificationsThreadSafe(JSONTerrainEntityModification[] jsonModifications)
         {
+            Logging.Log("doing mods " + jsonModifications);
             if (jsonModifications == null) return new FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[0];
 
             var apiModifications = new FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[jsonModifications.Length];
             for (int i = 0; i < jsonModifications.Length; i++)
-            {
+            {Logging.Log("doing mod " + i);
                 var jsonMod = jsonModifications[i];
                 
                 // Convert operation string to enum
@@ -4304,10 +4327,12 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                 }
 
                 float modificationSize = jsonMod.brushsize;
-                if (modificationSize == 0) 
+                if (modificationSize <= 0) 
                 {
-                    modificationSize = 1.0f; // Default to 1.0 if both are 0
+                    modificationSize = 1.0f; // Default to 1.0 if size is 0 or negative
                 }
+                
+                System.Console.WriteLine($"[Background] Mod {i + 1}: {jsonMod.operation} at ({position.x}, {position.y}, {position.z}) with size {modificationSize}");
 
                 apiModifications[i] = new Javascript.APIs.Entity.TerrainEntityModification(
                     operation, position, brushType, jsonMod.layer, modificationSize);
