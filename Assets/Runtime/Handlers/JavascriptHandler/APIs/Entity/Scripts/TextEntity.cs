@@ -73,6 +73,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return te;
         }
 
+        /// <summary>
+        /// Create a text entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the text entity configuration.</param>
+        /// <param name="parent">Parent entity for the text entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created text entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, textEntity) =>
+            {
+                if (!success || textEntity == null || !(textEntity is StraightFour.Entity.TextEntity))
+                {
+                    Logging.LogError("[TextEntity:Create] Error loading text entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.TextEntity) textEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadTextEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         internal TextEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.TextEntity);

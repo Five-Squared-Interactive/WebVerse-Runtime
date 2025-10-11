@@ -140,6 +140,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return ae;
         }
 
+        /// <summary>
+        /// Create an airplane entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the airplane entity configuration.</param>
+        /// <param name="parent">Parent entity for the airplane entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created airplane entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, airplaneEntity) =>
+            {
+                if (!success || airplaneEntity == null || !(airplaneEntity is StraightFour.Entity.AirplaneEntity))
+                {
+                    Logging.LogError("[AirplaneEntity:Create] Error loading airplane entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.AirplaneEntity) airplaneEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadAirplaneEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         internal AirplaneEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.AirplaneEntity);

@@ -1,0 +1,61 @@
+{
+  "type": "voxel",
+  "id": "550e8400-e29b-41d4-a716-446655440020",
+  "tag": "SimpleVoxelStructure",
+  "position": {
+    "x": 0.0,
+    "y": 1.0,
+    "z": 0.0
+  },
+  "rotation": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "scale": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0
+  },
+  "blockInfos": [
+    {
+      "id": 1,
+      "subTypes": [
+        {
+          "id": 0,
+          "invisible": false,
+          "topTexture": "grass_top",
+          "bottomTexture": "dirt",
+          "leftTexture": "grass_side",
+          "rightTexture": "grass_side",
+          "frontTexture": "grass_side",
+          "backTexture": "grass_side"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "subTypes": [
+        {
+          "id": 0,
+          "invisible": false,
+          "topTexture": "stone",
+          "bottomTexture": "stone",
+          "leftTexture": "stone",
+          "rightTexture": "stone",
+          "frontTexture": "stone",
+          "backTexture": "stone"
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {"x": 0, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 1, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 2, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 0, "y": 1, "z": 0, "type": 2, "subType": 0},
+    {"x": 1, "y": 1, "z": 0, "type": 2, "subType": 0},
+    {"x": 2, "y": 1, "z": 0, "type": 2, "subType": 0}
+  ]
+}

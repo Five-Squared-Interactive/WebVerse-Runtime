@@ -82,6 +82,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return de;
         }
 
+        /// <summary>
+        /// Create a dropdown entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the dropdown entity configuration.</param>
+        /// <param name="parent">Parent entity for the dropdown entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created dropdown entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, dropdownEntity) =>
+            {
+                if (!success || dropdownEntity == null || !(dropdownEntity is StraightFour.Entity.DropdownEntity))
+                {
+                    Logging.LogError("[DropdownEntity:Create] Error loading dropdown entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.DropdownEntity) dropdownEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadDropdownEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         internal DropdownEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.DropdownEntity);

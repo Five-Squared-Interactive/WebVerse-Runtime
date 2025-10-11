@@ -23,6 +23,7 @@ using FiveSQD.WebVerse.Output;
 using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Input.Desktop;
 using Vuplex.WebView;
+using FiveSQD.WebVerse.Handlers.JSONEntity;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -182,6 +183,12 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The Time Handler.")]
         public TimeHandler timeHandler { get; private set; }
+
+        /// <summary>
+        /// The JSON Entity Handler.
+        /// </summary>
+        [Tooltip("The JSON Entity Handler.")]
+        public JSONEntityHandler jsonEntityHandler { get; private set; }
 
 #if USE_WEBINTERFACE
         /// <summary>
@@ -843,6 +850,10 @@ namespace FiveSQD.WebVerse.Runtime
             timeHandlerGO.transform.SetParent(handlersGO.transform);
             timeHandler = timeHandlerGO.AddComponent<TimeHandler>();
             timeHandler.Initialize();
+            GameObject jsonEntityHandlerGO = new GameObject("JSONEntity");
+            jsonEntityHandlerGO.transform.SetParent(handlersGO.transform);
+            jsonEntityHandler = jsonEntityHandlerGO.AddComponent<JSONEntityHandler>();
+            jsonEntityHandler.Initialize();
 
             // Set up VOS Synchronization Manager.
             GameObject vosSynchronizationManagerGO = new GameObject("VOSSynchronizationManager");
@@ -934,6 +945,7 @@ namespace FiveSQD.WebVerse.Runtime
 #endif
 
             // Terminate Handlers.
+            jsonEntityHandler.Terminate();
             timeHandler.Terminate();
             vemlHandler.Terminate();
             gltfHandler.Terminate();

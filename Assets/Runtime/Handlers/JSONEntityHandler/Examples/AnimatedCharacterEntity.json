@@ -1,0 +1,20 @@
+{
+  "type": "character",
+  "id": "550e8400-e29b-41d4-a716-446655440021",
+  "tag": "AnimatedCharacter",
+  "position": { "x": 5, "y": 0, "z": 0 },
+  "rotation": { "x": 0, "y": 45, "z": 0, "w": 0.7071 },
+  "scale": { "x": 1, "y": 1, "z": 1 },
+  "isSize": false,
+  "meshObject": "Characters/Soldier/soldier.gltf",
+  "meshResources": [
+    "Characters/Soldier/soldier.gltf",
+    "Characters/Soldier/textures/soldier_diffuse.png",
+    "Characters/Soldier/textures/soldier_normal.png"
+  ],
+  "meshOffset": { "x": 0, "y": -0.5, "z": 0 },
+  "meshRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+  "avatarLabelOffset": { "x": 0, "y": 2.2, "z": 0 },
+  "fixHeight": true,
+  "checkForUpdateIfCached": true
+}

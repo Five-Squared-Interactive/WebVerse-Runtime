@@ -86,6 +86,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return we;
         }
 
+        /// <summary>
+        /// Create a water entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the water entity configuration.</param>
+        /// <param name="parent">Parent entity for the water entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created water entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, waterEntity) =>
+            {
+                if (!success || waterEntity == null || !(waterEntity is StraightFour.Entity.WaterBodyEntity))
+                {
+                    Logging.LogError("[WaterEntity:Create] Error loading water entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.WaterBodyEntity) waterEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadWaterEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         public WaterEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.WaterBodyEntity);

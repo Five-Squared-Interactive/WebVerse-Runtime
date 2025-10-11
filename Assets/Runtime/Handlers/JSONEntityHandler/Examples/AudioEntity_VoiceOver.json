@@ -1,0 +1,23 @@
+{
+  "type": "audio",
+  "id": "550e8400-e29b-41d4-a716-446655440053",
+  "tag": "VoiceOver",
+  "position": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "rotation": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "audioFile": "Assets/Audio/narrator_voice.wav",
+  "loop": false,
+  "priority": 32,
+  "volume": 0.9,
+  "pitch": 1.0,
+  "stereoPan": 0.0,
+  "playOnLoad": false
+}

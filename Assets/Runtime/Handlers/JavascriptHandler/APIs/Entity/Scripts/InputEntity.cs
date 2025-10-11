@@ -64,6 +64,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             return ie;
         }
 
+        /// <summary>
+        /// Create an input entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the input entity configuration.</param>
+        /// <param name="parent">Parent entity for the input entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created input entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, inputEntity) =>
+            {
+                if (!success || inputEntity == null || !(inputEntity is StraightFour.Entity.InputEntity))
+                {
+                    Logging.LogError("[InputEntity:Create] Error loading input entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.InputEntity) inputEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadInputEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
         internal InputEntity()
         {
             internalEntityType = typeof(StraightFour.Entity.InputEntity);

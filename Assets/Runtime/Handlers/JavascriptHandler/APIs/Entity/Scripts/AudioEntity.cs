@@ -3,6 +3,7 @@
 using System;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.WorldTypes;
 using FiveSQD.WebVerse.Runtime;
+using FiveSQD.WebVerse.Utilities;
 
 namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
 {
@@ -132,6 +133,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             StraightFour.StraightFour.ActiveWorld.entityManager.LoadAudioEntity(pBE, pos, rot, guid, tag, onLoadAction);
 
             return ae;
+        }
+
+        /// <summary>
+        /// Create an audio entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the audio entity configuration.</param>
+        /// <param name="parent">Parent entity for the audio entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created audio entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, audioEntity) =>
+            {
+                if (!success || audioEntity == null || !(audioEntity is StraightFour.Entity.AudioEntity))
+                {
+                    Logging.LogError("[AudioEntity:Create] Error loading audio entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.AudioEntity) audioEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadAudioEntityFromJSON(jsonEntity, pBE, onComplete);
         }
 
         internal AudioEntity()

@@ -1,5 +1,6 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 using System;
@@ -332,6 +333,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                         }
                         else if (mod.operation == TerrainEntityModification.TerrainEntityOperation.Dig)
                         {
+                            Logging.Log("bs " + mod.size);
                             te.Dig(mod.position, mod.brushType, mod.layer, mod.size, false);
                         }
                         else
@@ -374,7 +376,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         public static TerrainEntity LoadHybridTerrainEntityAsync(BaseEntity parent, float length, float width,
             float height, float[][] heights, TerrainEntityLayer[] layers, TerrainEntityLayerMaskCollection layerMasks,
             TerrainEntityModification[] modifications, WorldTypes.Vector3 position, WorldTypes.Quaternion rotation,
-            bool stitchTerrains, string id = null, string tag = null, string onLoaded = null, float timeout = 10)
+            bool stitchTerrains, string id = null, string tag = null, string onLoaded = null, float timeout = 10,
+            System.Action<TerrainEntity> onLoadedAction = null)
         {
             TerrainEntity te = new TerrainEntity(TerrainEntity.TerrainEntityType.hybrid);
 
@@ -436,6 +439,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 if (!string.IsNullOrEmpty(onLoaded))
                 {
                     WebVerseRuntime.Instance.javascriptHandler.CallWithParams(onLoaded, new object[] { te });
+                }
+                if (onLoadedAction != null)
+                {
+                    onLoadedAction.Invoke(te);
                 }
             };
 

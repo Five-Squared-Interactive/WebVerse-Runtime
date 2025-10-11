@@ -1,0 +1,21 @@
+{
+  "type": "character",
+  "id": "550e8400-e29b-41d4-a716-446655440022",
+  "tag": "NPCGuard",
+  "position": { "x": -3, "y": 0, "z": 5 },
+  "rotation": { "x": 0, "y": 180, "z": 0, "w": 0 },
+  "scale": { "x": 1.2, "y": 1.2, "z": 1.2 },
+  "isSize": false,
+  "meshObject": "Characters/Guard/guard.gltf",
+  "meshResources": [
+    "Characters/Guard/guard.gltf",
+    "Characters/Guard/textures/armor_diffuse.png",
+    "Characters/Guard/textures/armor_metallic.png",
+    "Characters/Guard/textures/armor_normal.png"
+  ],
+  "meshOffset": { "x": 0, "y": 0, "z": 0 },
+  "meshRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+  "avatarLabelOffset": { "x": 0, "y": 2.5, "z": 0 },
+  "fixHeight": true,
+  "checkForUpdateIfCached": false
+}

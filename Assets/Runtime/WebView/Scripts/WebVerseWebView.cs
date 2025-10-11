@@ -170,9 +170,8 @@ namespace FiveSQD.WebVerse.WebView
                     const newLinks = document.querySelectorAll('a[href]:not([overridden])');
                     for (const link of newLinks) {
                         link.setAttribute('overridden', true);
-                        const linkUrl = link.href;
                         link.addEventListener('click', event => {
-                            window.vuplex.postMessage('link:' + linkUrl);
+                            window.vuplex.postMessage('link:' + link.href);
                             event.preventDefault();
                         });
                     }

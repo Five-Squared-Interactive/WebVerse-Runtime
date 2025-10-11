@@ -1,0 +1,23 @@
+{
+  "type": "audio",
+  "id": "550e8400-e29b-41d4-a716-446655440050",
+  "tag": "BackgroundMusic",
+  "position": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "rotation": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "audioFile": "Assets/Audio/background_music.wav",
+  "loop": true,
+  "priority": 128,
+  "volume": 0.5,
+  "pitch": 1.0,
+  "stereoPan": 0.0,
+  "playOnLoad": true
+}

@@ -68,6 +68,43 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
 
             return EntityAPIHelper.LoadImageEntityAsync(parent, imageFile, positionPercent, sizePercent, id, tag, onLoaded);
         }
+        
+        /// <summary>
+        /// Create an image entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the image entity configuration.</param>
+        /// <param name="parent">Parent entity for the image entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created image entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, imageEntity) =>
+            {
+                if (!success || imageEntity == null || !(imageEntity is StraightFour.Entity.ImageEntity))
+                {
+                    Logging.LogError("[ImageEntity:Create] Error loading image entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.ImageEntity) imageEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadImageEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
 
         /// <summary>
         /// Stretch the image entity to fill its parent.
@@ -82,7 +119,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
 
-            return ((StraightFour.Entity.UIElementEntity) internalEntity).StretchToParent(stretch);
+            return ((StraightFour.Entity.UIElementEntity)internalEntity).StretchToParent(stretch);
         }
 
         /// <summary>
