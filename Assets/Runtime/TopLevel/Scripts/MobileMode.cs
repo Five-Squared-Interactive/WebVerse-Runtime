@@ -110,8 +110,8 @@ namespace FiveSQD.WebVerse.Runtime
 
         private void Awake()
         {
-            nativeSettings.Initialize("3", settingsFilePath);
-            nativeHistory.Initialize("3", historyFilePath);
+            nativeSettings.Initialize("3", System.IO.Path.Combine(Application.persistentDataPath, settingsFilePath));
+            nativeHistory.Initialize("3", System.IO.Path.Combine(Application.persistentDataPath, historyFilePath));
 
             LoadRuntime();
 
@@ -159,7 +159,7 @@ namespace FiveSQD.WebVerse.Runtime
                 return;
             }
 
-            string filesDirectory = GetCacheDirectory();
+            string filesDirectory = System.IO.Path.Combine(Application.persistentDataPath, GetCacheDirectory());
             if (string.IsNullOrEmpty(filesDirectory))
             {
                 Logging.LogError("[LightweightMode->LoadRuntime] Invalid files directory value.");

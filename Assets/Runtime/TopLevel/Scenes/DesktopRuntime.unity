@@ -2631,6 +2631,11 @@ MonoBehaviour:
   testFilesDirectory: Files
   testWorldLoadTimeout: 60
   testTutorialState: -1
+  testLoggingEnableConsoleOutput: 1
+  testLoggingEnableDefault: 1
+  testLoggingEnableDebug: 1
+  testLoggingEnableWarning: 1
+  testLoggingEnableError: 1
   runtime: {fileID: 472491403}
   desktopMultibar: {fileID: 1192052129}
   vrMultibar: {fileID: 7394400852882651162}
@@ -4818,6 +4823,8 @@ MonoBehaviour:
   cyclesPerRigFollowerUpdate: 0
   movementSpeed: 5
   mouseSensitivity: 2
+  jumpStrength: 8
+  rigOffset: {x: 0, y: 0, z: 0}
   gravityStrength: -9.81
 --- !u!1 &1261021829 stripped
 GameObject:
@@ -5568,6 +5575,10 @@ PrefabInstance:
       propertyPath: desktopMode
       value: 
       objectReference: {fileID: 472491407}
+    - target: {fileID: 3999162012828514642, guid: 4270638fadc67b244a6c3e43373ff8ed, type: 3}
+      propertyPath: nativeHistory
+      value: 
+      objectReference: {fileID: 472491409}
     - target: {fileID: 4337869335338844874, guid: 4270638fadc67b244a6c3e43373ff8ed, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
@@ -6779,6 +6790,10 @@ PrefabInstance:
       propertyPath: desktopMode
       value: 
       objectReference: {fileID: 472491407}
+    - target: {fileID: 8493960961193523855, guid: 344462d0548af894191ec0b28b56d672, type: 3}
+      propertyPath: nativeSettings
+      value: 
+      objectReference: {fileID: 472491408}
     - target: {fileID: 8670053119082073011, guid: 344462d0548af894191ec0b28b56d672, type: 3}
       propertyPath: m_Size
       value: 1
@@ -7485,6 +7500,10 @@ PrefabInstance:
       propertyPath: desktopMode
       value: 
       objectReference: {fileID: 472491407}
+    - target: {fileID: 7304356345334965353, guid: 23f6cda23633bcc4b8a7bd6196fd7a2d, type: 3}
+      propertyPath: nativeSettings
+      value: 
+      objectReference: {fileID: 472491408}
     - target: {fileID: 8422362094150159448, guid: 23f6cda23633bcc4b8a7bd6196fd7a2d, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -7937,6 +7956,10 @@ PrefabInstance:
       propertyPath: desktopMode
       value: 
       objectReference: {fileID: 472491407}
+    - target: {fileID: 8189029255564097333, guid: 8eb691949a53b5445aa79d0629ae5cea, type: 3}
+      propertyPath: nativeHistory
+      value: 
+      objectReference: {fileID: 472491409}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
