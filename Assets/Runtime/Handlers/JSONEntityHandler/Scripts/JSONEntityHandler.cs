@@ -4292,12 +4292,11 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
         /// <returns>Array of API terrain entity modifications</returns>
         private static FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[] ConvertToAPIModificationsThreadSafe(JSONTerrainEntityModification[] jsonModifications)
         {
-            Logging.Log("doing mods " + jsonModifications);
             if (jsonModifications == null) return new FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[0];
 
             var apiModifications = new FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.TerrainEntityModification[jsonModifications.Length];
             for (int i = 0; i < jsonModifications.Length; i++)
-            {Logging.Log("doing mod " + i);
+            {
                 var jsonMod = jsonModifications[i];
                 
                 // Convert operation string to enum
@@ -4331,8 +4330,6 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                 {
                     modificationSize = 1.0f; // Default to 1.0 if size is 0 or negative
                 }
-                
-                System.Console.WriteLine($"[Background] Mod {i + 1}: {jsonMod.operation} at ({position.x}, {position.y}, {position.z}) with size {modificationSize}");
 
                 apiModifications[i] = new Javascript.APIs.Entity.TerrainEntityModification(
                     operation, position, brushType, jsonMod.layer, modificationSize);

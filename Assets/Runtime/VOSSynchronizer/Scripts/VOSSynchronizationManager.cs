@@ -282,6 +282,12 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                 Logging.LogError("[VOSSynchronizationManager->GetSynchronizerForSession] Not initialized.");
                 return null;
             }
+
+            if (string.IsNullOrEmpty(id))
+            {
+                Logging.LogError("[VOSSynchronizationManager->GetSynchronizerForSession] ID is null or empty.");
+                return null;
+            }
             
             if (vosSynchronizersAndSessions.ContainsKey(id))
             {

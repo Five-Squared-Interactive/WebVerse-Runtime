@@ -140,7 +140,6 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
                 new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, terrainEntity) =>
             {
-                Logging.Log("m");
                 if (!success || terrainEntity == null ||
                     !(terrainEntity is StraightFour.Entity.TerrainEntity || terrainEntity is HybridTerrainEntity))
                 {
