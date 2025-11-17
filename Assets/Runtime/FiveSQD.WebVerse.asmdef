@@ -1,0 +1,36 @@
+{
+    "name": "FiveSQD.WebVerse",
+    "rootNamespace": "",
+    "references": [
+        "GUID:3865187f41b5f7a4fb278b09d192bbfb",
+        "GUID:4e5bdf50440bbd34e862fe5037d312b3",
+        "GUID:796f11cc32c1c5442bfe7988dcfbe78a",
+        "GUID:cadc04802aa07a046856a14dd4648e81",
+        "GUID:a42927d1d4a3b4cda9b076a7adecb9cc",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:d9c143f5f90809e41835a785e1aafc2e",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:e40ba710768534012815d3193fa296cb",
+        "GUID:fe685ec1767f73d42b749ea8045bfe43",
+        "GUID:dc960734dc080426fa6612f1c5fe95f3",
+        "GUID:8f07e33567e0ee542b40769c456c6b53",
+        "GUID:cd6342e5cfb9a4035838bb5b11cd5ce0",
+        "GUID:c76e28da8ce572043b1fb2da95817e18",
+        "GUID:4333e1ebda3404646a79cf687ca3e9e0"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Jint.dll",
+        "Esprima.dll",
+        "Newtonsoft.Json.dll",
+        "Mono.Data.Sqlite.dll",
+        "Acornima.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

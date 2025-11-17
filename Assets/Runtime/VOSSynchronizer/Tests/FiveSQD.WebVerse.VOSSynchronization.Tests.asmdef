@@ -1,0 +1,24 @@
+{
+    "name": "FiveSQD.WebVerse.VOSSynchronization.Tests",
+    "rootNamespace": "",
+    "references": [
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:0acc523941302664db1f4e527237feb3",
+        "GUID:b99f61c11f63dc04897456e22b3ace30",
+        "GUID:796f11cc32c1c5442bfe7988dcfbe78a",
+        "GUID:cadc04802aa07a046856a14dd4648e81"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,56 @@
+{
+  "type": "water",
+  "id": "550e8400-e29b-41d4-a716-446655440030",
+  "tag": "SimplePond",
+  "position": {
+    "x": 0.0,
+    "y": -0.5,
+    "z": 0.0
+  },
+  "rotation": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "scale": {
+    "x": 20.0,
+    "y": 2.0,
+    "z": 20.0
+  },
+  "shallowColor": {
+    "r": 0.4,
+    "g": 0.8,
+    "b": 1.0,
+    "a": 0.8
+  },
+  "deepColor": {
+    "r": 0.1,
+    "g": 0.3,
+    "b": 0.7,
+    "a": 1.0
+  },
+  "specularColor": {
+    "r": 1.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+  },
+  "scatteringColor": {
+    "r": 0.2,
+    "g": 0.6,
+    "b": 0.8,
+    "a": 1.0
+  },
+  "deepStart": 0.5,
+  "deepEnd": 10.0,
+  "distortion": 32.0,
+  "smoothness": 0.8,
+  "intensity": 0.7,
+  "numWaves": 4.0,
+  "waveAmplitude": 0.3,
+  "waveSteepness": 0.5,
+  "waveSpeed": 1.0,
+  "waveLength": 10.0,
+  "waveScale": 1.0
+}

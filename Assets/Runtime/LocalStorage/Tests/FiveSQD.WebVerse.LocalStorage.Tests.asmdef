@@ -1,0 +1,22 @@
+{
+    "name": "FiveSQD.WebVerse.LocalStorage.Tests",
+    "rootNamespace": "",
+    "references": [
+        "GUID:3865187f41b5f7a4fb278b09d192bbfb",
+        "GUID:4e5bdf50440bbd34e862fe5037d312b3",
+        "GUID:27619889b8ba8c24980f49ee34dbb44a"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

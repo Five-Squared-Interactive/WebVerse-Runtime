@@ -1,0 +1,155 @@
+{
+  "type": "voxel",
+  "id": "550e8400-e29b-41d4-a716-446655440021",
+  "tag": "DetailedHouse",
+  "position": {
+    "x": 10.0,
+    "y": 0.0,
+    "z": 10.0
+  },
+  "rotation": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "scale": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0
+  },
+  "blockInfos": [
+    {
+      "id": 1,
+      "subTypes": [
+        {
+          "id": 0,
+          "invisible": false,
+          "topTexture": "cobblestone",
+          "bottomTexture": "cobblestone",
+          "leftTexture": "cobblestone",
+          "rightTexture": "cobblestone",
+          "frontTexture": "cobblestone",
+          "backTexture": "cobblestone"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "subTypes": [
+        {
+          "id": 0,
+          "invisible": false,
+          "topTexture": "planks_oak_top",
+          "bottomTexture": "planks_oak",
+          "leftTexture": "planks_oak",
+          "rightTexture": "planks_oak",
+          "frontTexture": "planks_oak",
+          "backTexture": "planks_oak"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "subTypes": [
+        {
+          "id": 0,
+          "invisible": false,
+          "topTexture": "glass",
+          "bottomTexture": "glass",
+          "leftTexture": "glass",
+          "rightTexture": "glass",
+          "frontTexture": "glass",
+          "backTexture": "glass"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "subTypes": [
+        {
+          "id": 0,
+          "invisible": false,
+          "topTexture": "door_wood_upper",
+          "bottomTexture": "planks_oak",
+          "leftTexture": "door_wood_upper",
+          "rightTexture": "door_wood_upper",
+          "frontTexture": "door_wood_upper",
+          "backTexture": "door_wood_upper"
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {"x": 0, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 1, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 2, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 3, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 4, "y": 0, "z": 0, "type": 1, "subType": 0},
+    {"x": 0, "y": 0, "z": 1, "type": 1, "subType": 0},
+    {"x": 1, "y": 0, "z": 1, "type": 1, "subType": 0},
+    {"x": 2, "y": 0, "z": 1, "type": 1, "subType": 0},
+    {"x": 3, "y": 0, "z": 1, "type": 1, "subType": 0},
+    {"x": 4, "y": 0, "z": 1, "type": 1, "subType": 0},
+    {"x": 0, "y": 0, "z": 2, "type": 1, "subType": 0},
+    {"x": 1, "y": 0, "z": 2, "type": 1, "subType": 0},
+    {"x": 2, "y": 0, "z": 2, "type": 1, "subType": 0},
+    {"x": 3, "y": 0, "z": 2, "type": 1, "subType": 0},
+    {"x": 4, "y": 0, "z": 2, "type": 1, "subType": 0},
+    {"x": 0, "y": 0, "z": 3, "type": 1, "subType": 0},
+    {"x": 1, "y": 0, "z": 3, "type": 1, "subType": 0},
+    {"x": 2, "y": 0, "z": 3, "type": 1, "subType": 0},
+    {"x": 3, "y": 0, "z": 3, "type": 1, "subType": 0},
+    {"x": 4, "y": 0, "z": 3, "type": 1, "subType": 0},
+    {"x": 0, "y": 1, "z": 0, "type": 2, "subType": 0},
+    {"x": 1, "y": 1, "z": 0, "type": 2, "subType": 0},
+    {"x": 2, "y": 1, "z": 0, "type": 4, "subType": 0},
+    {"x": 3, "y": 1, "z": 0, "type": 2, "subType": 0},
+    {"x": 4, "y": 1, "z": 0, "type": 2, "subType": 0},
+    {"x": 0, "y": 1, "z": 1, "type": 2, "subType": 0},
+    {"x": 4, "y": 1, "z": 1, "type": 2, "subType": 0},
+    {"x": 0, "y": 1, "z": 2, "type": 2, "subType": 0},
+    {"x": 1, "y": 1, "z": 2, "type": 3, "subType": 0},
+    {"x": 3, "y": 1, "z": 2, "type": 3, "subType": 0},
+    {"x": 4, "y": 1, "z": 2, "type": 2, "subType": 0},
+    {"x": 0, "y": 1, "z": 3, "type": 2, "subType": 0},
+    {"x": 1, "y": 1, "z": 3, "type": 2, "subType": 0},
+    {"x": 2, "y": 1, "z": 3, "type": 2, "subType": 0},
+    {"x": 3, "y": 1, "z": 3, "type": 2, "subType": 0},
+    {"x": 4, "y": 1, "z": 3, "type": 2, "subType": 0},
+    {"x": 0, "y": 2, "z": 0, "type": 2, "subType": 0},
+    {"x": 1, "y": 2, "z": 0, "type": 2, "subType": 0},
+    {"x": 2, "y": 2, "z": 0, "type": 2, "subType": 0},
+    {"x": 3, "y": 2, "z": 0, "type": 2, "subType": 0},
+    {"x": 4, "y": 2, "z": 0, "type": 2, "subType": 0},
+    {"x": 0, "y": 2, "z": 1, "type": 2, "subType": 0},
+    {"x": 4, "y": 2, "z": 1, "type": 2, "subType": 0},
+    {"x": 0, "y": 2, "z": 2, "type": 2, "subType": 0},
+    {"x": 4, "y": 2, "z": 2, "type": 2, "subType": 0},
+    {"x": 0, "y": 2, "z": 3, "type": 2, "subType": 0},
+    {"x": 1, "y": 2, "z": 3, "type": 2, "subType": 0},
+    {"x": 2, "y": 2, "z": 3, "type": 2, "subType": 0},
+    {"x": 3, "y": 2, "z": 3, "type": 2, "subType": 0},
+    {"x": 4, "y": 2, "z": 3, "type": 2, "subType": 0},
+    {"x": 0, "y": 3, "z": 0, "type": 2, "subType": 0},
+    {"x": 1, "y": 3, "z": 0, "type": 2, "subType": 0},
+    {"x": 2, "y": 3, "z": 0, "type": 2, "subType": 0},
+    {"x": 3, "y": 3, "z": 0, "type": 2, "subType": 0},
+    {"x": 4, "y": 3, "z": 0, "type": 2, "subType": 0},
+    {"x": 0, "y": 3, "z": 1, "type": 2, "subType": 0},
+    {"x": 1, "y": 3, "z": 1, "type": 2, "subType": 0},
+    {"x": 2, "y": 3, "z": 1, "type": 2, "subType": 0},
+    {"x": 3, "y": 3, "z": 1, "type": 2, "subType": 0},
+    {"x": 4, "y": 3, "z": 1, "type": 2, "subType": 0},
+    {"x": 0, "y": 3, "z": 2, "type": 2, "subType": 0},
+    {"x": 1, "y": 3, "z": 2, "type": 2, "subType": 0},
+    {"x": 2, "y": 3, "z": 2, "type": 2, "subType": 0},
+    {"x": 3, "y": 3, "z": 2, "type": 2, "subType": 0},
+    {"x": 4, "y": 3, "z": 2, "type": 2, "subType": 0},
+    {"x": 0, "y": 3, "z": 3, "type": 2, "subType": 0},
+    {"x": 1, "y": 3, "z": 3, "type": 2, "subType": 0},
+    {"x": 2, "y": 3, "z": 3, "type": 2, "subType": 0},
+    {"x": 3, "y": 3, "z": 3, "type": 2, "subType": 0},
+    {"x": 4, "y": 3, "z": 3, "type": 2, "subType": 0}
+  ]
+}
