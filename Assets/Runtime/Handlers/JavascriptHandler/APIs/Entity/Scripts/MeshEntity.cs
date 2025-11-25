@@ -30,6 +30,29 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             Vector3 position, Quaternion rotation, string id = null, string onLoaded = null,
             bool checkForUpdateIfCached = true)
         {
+            return Create(parent, meshObject, meshResources, position, rotation, Vector3.one,
+                false, id, onLoaded, checkForUpdateIfCached);
+        }
+
+        /// <summary>
+        /// Create a mesh entity.
+        /// </summary>
+        /// <param name="parent">Parent of the entity to create.</param>
+        /// <param name="meshObject">Path to the mesh object to load for this entity.</param>
+        /// <param name="meshResources">Paths to mesh resources for this entity.</param>
+        /// <param name="position">Position of the entity relative to its parent.</param>
+        /// <param name="rotation">Rotation of the entity relative to its parent.</param>
+        /// <param name="scale">Scale of the entity relative to its parent.</param>
+        /// <param name="isSize">Whether or not the scale parameter is a size.</param>
+        /// <param name="id">ID of the entity. One will be created if not provided.</param>
+        /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
+        /// mesh entity object.</param>
+        /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
+        /// <returns>The mesh entity object.</returns>
+        public static MeshEntity Create(BaseEntity parent, string meshObject, string[] meshResources,
+            Vector3 position, Quaternion rotation, Vector3 scale, bool isSize = false, string id = null,
+            string onLoaded = null, bool checkForUpdateIfCached = true)
+        {
             Guid guid;
             if (string.IsNullOrEmpty(id))
             {
@@ -43,6 +66,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
             UnityEngine.Vector3 pos = new UnityEngine.Vector3(position.x, position.y, position.z);
             UnityEngine.Quaternion rot = new UnityEngine.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+            UnityEngine.Vector3 scl = new UnityEngine.Vector3(scale.x, scale.y, scale.z);
 
             MeshEntity me = new MeshEntity();
 
@@ -58,6 +82,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                     meshEntity.SetParent(pBE);
                     meshEntity.SetPosition(pos, true);
                     meshEntity.SetRotation(rot, true);
+                    if (isSize)
+                    {
+                        meshEntity.SetSize(scl, true);
+                    }
+                    else
+                    {
+                        meshEntity.SetScale(scl, true);
+                    }
 
                     me.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);
                     EntityAPIHelper.AddEntityMapping(me.internalEntity, me);
@@ -83,6 +115,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <param name="meshResources">Paths to mesh resources for this entity.</param>
         /// <param name="position">Position of the entity relative to its parent.</param>
         /// <param name="rotation">Rotation of the entity relative to its parent.</param>
+        /// <param name="scale">Scale of the entity relative to its parent.</param>
+        /// <param name="isSize">Whether or not the scale parameter is a size.</param>
         /// <param name="id">ID of the entity. One will be created if not provided.</param>
         /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
         /// mesh entity object.</param>
@@ -91,8 +125,17 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             Vector3 position, Quaternion rotation, string id = null, string onLoaded = null,
             bool checkForUpdateIfCached = true)
         {
+            QueueCreate(parent, meshObject, meshResources, position, rotation, Vector3.one,
+                false, id, onLoaded, checkForUpdateIfCached);
+        }
+
+        public static void QueueCreate(BaseEntity parent, string meshObject, string[] meshResources,
+            Vector3 position, Quaternion rotation, Vector3 scale, bool isSize = false, string id = null,
+            string onLoaded = null, bool checkForUpdateIfCached = true)
+        {
             EntityAPIHelper.AddMeshEntityCreationJob(new EntityAPIHelper.MeshEntityCreationJob(
-                parent, meshObject, meshResources, position, rotation, id, onLoaded, checkForUpdateIfCached));
+                parent, meshObject, meshResources, position, rotation, scale, isSize, id,
+                onLoaded, checkForUpdateIfCached));
         }
 
         /// <summary>

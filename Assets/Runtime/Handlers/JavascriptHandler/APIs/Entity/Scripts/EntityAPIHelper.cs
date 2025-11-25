@@ -48,6 +48,16 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             public WorldTypes.Quaternion rotation;
 
             /// <summary>
+            /// Scale of the entity relative to its parent.
+            /// </summary>
+            public WorldTypes.Vector3 scale;
+
+            /// <summary>
+            /// Whether or not the scale is treated as size.
+            /// </summary>
+            public bool isSize;
+
+            /// <summary>
             /// ID of the entity. One will be created if not provided.
             /// </summary>
             public string id;
@@ -75,14 +85,16 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             /// mesh entity object.</param>
             /// <returns>The mesh entity creation job.</returns>
             public MeshEntityCreationJob(BaseEntity parent, string meshObject, string[] meshResources,
-                WorldTypes.Vector3 position, WorldTypes.Quaternion rotation, string id, string onLoaded,
-                bool checkForUpdateIfCached)
+                WorldTypes.Vector3 position, WorldTypes.Quaternion rotation, WorldTypes.Vector3 scale,
+                bool isSize, string id, string onLoaded, bool checkForUpdateIfCached)
             {
                 this.parent = parent;
                 this.meshObject = meshObject;
                 this.meshResources = meshResources;
                 this.position = position;
                 this.rotation = rotation;
+                this.scale = scale;
+                this.isSize = isSize;
                 this.id = id;
                 this.onLoaded = onLoaded;
                 this.checkForUpdateIfCached = checkForUpdateIfCached;
@@ -1232,7 +1244,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
         /// <returns>The mesh entity object.</returns>
         private MeshEntity CreateMeshEntity(BaseEntity parent, string meshObject, string[] meshResources,
-            Vector3 position, Quaternion rotation, string id, Action<MeshEntity> onLoaded, bool checkForUpdateIfCached)
+            Vector3 position, Quaternion rotation, Vector3 scale, bool isSize, string id,
+            Action<MeshEntity> onLoaded, bool checkForUpdateIfCached)
         {
             Guid guid;
             if (string.IsNullOrEmpty(id))
@@ -1247,6 +1260,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             StraightFour.Entity.BaseEntity pBE = GetPrivateEntity(parent);
             Vector3 pos = new Vector3(position.x, position.y, position.z);
             Quaternion rot = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+            Vector3 scl = new Vector3(scale.x, scale.y, scale.z);
 
             MeshEntity me = new MeshEntity();
 
@@ -1262,6 +1276,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                     meshEntity.SetParent(pBE);
                     meshEntity.SetPosition(pos, true);
                     meshEntity.SetRotation(rot, true);
+                    if (isSize)
+                    {
+                        meshEntity.SetSize(scl);
+                    }
+                    else
+                    {
+                        meshEntity.SetScale(scl);
+                    }
 
                     me.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);
                     AddEntityMapping(me.internalEntity, me);
@@ -1288,14 +1310,17 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                     currentMeshEntityCreationJob.position.y, currentMeshEntityCreationJob.position.z), new Quaternion(
                         currentMeshEntityCreationJob.rotation.x, currentMeshEntityCreationJob.rotation.y,
                         currentMeshEntityCreationJob.rotation.z, currentMeshEntityCreationJob.rotation.w),
-                        currentMeshEntityCreationJob.id, new Action<MeshEntity>((me) => {
+                    new Vector3(currentMeshEntityCreationJob.scale.x, currentMeshEntityCreationJob.scale.y,
+                        currentMeshEntityCreationJob.scale.z), currentMeshEntityCreationJob.isSize,
+                        currentMeshEntityCreationJob.id, new Action<MeshEntity>((me) =>
+                        {
                             if (!string.IsNullOrEmpty(currentMeshEntityCreationJob.onLoaded))
                             {
                                 WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
                                     currentMeshEntityCreationJob.onLoaded, new object[] { me });
                             }
                             currentMeshEntityCreationJob = null;
-                    }), currentMeshEntityCreationJob.checkForUpdateIfCached);
+                        }), currentMeshEntityCreationJob.checkForUpdateIfCached);
             }
         }
     }
