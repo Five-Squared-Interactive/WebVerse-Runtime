@@ -24,6 +24,7 @@ using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Input.Desktop;
 using Vuplex.WebView;
 using FiveSQD.WebVerse.Handlers.JSONEntity;
+using FiveSQD.WebVerse.Handlers.X3D;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -189,6 +190,12 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The JSON Entity Handler.")]
         public JSONEntityHandler jsonEntityHandler { get; private set; }
+
+        /// <summary>
+        /// The X3D Handler.
+        /// </summary>
+        [Tooltip("The X3D Handler.")]
+        public X3DHandler x3dHandler { get; private set; }
 
 #if USE_WEBINTERFACE
         /// <summary>
@@ -855,6 +862,17 @@ namespace FiveSQD.WebVerse.Runtime
             jsonEntityHandler = jsonEntityHandlerGO.AddComponent<JSONEntityHandler>();
             jsonEntityHandler.Initialize();
 
+            // Set up X3D Handler.
+            GameObject x3dHandlerGO = new GameObject("X3D");
+            x3dHandlerGO.transform.SetParent(handlersGO.transform);
+            x3dHandler = x3dHandlerGO.AddComponent<X3DHandler>();
+            x3dHandler.runtime = this;
+            x3dHandler.Initialize();
+            // Create and set the StraightFour adapter
+            StraightFourX3DAdapter x3dAdapter = x3dHandlerGO.AddComponent<StraightFourX3DAdapter>();
+            x3dAdapter.Initialize();
+            x3dHandler.SetWorldAdapter(x3dAdapter);
+
             // Set up VOS Synchronization Manager.
             GameObject vosSynchronizationManagerGO = new GameObject("VOSSynchronizationManager");
             vosSynchronizationManagerGO.transform.SetParent(transform);
@@ -952,6 +970,7 @@ namespace FiveSQD.WebVerse.Runtime
             javascriptHandler.Terminate();
             imageHandler.Terminate();
             fileHandler.Terminate();
+            x3dHandler.Terminate();
             Destroy(fileHandler.transform.parent.gameObject);
 
             // Terminate World Engine.

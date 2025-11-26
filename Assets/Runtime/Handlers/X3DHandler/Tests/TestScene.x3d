@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 3.3//EN" "http://www.web3d.org/specifications/x3d-3.3.dtd">
+<X3D profile="Immersive" version="3.3">
+    <head>
+        <meta name="title" content="WebVerse X3D Test Scene"/>
+        <meta name="description" content="A comprehensive test scene for validating X3D integration in WebVerse"/>
+        <meta name="creator" content="Five Squared Interactive"/>
+    </head>
+    <Scene>
+        <!-- Environment Setup -->
+        <Background skyColor="0.1 0.2 0.4" groundColor="0.2 0.3 0.2"/>
+        <Fog color="0.5 0.5 0.6" visibilityRange="200" fogType="LINEAR"/>
+        
+        <!-- Default Viewpoint -->
+        <Viewpoint DEF="DefaultView" position="0 2 10" orientation="0 1 0 0" description="Default View"/>
+        <Viewpoint DEF="TopView" position="0 20 0" orientation="1 0 0 -1.57" description="Top View"/>
+        <Viewpoint DEF="SideView" position="20 2 0" orientation="0 1 0 1.57" description="Side View"/>
+        
+        <!-- Lighting -->
+        <DirectionalLight direction="0.5 -1 -0.5" intensity="0.8" color="1 1 0.9" ambientIntensity="0.2"/>
+        <PointLight DEF="CenterLight" location="0 5 0" intensity="0.5" color="1 1 1" radius="20"/>
+        
+        <!-- Ground Plane -->
+        <Transform translation="0 -0.05 0">
+            <Shape DEF="Ground">
+                <Appearance>
+                    <Material diffuseColor="0.3 0.5 0.3" specularColor="0.1 0.1 0.1" shininess="0.1"/>
+                </Appearance>
+                <Box size="30 0.1 30"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Primitive Shapes Display -->
+        <!-- Red Box -->
+        <Transform translation="-4 0.5 0">
+            <Shape DEF="RedBox">
+                <Appearance>
+                    <Material diffuseColor="1 0.2 0.2" specularColor="1 1 1" shininess="0.8"/>
+                </Appearance>
+                <Box size="1 1 1"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Green Sphere -->
+        <Transform translation="-2 0.5 0">
+            <Shape DEF="GreenSphere">
+                <Appearance>
+                    <Material diffuseColor="0.2 1 0.2" specularColor="1 1 1" shininess="0.9"/>
+                </Appearance>
+                <Sphere radius="0.5"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Blue Cylinder -->
+        <Transform translation="0 0.5 0">
+            <Shape DEF="BlueCylinder">
+                <Appearance>
+                    <Material diffuseColor="0.2 0.2 1" specularColor="1 1 1" shininess="0.7"/>
+                </Appearance>
+                <Cylinder radius="0.4" height="1"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Yellow Cone -->
+        <Transform translation="2 0.5 0">
+            <Shape DEF="YellowCone">
+                <Appearance>
+                    <Material diffuseColor="1 1 0.2" specularColor="1 1 1" shininess="0.6"/>
+                </Appearance>
+                <Cone bottomRadius="0.5" height="1"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Magenta Torus (if supported) -->
+        <Transform translation="4 0.5 0">
+            <Shape DEF="MagentaBox">
+                <Appearance>
+                    <Material diffuseColor="1 0.2 1" specularColor="1 1 1" shininess="0.5"/>
+                </Appearance>
+                <Box size="0.8 0.8 0.8"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Nested Transform Hierarchy -->
+        <Transform DEF="ParentTransform" translation="0 0 -5">
+            <Transform DEF="ChildTransform1" translation="2 0 0" rotation="0 1 0 0.785">
+                <Shape>
+                    <Appearance>
+                        <Material diffuseColor="0.8 0.4 0"/>
+                    </Appearance>
+                    <Box size="0.5 0.5 0.5"/>
+                </Shape>
+                <Transform DEF="GrandchildTransform" translation="0 1 0">
+                    <Shape>
+                        <Appearance>
+                            <Material diffuseColor="0.4 0.8 0"/>
+                        </Appearance>
+                        <Sphere radius="0.25"/>
+                    </Shape>
+                </Transform>
+            </Transform>
+            <Transform DEF="ChildTransform2" translation="-2 0 0" rotation="0 1 0 -0.785">
+                <Shape>
+                    <Appearance>
+                        <Material diffuseColor="0.4 0 0.8"/>
+                    </Appearance>
+                    <Cylinder radius="0.25" height="0.5"/>
+                </Shape>
+            </Transform>
+        </Transform>
+        
+        <!-- Transparent/Semi-transparent Objects -->
+        <Transform translation="0 1.5 3">
+            <Shape DEF="TransparentSphere">
+                <Appearance>
+                    <Material diffuseColor="0.5 0.8 1" transparency="0.5"/>
+                </Appearance>
+                <Sphere radius="1"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Emissive Object -->
+        <Transform translation="5 2 -3">
+            <Shape DEF="EmissiveBox">
+                <Appearance>
+                    <Material diffuseColor="0.2 0.2 0.2" emissiveColor="1 0.5 0" shininess="0.1"/>
+                </Appearance>
+                <Box size="0.5 0.5 0.5"/>
+            </Shape>
+        </Transform>
+        
+        <!-- Multiple Point Lights for testing -->
+        <PointLight DEF="RedLight" location="-5 3 0" intensity="0.4" color="1 0.3 0.3" radius="10"/>
+        <PointLight DEF="BlueLight" location="5 3 0" intensity="0.4" color="0.3 0.3 1" radius="10"/>
+        
+        <!-- Spot Light (if supported) -->
+        <SpotLight DEF="SpotLight1" location="0 8 5" direction="0 -1 -0.5" intensity="0.6" color="1 1 1" beamWidth="0.5" cutOffAngle="0.8"/>
+    </Scene>
+</X3D>
