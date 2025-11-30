@@ -1,0 +1,22 @@
+{
+    "name": "FiveSQD.WebVerse.X3D",
+    "rootNamespace": "FiveSQD.WebVerse.X3D",
+    "references": [
+        "glTFast"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.cloud.gltfast",
+            "expression": "",
+            "define": "GLTFAST_PRESENT"
+        }
+    ],
+    "noEngineReferences": false
+}
