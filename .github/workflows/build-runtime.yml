@@ -1,0 +1,541 @@
+name: Build WebVerse Runtime
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_windows:
+        description: 'Build Windows Desktop'
+        type: boolean
+        default: true
+      build_mac:
+        description: 'Build Mac Desktop'
+        type: boolean
+        default: true
+      build_webgl:
+        description: 'Build WebGL (both compressed and uncompressed)'
+        type: boolean
+        default: true
+
+env:
+  UNITY_VERSION: "6000.0.58f2"
+  S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+  AWS_REGION: us-east-1
+
+jobs:
+  # Prepare build metadata
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      build_id: ${{ steps.metadata.outputs.build_id }}
+      short_sha: ${{ steps.metadata.outputs.short_sha }}
+      build_date: ${{ steps.metadata.outputs.build_date }}
+    steps:
+      - name: Generate build metadata
+        id: metadata
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILD_DATE=$(date +'%Y-%m-%d')
+          BUILD_ID="${BUILD_DATE}_${SHORT_SHA}"
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "Build ID: $BUILD_ID"
+
+  # Windows builds (Desktop + WebGL)
+  build-windows:
+    needs: prepare
+    runs-on: [self-hosted, Windows, unity]
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' || github.event.inputs.build_webgl == 'true' }}
+    
+    env:
+      BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      # Configurable Unity path - can be overridden in runner environment
+      UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
+      # Path to Unity assets/packages on the build machine
+      UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Assets' }}
+      UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Packages' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Unity packages (Assets folder)
+        shell: pwsh
+        run: |
+          Write-Host "Setting up Unity Asset packages..."
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          
+          if (-not (Test-Path $assetsPath)) {
+            Write-Host "::error::Unity assets not found at: $assetsPath"
+            Write-Host "Please run the setup script first: scripts/setup-unity-assets.ps1"
+            exit 1
+          }
+          
+          # Define packages to copy with their relative paths
+          $packages = @(
+            @{ Name = "Digger"; RelPath = "Digger" },
+            @{ Name = "Samples"; RelPath = "Samples" },
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" },
+            @{ Name = "Vuplex"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" }
+          )
+          
+          foreach ($pkg in $packages) {
+            $sourcePath = Join-Path $assetsPath $pkg.RelPath
+            $targetPath = Join-Path "${{ github.workspace }}\Assets" $pkg.RelPath
+            
+            if (Test-Path $sourcePath) {
+              Write-Host "Copying $($pkg.Name)..."
+              $targetParent = Split-Path $targetPath -Parent
+              if (-not (Test-Path $targetParent)) {
+                New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+              }
+              Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+            } else {
+              Write-Host "::warning::Package not found: $($pkg.Name) at $sourcePath"
+            }
+          }
+          
+          Write-Host "Assets packages setup completed."
+
+      - name: Setup Unity packages (Embedded packages)
+        shell: pwsh
+        run: |
+          Write-Host "Setting up Unity embedded packages..."
+          $packagesPath = "$env:UNITY_PACKAGES_PATH"
+          
+          if (-not (Test-Path $packagesPath)) {
+            Write-Host "::error::Unity packages not found at: $packagesPath"
+            Write-Host "Please run the setup script first: scripts/setup-unity-assets.ps1"
+            exit 1
+          }
+          
+          # Define embedded packages to copy
+          $embeddedPackages = @(
+            "com.occasoftware.super-simple-skybox",
+            "com.tivadar.best.http",
+            "com.tivadar.best.mqtt",
+            "com.tivadar.best.websockets"
+          )
+          
+          foreach ($pkg in $embeddedPackages) {
+            $sourcePath = Join-Path $packagesPath $pkg
+            $targetPath = Join-Path "${{ github.workspace }}\Packages" $pkg
+            
+            if (Test-Path $sourcePath) {
+              Write-Host "Copying $pkg..."
+              if (Test-Path $targetPath) {
+                Remove-Item -Recurse -Force $targetPath
+              }
+              Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+            } else {
+              Write-Host "::warning::Package not found: $pkg at $sourcePath"
+            }
+          }
+          
+          Write-Host "Embedded packages setup completed."
+
+      - name: Create Logs directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "${{ github.workspace }}\Logs" -Force | Out-Null
+
+      - name: Build Windows Desktop
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
+        shell: pwsh
+        run: |
+          Write-Host "Building Windows Desktop..."
+          $unityPath = $env:UNITY_PATH
+          
+          if (-not (Test-Path $unityPath)) {
+            Write-Host "::error::Unity not found at: $unityPath"
+            exit 1
+          }
+          
+          & $unityPath `
+            -batchmode `
+            -nographics `
+            -quit `
+            -projectPath "${{ github.workspace }}" `
+            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop `
+            -logFile "${{ github.workspace }}\Logs\build-windows.log"
+          
+          $exitCode = $LASTEXITCODE
+          
+          if (Test-Path "${{ github.workspace }}\Logs\build-windows.log") {
+            Get-Content "${{ github.workspace }}\Logs\build-windows.log" -Tail 50
+          }
+          
+          if ($exitCode -ne 0) {
+            Write-Host "::error::Windows Desktop build failed with exit code: $exitCode"
+            exit $exitCode
+          }
+          
+          Write-Host "Windows Desktop build completed successfully."
+
+      - name: Build WebGL Compressed
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
+        shell: pwsh
+        run: |
+          Write-Host "Building WebGL Compressed..."
+          $unityPath = $env:UNITY_PATH
+          
+          & $unityPath `
+            -batchmode `
+            -nographics `
+            -quit `
+            -projectPath "${{ github.workspace }}" `
+            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildWebGLCompressed `
+            -logFile "${{ github.workspace }}\Logs\build-webgl-compressed.log"
+          
+          $exitCode = $LASTEXITCODE
+          
+          if (Test-Path "${{ github.workspace }}\Logs\build-webgl-compressed.log") {
+            Get-Content "${{ github.workspace }}\Logs\build-webgl-compressed.log" -Tail 50
+          }
+          
+          if ($exitCode -ne 0) {
+            Write-Host "::error::WebGL Compressed build failed with exit code: $exitCode"
+            exit $exitCode
+          }
+          
+          Write-Host "WebGL Compressed build completed successfully."
+
+      - name: Build WebGL Uncompressed
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
+        shell: pwsh
+        run: |
+          Write-Host "Building WebGL Uncompressed..."
+          $unityPath = $env:UNITY_PATH
+          
+          & $unityPath `
+            -batchmode `
+            -nographics `
+            -quit `
+            -projectPath "${{ github.workspace }}" `
+            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildWebGLUncompressed `
+            -logFile "${{ github.workspace }}\Logs\build-webgl-uncompressed.log"
+          
+          $exitCode = $LASTEXITCODE
+          
+          if (Test-Path "${{ github.workspace }}\Logs\build-webgl-uncompressed.log") {
+            Get-Content "${{ github.workspace }}\Logs\build-webgl-uncompressed.log" -Tail 50
+          }
+          
+          if ($exitCode -ne 0) {
+            Write-Host "::error::WebGL Uncompressed build failed with exit code: $exitCode"
+            exit $exitCode
+          }
+          
+          Write-Host "WebGL Uncompressed build completed successfully."
+
+      - name: Create build archives
+        shell: pwsh
+        run: |
+          $buildId = "$env:BUILD_ID"
+          $artifactsDir = "${{ github.workspace }}\Artifacts"
+          New-Item -ItemType Directory -Path $artifactsDir -Force
+          
+          # Archive Windows Desktop
+          if (Test-Path "${{ github.workspace }}\Builds\Windows-Desktop") {
+            Write-Host "Archiving Windows Desktop build..."
+            Compress-Archive -Path "${{ github.workspace }}\Builds\Windows-Desktop\*" `
+              -DestinationPath "$artifactsDir\Windows-Desktop-$buildId.zip"
+          }
+          
+          # Archive WebGL Compressed
+          if (Test-Path "${{ github.workspace }}\Builds\WebGL-Compressed") {
+            Write-Host "Archiving WebGL Compressed build..."
+            Compress-Archive -Path "${{ github.workspace }}\Builds\WebGL-Compressed\*" `
+              -DestinationPath "$artifactsDir\WebGL-Compressed-$buildId.zip"
+          }
+          
+          # Archive WebGL Uncompressed
+          if (Test-Path "${{ github.workspace }}\Builds\WebGL-Uncompressed") {
+            Write-Host "Archiving WebGL Uncompressed build..."
+            Compress-Archive -Path "${{ github.workspace }}\Builds\WebGL-Uncompressed\*" `
+              -DestinationPath "$artifactsDir\WebGL-Uncompressed-$buildId.zip"
+          }
+          
+          Write-Host "Archives created in: $artifactsDir"
+          Get-ChildItem $artifactsDir
+
+      - name: Upload to S3
+        shell: pwsh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          $buildId = "$env:BUILD_ID"
+          $s3Path = "s3://$env:S3_BUCKET/builds/$buildId"
+          
+          Write-Host "Uploading builds to S3: $s3Path"
+          
+          $artifacts = Get-ChildItem "${{ github.workspace }}\Artifacts\*.zip"
+          foreach ($artifact in $artifacts) {
+            Write-Host "Uploading: $($artifact.Name)"
+            aws s3 cp $artifact.FullName "$s3Path/$($artifact.Name)" --region $env:AWS_REGION
+          }
+          
+          Write-Host "Upload completed."
+          Write-Host ""
+          Write-Host "=== S3 URLs ==="
+          foreach ($artifact in $artifacts) {
+            Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$buildId/$($artifact.Name)"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds-${{ needs.prepare.outputs.build_id }}
+          path: ${{ github.workspace }}/Artifacts/*.zip
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        shell: pwsh
+        run: |
+          # Clean up build directories to save disk space
+          Remove-Item -Path "${{ github.workspace }}\Builds" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
+          # Clean up copied packages
+          Remove-Item -Path "${{ github.workspace }}\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+
+  # Mac Desktop build
+  build-mac:
+    needs: prepare
+    runs-on: [self-hosted, macOS, unity]
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_mac == 'true' }}
+    
+    env:
+      BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      # Configurable Unity path - can be overridden in runner environment
+      UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2/Unity.app/Contents/MacOS/Unity' }}
+      # Path to Unity assets/packages on the build machine
+      UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Assets' }}
+      UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Packages' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Unity packages (Assets folder)
+        run: |
+          echo "Setting up Unity Asset packages..."
+          ASSETS_PATH="$UNITY_ASSETS_PATH"
+          
+          if [ ! -d "$ASSETS_PATH" ]; then
+            echo "::error::Unity assets not found at: $ASSETS_PATH"
+            echo "Please run the setup script first: scripts/setup-unity-assets.sh"
+            exit 1
+          fi
+          
+          # Define packages to copy
+          declare -A packages=(
+            ["Digger"]="Digger"
+            ["Samples"]="Samples"
+            ["NWH"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH"
+            ["Silantro"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro"
+            ["URPWater"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater"
+            ["Vuplex"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
+          )
+          
+          for name in "${!packages[@]}"; do
+            rel_path="${packages[$name]}"
+            source_path="$ASSETS_PATH/$rel_path"
+            target_path="${{ github.workspace }}/Assets/$rel_path"
+            
+            if [ -d "$source_path" ]; then
+              echo "Copying $name..."
+              mkdir -p "$(dirname "$target_path")"
+              cp -R "$source_path" "$target_path"
+            else
+              echo "::warning::Package not found: $name at $source_path"
+            fi
+          done
+          
+          echo "Assets packages setup completed."
+
+      - name: Setup Unity packages (Embedded packages)
+        run: |
+          echo "Setting up Unity embedded packages..."
+          PACKAGES_PATH="$UNITY_PACKAGES_PATH"
+          
+          if [ ! -d "$PACKAGES_PATH" ]; then
+            echo "::error::Unity packages not found at: $PACKAGES_PATH"
+            echo "Please run the setup script first: scripts/setup-unity-assets.sh"
+            exit 1
+          fi
+          
+          # Define embedded packages to copy
+          EMBEDDED_PACKAGES=(
+            "com.occasoftware.super-simple-skybox"
+            "com.tivadar.best.http"
+            "com.tivadar.best.mqtt"
+            "com.tivadar.best.websockets"
+          )
+          
+          for pkg in "${EMBEDDED_PACKAGES[@]}"; do
+            source_path="$PACKAGES_PATH/$pkg"
+            target_path="${{ github.workspace }}/Packages/$pkg"
+            
+            if [ -d "$source_path" ]; then
+              echo "Copying $pkg..."
+              rm -rf "$target_path" 2>/dev/null || true
+              cp -R "$source_path" "$target_path"
+            else
+              echo "::warning::Package not found: $pkg at $source_path"
+            fi
+          done
+          
+          echo "Embedded packages setup completed."
+
+      - name: Create Logs directory
+        run: mkdir -p "${{ github.workspace }}/Logs"
+
+      - name: Build Mac Desktop
+        run: |
+          echo "Building Mac Desktop..."
+          UNITY="$UNITY_PATH"
+          
+          if [ ! -f "$UNITY" ]; then
+            echo "::error::Unity not found at: $UNITY"
+            exit 1
+          fi
+          
+          mkdir -p "${{ github.workspace }}/Logs"
+          
+          "$UNITY" \
+            -batchmode \
+            -nographics \
+            -quit \
+            -projectPath "${{ github.workspace }}" \
+            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildMacDesktop \
+            -logFile "${{ github.workspace }}/Logs/build-mac.log"
+          
+          EXIT_CODE=$?
+          
+          if [ -f "${{ github.workspace }}/Logs/build-mac.log" ]; then
+            tail -50 "${{ github.workspace }}/Logs/build-mac.log"
+          fi
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Mac Desktop build failed with exit code: $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+          
+          echo "Mac Desktop build completed successfully."
+
+      - name: Create build archive
+        run: |
+          BUILD_ID="$BUILD_ID"
+          ARTIFACTS_DIR="${{ github.workspace }}/Artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+          
+          # Archive Mac Desktop
+          if [ -d "${{ github.workspace }}/Builds/Mac-Desktop" ]; then
+            echo "Archiving Mac Desktop build..."
+            cd "${{ github.workspace }}/Builds/Mac-Desktop"
+            zip -r "$ARTIFACTS_DIR/Mac-Desktop-$BUILD_ID.zip" .
+          fi
+          
+          echo "Archives created in: $ARTIFACTS_DIR"
+          ls -la "$ARTIFACTS_DIR"
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          BUILD_ID="$BUILD_ID"
+          S3_PATH="s3://$S3_BUCKET/builds/$BUILD_ID"
+          
+          echo "Uploading builds to S3: $S3_PATH"
+          
+          for artifact in ${{ github.workspace }}/Artifacts/*.zip; do
+            if [ -f "$artifact" ]; then
+              FILENAME=$(basename "$artifact")
+              echo "Uploading: $FILENAME"
+              aws s3 cp "$artifact" "$S3_PATH/$FILENAME" --region $AWS_REGION
+            fi
+          done
+          
+          echo "Upload completed."
+          echo ""
+          echo "=== S3 URLs ==="
+          for artifact in ${{ github.workspace }}/Artifacts/*.zip; do
+            if [ -f "$artifact" ]; then
+              FILENAME=$(basename "$artifact")
+              echo "https://$S3_BUCKET.s3.$AWS_REGION.amazonaws.com/builds/$BUILD_ID/$FILENAME"
+            fi
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-builds-${{ needs.prepare.outputs.build_id }}
+          path: ${{ github.workspace }}/Artifacts/*.zip
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Clean up build directories to save disk space
+          rm -rf "${{ github.workspace }}/Builds" || true
+          rm -rf "${{ github.workspace }}/Artifacts" || true
+          # Clean up copied packages
+          rm -rf "${{ github.workspace }}/Assets/Digger" || true
+          rm -rf "${{ github.workspace }}/Assets/Samples" || true
+          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" || true
+          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" || true
+          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" || true
+          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" || true
+          rm -rf "${{ github.workspace }}/Packages/com.occasoftware.super-simple-skybox" || true
+          rm -rf "${{ github.workspace }}/Packages/com.tivadar.best.http" || true
+          rm -rf "${{ github.workspace }}/Packages/com.tivadar.best.mqtt" || true
+          rm -rf "${{ github.workspace }}/Packages/com.tivadar.best.websockets" || true
+
+  # Summary job
+  summary:
+    needs: [prepare, build-windows, build-mac]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Build Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build ID:** ${{ needs.prepare.outputs.build_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### S3 URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows Desktop | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Windows-Desktop-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mac Desktop | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Mac-Desktop-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| WebGL Compressed | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Compressed-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| WebGL Uncompressed | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Uncompressed-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows Builds | ${{ needs.build-windows.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mac Build | ${{ needs.build-mac.result }} |" >> $GITHUB_STEP_SUMMARY
