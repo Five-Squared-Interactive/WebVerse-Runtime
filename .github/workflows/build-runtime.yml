@@ -63,7 +63,7 @@ jobs:
         with:
           lfs: true
 
-      - name: Setup Unity packages (Assets folder)
+      - name: Setup Unity packages (Assets folder - excluding Vuplex)
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           Write-Host "Setting up Unity Asset packages..."
@@ -75,14 +75,13 @@ jobs:
             exit 1
           }
           
-          # Define packages to copy with their relative paths
+          # Define packages to copy with their relative paths (Vuplex handled separately per build)
           $packages = @(
             @{ Name = "Digger"; RelPath = "Digger" },
             @{ Name = "Samples"; RelPath = "Samples" },
             @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
             @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
-            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" },
-            @{ Name = "Vuplex"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" }
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" }
           )
           
           foreach ($pkg in $packages) {
@@ -103,10 +102,10 @@ jobs:
           
           Write-Host "Assets packages setup completed."
 
-      - name: Setup Unity packages (Embedded packages)
+      - name: Setup Unity packages (Embedded packages - common)
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          Write-Host "Setting up Unity embedded packages..."
+          Write-Host "Setting up Unity embedded packages (common)..."
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
           
           if (-not (Test-Path $packagesPath)) {
@@ -115,7 +114,7 @@ jobs:
             exit 1
           }
           
-          # Define embedded packages to copy
+          # Define common embedded packages (non-platform-specific)
           $embeddedPackages = @(
             "com.occasoftware.super-simple-skybox",
             "com.tivadar.best.http",
@@ -138,7 +137,7 @@ jobs:
             }
           }
           
-          Write-Host "Embedded packages setup completed."
+          Write-Host "Common embedded packages setup completed."
 
       - name: Create Logs directory
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -149,6 +148,24 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
+          # Install Vuplex Desktop version for Windows build
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
+          $vuplexTarget = "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          
+          Write-Host "Installing Vuplex Desktop for Windows build..."
+          if (Test-Path $vuplexSource) {
+            $targetParent = Split-Path $vuplexTarget -Parent
+            if (-not (Test-Path $targetParent)) {
+              New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+            }
+            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            Copy-Item -Path $vuplexSource -Destination $vuplexTarget -Recurse -Force
+          } else {
+            Write-Host "::error::Vuplex Desktop not found at: $vuplexSource"
+            exit 1
+          }
+          
           Write-Host "Building Windows Desktop..."
           $unityPath = $env:UNITY_PATH
           
@@ -171,6 +188,12 @@ jobs:
             Get-Content "${{ github.workspace }}\Logs\build-windows.log" -Tail 50
           }
           
+          # Remove Vuplex after build
+          if (Test-Path $vuplexTarget) {
+            Write-Host "Removing Vuplex Desktop after build..."
+            Remove-Item -Recurse -Force $vuplexTarget
+          }
+          
           if ($exitCode -ne 0) {
             Write-Host "::error::Windows Desktop build failed with exit code: $exitCode"
             exit $exitCode
@@ -182,6 +205,24 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
+          # Install Vuplex WebGL version
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
+          $vuplexTarget = "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          
+          Write-Host "Installing Vuplex WebGL for WebGL builds..."
+          if (Test-Path $vuplexSource) {
+            $targetParent = Split-Path $vuplexTarget -Parent
+            if (-not (Test-Path $targetParent)) {
+              New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+            }
+            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            Copy-Item -Path $vuplexSource -Destination $vuplexTarget -Recurse -Force
+          } else {
+            Write-Host "::error::Vuplex WebGL not found at: $vuplexSource"
+            exit 1
+          }
+          
           Write-Host "Building WebGL Compressed..."
           $unityPath = $env:UNITY_PATH
           
@@ -210,6 +251,7 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
+          # Vuplex WebGL should already be installed from previous step
           Write-Host "Building WebGL Uncompressed..."
           $unityPath = $env:UNITY_PATH
           
@@ -225,6 +267,13 @@ jobs:
           
           if (Test-Path "${{ github.workspace }}\Logs\build-webgl-uncompressed.log") {
             Get-Content "${{ github.workspace }}\Logs\build-webgl-uncompressed.log" -Tail 50
+          }
+          
+          # Remove Vuplex WebGL after builds
+          $vuplexTarget = "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          if (Test-Path $vuplexTarget) {
+            Write-Host "Removing Vuplex WebGL after builds..."
+            Remove-Item -Recurse -Force $vuplexTarget
           }
           
           if ($exitCode -ne 0) {
@@ -353,7 +402,6 @@ jobs:
             ["NWH"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH"
             ["Silantro"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro"
             ["URPWater"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater"
-            ["Vuplex"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
           )
           
           for name in "${!packages[@]}"; do
@@ -370,6 +418,19 @@ jobs:
             fi
           done
           
+          # Copy Vuplex Desktop for Mac build
+          VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
+          VUPLEX_TARGET="${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
+          
+          echo "Installing Vuplex Desktop for Mac build..."
+          if [ -d "$VUPLEX_SOURCE" ]; then
+            mkdir -p "$(dirname "$VUPLEX_TARGET")"
+            cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+          else
+            echo "::error::Vuplex Desktop not found at: $VUPLEX_SOURCE"
+            exit 1
+          fi
+          
           echo "Assets packages setup completed."
 
       - name: Setup Unity packages (Embedded packages)
@@ -383,7 +444,7 @@ jobs:
             exit 1
           fi
           
-          # Define embedded packages to copy
+          # Define embedded packages to copy (non-platform-specific only)
           EMBEDDED_PACKAGES=(
             "com.occasoftware.super-simple-skybox"
             "com.tivadar.best.http"
