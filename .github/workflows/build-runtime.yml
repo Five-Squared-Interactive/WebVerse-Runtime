@@ -51,6 +51,8 @@ jobs:
     
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      # Project path within the workspace
+      PROJECT_PATH: ${{ github.workspace }}\WebVerse-Runtime
       # Configurable Unity path - can be overridden in runner environment
       UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
       # Path to Unity assets/packages on the build machine
@@ -99,7 +101,7 @@ jobs:
           
           foreach ($pkg in $packages) {
             $sourcePath = Join-Path $assetsPath $pkg.RelPath
-            $targetPath = Join-Path "${{ github.workspace }}\Assets" $pkg.RelPath
+            $targetPath = Join-Path "$env:PROJECT_PATH\Assets" $pkg.RelPath
             
             if (Test-Path $sourcePath) {
               Write-Host "Copying $($pkg.Name)..."
@@ -137,7 +139,7 @@ jobs:
           
           foreach ($pkg in $embeddedPackages) {
             $sourcePath = Join-Path $packagesPath $pkg
-            $targetPath = Join-Path "${{ github.workspace }}\Packages" $pkg
+            $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
             
             if (Test-Path $sourcePath) {
               Write-Host "Copying $pkg..."
@@ -155,7 +157,7 @@ jobs:
       - name: Create Logs directory
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          New-Item -ItemType Directory -Path "${{ github.workspace }}\Logs" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
 
       - name: Build Windows Desktop
         if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
@@ -164,7 +166,7 @@ jobs:
           # Install Vuplex Desktop version for Windows build
           $assetsPath = "$env:UNITY_ASSETS_PATH"
           $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
-          $vuplexTarget = "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
           
           Write-Host "Installing Vuplex Desktop for Windows build..."
           if (Test-Path $vuplexSource) {
@@ -181,7 +183,7 @@ jobs:
           
           Write-Host "Building Windows Desktop..."
           $unityPath = $env:UNITY_PATH
-          $logFile = "${{ github.workspace }}\Logs\build-windows.log"
+          $logFile = "$env:PROJECT_PATH\Logs\build-windows.log"
           
           if (-not (Test-Path $unityPath)) {
             Write-Host "::error::Unity not found at: $unityPath"
@@ -189,14 +191,14 @@ jobs:
           }
           
           Write-Host "Unity path: $unityPath"
-          Write-Host "Project path: ${{ github.workspace }}"
+          Write-Host "Project path: $env:PROJECT_PATH"
           Write-Host "Log file: $logFile"
           
           $process = Start-Process -FilePath $unityPath -ArgumentList @(
             "-batchmode",
             "-nographics",
             "-quit",
-            "-projectPath", "${{ github.workspace }}",
+            "-projectPath", "$env:PROJECT_PATH",
             "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop",
             "-logFile", $logFile
           ) -Wait -PassThru -NoNewWindow
@@ -233,7 +235,7 @@ jobs:
           # Install Vuplex WebGL version
           $assetsPath = "$env:UNITY_ASSETS_PATH"
           $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
-          $vuplexTarget = "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
           
           Write-Host "Installing Vuplex WebGL for WebGL builds..."
           if (Test-Path $vuplexSource) {
@@ -250,13 +252,13 @@ jobs:
           
           Write-Host "Building WebGL Compressed..."
           $unityPath = $env:UNITY_PATH
-          $logFile = "${{ github.workspace }}\Logs\build-webgl-compressed.log"
+          $logFile = "$env:PROJECT_PATH\Logs\build-webgl-compressed.log"
           
           $process = Start-Process -FilePath $unityPath -ArgumentList @(
             "-batchmode",
             "-nographics",
             "-quit",
-            "-projectPath", "${{ github.workspace }}",
+            "-projectPath", "$env:PROJECT_PATH",
             "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLCompressed",
             "-logFile", $logFile
           ) -Wait -PassThru -NoNewWindow
@@ -284,13 +286,13 @@ jobs:
           # Vuplex WebGL should already be installed from previous step
           Write-Host "Building WebGL Uncompressed..."
           $unityPath = $env:UNITY_PATH
-          $logFile = "${{ github.workspace }}\Logs\build-webgl-uncompressed.log"
+          $logFile = "$env:PROJECT_PATH\Logs\build-webgl-uncompressed.log"
           
           $process = Start-Process -FilePath $unityPath -ArgumentList @(
             "-batchmode",
             "-nographics",
             "-quit",
-            "-projectPath", "${{ github.workspace }}",
+            "-projectPath", "$env:PROJECT_PATH",
             "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLUncompressed",
             "-logFile", $logFile
           ) -Wait -PassThru -NoNewWindow
@@ -305,7 +307,7 @@ jobs:
           }
           
           # Remove Vuplex WebGL after builds
-          $vuplexTarget = "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
           if (Test-Path $vuplexTarget) {
             Write-Host "Removing Vuplex WebGL after builds..."
             Remove-Item -Recurse -Force $vuplexTarget
@@ -322,27 +324,27 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $buildId = "$env:BUILD_ID"
-          $artifactsDir = "${{ github.workspace }}\Artifacts"
+          $artifactsDir = "$env:PROJECT_PATH\Artifacts"
           New-Item -ItemType Directory -Path $artifactsDir -Force
           
           # Archive Windows Desktop
-          if (Test-Path "${{ github.workspace }}\Builds\Windows-Desktop") {
+          if (Test-Path "$env:PROJECT_PATH\Builds\Windows-Desktop") {
             Write-Host "Archiving Windows Desktop build..."
-            Compress-Archive -Path "${{ github.workspace }}\Builds\Windows-Desktop\*" `
+            Compress-Archive -Path "$env:PROJECT_PATH\Builds\Windows-Desktop\*" `
               -DestinationPath "$artifactsDir\Windows-Desktop-$buildId.zip"
           }
           
           # Archive WebGL Compressed
-          if (Test-Path "${{ github.workspace }}\Builds\WebGL-Compressed") {
+          if (Test-Path "$env:PROJECT_PATH\Builds\WebGL-Compressed") {
             Write-Host "Archiving WebGL Compressed build..."
-            Compress-Archive -Path "${{ github.workspace }}\Builds\WebGL-Compressed\*" `
+            Compress-Archive -Path "$env:PROJECT_PATH\Builds\WebGL-Compressed\*" `
               -DestinationPath "$artifactsDir\WebGL-Compressed-$buildId.zip"
           }
           
           # Archive WebGL Uncompressed
-          if (Test-Path "${{ github.workspace }}\Builds\WebGL-Uncompressed") {
+          if (Test-Path "$env:PROJECT_PATH\Builds\WebGL-Uncompressed") {
             Write-Host "Archiving WebGL Uncompressed build..."
-            Compress-Archive -Path "${{ github.workspace }}\Builds\WebGL-Uncompressed\*" `
+            Compress-Archive -Path "$env:PROJECT_PATH\Builds\WebGL-Uncompressed\*" `
               -DestinationPath "$artifactsDir\WebGL-Uncompressed-$buildId.zip"
           }
           
@@ -360,7 +362,7 @@ jobs:
           
           Write-Host "Uploading builds to S3: $s3Path"
           
-          $artifacts = Get-ChildItem "${{ github.workspace }}\Artifacts\*.zip"
+          $artifacts = Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip"
           foreach ($artifact in $artifacts) {
             Write-Host "Uploading: $($artifact.Name)"
             aws s3 cp $artifact.FullName "$s3Path/$($artifact.Name)" --region $env:AWS_REGION
@@ -377,7 +379,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-builds-${{ needs.prepare.outputs.build_id }}
-          path: ${{ github.workspace }}/Artifacts/*.zip
+          path: ${{ github.workspace }}/WebVerse-Runtime/Artifacts/*.zip
           retention-days: 30
 
       - name: Cleanup
@@ -385,20 +387,20 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           # Clean up build directories to save disk space
-          Remove-Item -Path "${{ github.workspace }}\Builds" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
           # Clean up copied packages
-          Remove-Item -Path "${{ github.workspace }}\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "${{ github.workspace }}\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
 
   # Mac Desktop build
   build-mac:
@@ -408,6 +410,8 @@ jobs:
     
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      # Project path (WebVerse-Runtime is a subdirectory in the repo)
+      PROJECT_PATH: ${{ github.workspace }}/WebVerse-Runtime
       # Configurable Unity path - can be overridden in runner environment
       UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2/Unity.app/Contents/MacOS/Unity' }}
       # Path to Unity assets/packages on the build machine
@@ -437,7 +441,7 @@ jobs:
             local name="$1"
             local rel_path="$2"
             local source_path="$ASSETS_PATH/$rel_path"
-            local target_path="${{ github.workspace }}/Assets/$rel_path"
+            local target_path="$PROJECT_PATH/Assets/$rel_path"
             
             if [ -d "$source_path" ]; then
               echo "Copying $name..."
@@ -456,7 +460,7 @@ jobs:
           
           # Copy Vuplex Desktop for Mac build
           VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
-          VUPLEX_TARGET="${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
+          VUPLEX_TARGET="$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
           
           echo "Installing Vuplex Desktop for Mac build..."
           if [ -d "$VUPLEX_SOURCE" ]; then
@@ -490,7 +494,7 @@ jobs:
           
           for pkg in "${EMBEDDED_PACKAGES[@]}"; do
             source_path="$PACKAGES_PATH/$pkg"
-            target_path="${{ github.workspace }}/Packages/$pkg"
+            target_path="$PROJECT_PATH/Packages/$pkg"
             
             if [ -d "$source_path" ]; then
               echo "Copying $pkg..."
@@ -504,7 +508,7 @@ jobs:
           echo "Embedded packages setup completed."
 
       - name: Create Logs directory
-        run: mkdir -p "${{ github.workspace }}/Logs"
+        run: mkdir -p "$PROJECT_PATH/Logs"
 
       - name: Build Mac Desktop
         run: |
@@ -516,20 +520,20 @@ jobs:
             exit 1
           fi
           
-          mkdir -p "${{ github.workspace }}/Logs"
+          mkdir -p "$PROJECT_PATH/Logs"
           
           "$UNITY" \
             -batchmode \
             -nographics \
             -quit \
-            -projectPath "${{ github.workspace }}" \
+            -projectPath "$PROJECT_PATH" \
             -executeMethod FiveSQD.WebVerse.Building.Builder.BuildMacDesktop \
-            -logFile "${{ github.workspace }}/Logs/build-mac.log"
+            -logFile "$PROJECT_PATH/Logs/build-mac.log"
           
           EXIT_CODE=$?
           
-          if [ -f "${{ github.workspace }}/Logs/build-mac.log" ]; then
-            tail -50 "${{ github.workspace }}/Logs/build-mac.log"
+          if [ -f "$PROJECT_PATH/Logs/build-mac.log" ]; then
+            tail -50 "$PROJECT_PATH/Logs/build-mac.log"
           fi
           
           if [ $EXIT_CODE -ne 0 ]; then
@@ -542,13 +546,13 @@ jobs:
       - name: Create build archive
         run: |
           BUILD_ID="$BUILD_ID"
-          ARTIFACTS_DIR="${{ github.workspace }}/Artifacts"
+          ARTIFACTS_DIR="$PROJECT_PATH/Artifacts"
           mkdir -p "$ARTIFACTS_DIR"
           
           # Archive Mac Desktop
-          if [ -d "${{ github.workspace }}/Builds/Mac-Desktop" ]; then
+          if [ -d "$PROJECT_PATH/Builds/Mac-Desktop" ]; then
             echo "Archiving Mac Desktop build..."
-            cd "${{ github.workspace }}/Builds/Mac-Desktop"
+            cd "$PROJECT_PATH/Builds/Mac-Desktop"
             zip -r "$ARTIFACTS_DIR/Mac-Desktop-$BUILD_ID.zip" .
           fi
           
@@ -565,7 +569,7 @@ jobs:
           
           echo "Uploading builds to S3: $S3_PATH"
           
-          for artifact in ${{ github.workspace }}/Artifacts/*.zip; do
+          for artifact in $PROJECT_PATH/Artifacts/*.zip; do
             if [ -f "$artifact" ]; then
               FILENAME=$(basename "$artifact")
               echo "Uploading: $FILENAME"
@@ -576,7 +580,7 @@ jobs:
           echo "Upload completed."
           echo ""
           echo "=== S3 URLs ==="
-          for artifact in ${{ github.workspace }}/Artifacts/*.zip; do
+          for artifact in $PROJECT_PATH/Artifacts/*.zip; do
             if [ -f "$artifact" ]; then
               FILENAME=$(basename "$artifact")
               echo "https://$S3_BUCKET.s3.$AWS_REGION.amazonaws.com/builds/$BUILD_ID/$FILENAME"
@@ -587,26 +591,26 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mac-builds-${{ needs.prepare.outputs.build_id }}
-          path: ${{ github.workspace }}/Artifacts/*.zip
+          path: ${{ github.workspace }}/WebVerse-Runtime/Artifacts/*.zip
           retention-days: 30
 
       - name: Cleanup
         if: always()
         run: |
           # Clean up build directories to save disk space
-          rm -rf "${{ github.workspace }}/Builds" || true
-          rm -rf "${{ github.workspace }}/Artifacts" || true
+          rm -rf "$PROJECT_PATH/Builds" || true
+          rm -rf "$PROJECT_PATH/Artifacts" || true
           # Clean up copied packages
-          rm -rf "${{ github.workspace }}/Assets/Digger" || true
-          rm -rf "${{ github.workspace }}/Assets/Samples" || true
-          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" || true
-          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" || true
-          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" || true
-          rm -rf "${{ github.workspace }}/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" || true
-          rm -rf "${{ github.workspace }}/Packages/com.occasoftware.super-simple-skybox" || true
-          rm -rf "${{ github.workspace }}/Packages/com.tivadar.best.http" || true
-          rm -rf "${{ github.workspace }}/Packages/com.tivadar.best.mqtt" || true
-          rm -rf "${{ github.workspace }}/Packages/com.tivadar.best.websockets" || true
+          rm -rf "$PROJECT_PATH/Assets/Digger" || true
+          rm -rf "$PROJECT_PATH/Assets/Samples" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" || true
+          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" || true
+          rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.http" || true
+          rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" || true
+          rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
 
   # Summary job
   summary:
