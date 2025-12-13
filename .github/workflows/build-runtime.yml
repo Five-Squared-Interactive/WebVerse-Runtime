@@ -51,8 +51,8 @@ jobs:
     
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
-      # Project path within the workspace
-      PROJECT_PATH: ${{ github.workspace }}\WebVerse-Runtime
+      # Project path (github.workspace IS the project root when running from WebVerse-Runtime repo)
+      PROJECT_PATH: ${{ github.workspace }}
       # Configurable Unity path - can be overridden in runner environment
       UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
       # Path to Unity assets/packages on the build machine
@@ -461,7 +461,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-builds-${{ needs.prepare.outputs.build_id }}
-          path: ${{ github.workspace }}/WebVerse-Runtime/Artifacts/*.zip
+          path: ${{ github.workspace }}/Artifacts/*.zip
           retention-days: 30
 
       - name: Cleanup
@@ -498,8 +498,8 @@ jobs:
     
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
-      # Project path (WebVerse-Runtime is a subdirectory in the repo)
-      PROJECT_PATH: ${{ github.workspace }}/WebVerse-Runtime
+      # Project path (github.workspace IS the project root when running from WebVerse-Runtime repo)
+      PROJECT_PATH: ${{ github.workspace }}
       # Configurable Unity path - can be overridden in runner environment
       UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2/Unity.app/Contents/MacOS/Unity' }}
       # Path to Unity assets/packages on the build machine
@@ -719,7 +719,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mac-builds-${{ needs.prepare.outputs.build_id }}
-          path: ${{ github.workspace }}/WebVerse-Runtime/Artifacts/*.zip
+          path: ${{ github.workspace }}/Artifacts/*.zip
           retention-days: 30
 
       - name: Cleanup
