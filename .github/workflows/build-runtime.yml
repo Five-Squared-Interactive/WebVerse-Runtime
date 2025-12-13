@@ -56,12 +56,24 @@ jobs:
       # Path to Unity assets/packages on the build machine
       UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Assets' }}
       UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Packages' }}
+      # Unity cache directories - needed when runner runs as a service account
+      LOCALAPPDATA: ${{ github.workspace }}\.unity-cache\LocalAppData
+      APPDATA: ${{ github.workspace }}\.unity-cache\AppData
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Setup Unity cache directories
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          # Create cache directories for Unity when running as a service account
+          $cacheDir = "${{ github.workspace }}\.unity-cache"
+          New-Item -ItemType Directory -Path "$cacheDir\LocalAppData\Unity\Caches" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$cacheDir\AppData\Unity" -Force | Out-Null
+          Write-Host "Unity cache directories created at: $cacheDir"
 
       - name: Setup Unity packages (Assets folder - excluding Vuplex)
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -352,6 +364,7 @@ jobs:
           # Clean up build directories to save disk space
           Remove-Item -Path "${{ github.workspace }}\Builds" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "${{ github.workspace }}\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
           # Clean up copied packages
           Remove-Item -Path "${{ github.workspace }}\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "${{ github.workspace }}\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
@@ -395,19 +408,12 @@ jobs:
             exit 1
           fi
           
-          # Define packages to copy
-          declare -A packages=(
-            ["Digger"]="Digger"
-            ["Samples"]="Samples"
-            ["NWH"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH"
-            ["Silantro"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro"
-            ["URPWater"]="Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater"
-          )
-          
-          for name in "${!packages[@]}"; do
-            rel_path="${packages[$name]}"
-            source_path="$ASSETS_PATH/$rel_path"
-            target_path="${{ github.workspace }}/Assets/$rel_path"
+          # Copy packages using simple arrays (bash 3.x compatible)
+          copy_package() {
+            local name="$1"
+            local rel_path="$2"
+            local source_path="$ASSETS_PATH/$rel_path"
+            local target_path="${{ github.workspace }}/Assets/$rel_path"
             
             if [ -d "$source_path" ]; then
               echo "Copying $name..."
@@ -416,7 +422,13 @@ jobs:
             else
               echo "::warning::Package not found: $name at $source_path"
             fi
-          done
+          }
+          
+          copy_package "Digger" "Digger"
+          copy_package "Samples" "Samples"
+          copy_package "NWH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH"
+          copy_package "Silantro" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro"
+          copy_package "URPWater" "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater"
           
           # Copy Vuplex Desktop for Mac build
           VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
