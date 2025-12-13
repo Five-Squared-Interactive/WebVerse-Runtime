@@ -180,24 +180,36 @@ jobs:
           
           Write-Host "Building Windows Desktop..."
           $unityPath = $env:UNITY_PATH
+          $logFile = "${{ github.workspace }}\Logs\build-windows.log"
           
           if (-not (Test-Path $unityPath)) {
             Write-Host "::error::Unity not found at: $unityPath"
             exit 1
           }
           
-          & $unityPath `
-            -batchmode `
-            -nographics `
-            -quit `
-            -projectPath "${{ github.workspace }}" `
-            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop `
-            -logFile "${{ github.workspace }}\Logs\build-windows.log"
+          Write-Host "Unity path: $unityPath"
+          Write-Host "Project path: ${{ github.workspace }}"
+          Write-Host "Log file: $logFile"
           
-          $exitCode = $LASTEXITCODE
+          $process = Start-Process -FilePath $unityPath -ArgumentList @(
+            "-batchmode",
+            "-nographics",
+            "-quit",
+            "-projectPath", "${{ github.workspace }}",
+            "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop",
+            "-logFile", $logFile
+          ) -Wait -PassThru -NoNewWindow
           
-          if (Test-Path "${{ github.workspace }}\Logs\build-windows.log") {
-            Get-Content "${{ github.workspace }}\Logs\build-windows.log" -Tail 50
+          $exitCode = $process.ExitCode
+          Write-Host "Unity process exited with code: $exitCode"
+          
+          # Always show the last part of the log
+          if (Test-Path $logFile) {
+            Write-Host "=== Unity Log (last 100 lines) ==="
+            Get-Content $logFile -Tail 100
+            Write-Host "=== End of Unity Log ==="
+          } else {
+            Write-Host "::warning::Log file not found at: $logFile"
           }
           
           # Remove Vuplex after build
@@ -237,19 +249,24 @@ jobs:
           
           Write-Host "Building WebGL Compressed..."
           $unityPath = $env:UNITY_PATH
+          $logFile = "${{ github.workspace }}\Logs\build-webgl-compressed.log"
           
-          & $unityPath `
-            -batchmode `
-            -nographics `
-            -quit `
-            -projectPath "${{ github.workspace }}" `
-            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildWebGLCompressed `
-            -logFile "${{ github.workspace }}\Logs\build-webgl-compressed.log"
+          $process = Start-Process -FilePath $unityPath -ArgumentList @(
+            "-batchmode",
+            "-nographics",
+            "-quit",
+            "-projectPath", "${{ github.workspace }}",
+            "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLCompressed",
+            "-logFile", $logFile
+          ) -Wait -PassThru -NoNewWindow
           
-          $exitCode = $LASTEXITCODE
+          $exitCode = $process.ExitCode
+          Write-Host "Unity process exited with code: $exitCode"
           
-          if (Test-Path "${{ github.workspace }}\Logs\build-webgl-compressed.log") {
-            Get-Content "${{ github.workspace }}\Logs\build-webgl-compressed.log" -Tail 50
+          if (Test-Path $logFile) {
+            Write-Host "=== Unity Log (last 100 lines) ==="
+            Get-Content $logFile -Tail 100
+            Write-Host "=== End of Unity Log ==="
           }
           
           if ($exitCode -ne 0) {
@@ -266,19 +283,24 @@ jobs:
           # Vuplex WebGL should already be installed from previous step
           Write-Host "Building WebGL Uncompressed..."
           $unityPath = $env:UNITY_PATH
+          $logFile = "${{ github.workspace }}\Logs\build-webgl-uncompressed.log"
           
-          & $unityPath `
-            -batchmode `
-            -nographics `
-            -quit `
-            -projectPath "${{ github.workspace }}" `
-            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildWebGLUncompressed `
-            -logFile "${{ github.workspace }}\Logs\build-webgl-uncompressed.log"
+          $process = Start-Process -FilePath $unityPath -ArgumentList @(
+            "-batchmode",
+            "-nographics",
+            "-quit",
+            "-projectPath", "${{ github.workspace }}",
+            "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLUncompressed",
+            "-logFile", $logFile
+          ) -Wait -PassThru -NoNewWindow
           
-          $exitCode = $LASTEXITCODE
+          $exitCode = $process.ExitCode
+          Write-Host "Unity process exited with code: $exitCode"
           
-          if (Test-Path "${{ github.workspace }}\Logs\build-webgl-uncompressed.log") {
-            Get-Content "${{ github.workspace }}\Logs\build-webgl-uncompressed.log" -Tail 50
+          if (Test-Path $logFile) {
+            Write-Host "=== Unity Log (last 100 lines) ==="
+            Get-Content $logFile -Tail 100
+            Write-Host "=== End of Unity Log ==="
           }
           
           # Remove Vuplex WebGL after builds
