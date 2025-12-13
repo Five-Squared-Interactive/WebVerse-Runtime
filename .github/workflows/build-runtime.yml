@@ -102,6 +102,8 @@ jobs:
           foreach ($pkg in $packages) {
             $sourcePath = Join-Path $assetsPath $pkg.RelPath
             $targetPath = Join-Path "$env:PROJECT_PATH\Assets" $pkg.RelPath
+            $sourceMetaPath = "$sourcePath.meta"
+            $targetMetaPath = "$targetPath.meta"
             
             if (Test-Path $sourcePath) {
               Write-Host "Copying $($pkg.Name)..."
@@ -110,6 +112,14 @@ jobs:
                 New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
               }
               Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+              
+              # Also copy the .meta file to preserve GUIDs and assembly references
+              if (Test-Path $sourceMetaPath) {
+                Write-Host "Copying $($pkg.Name).meta..."
+                Copy-Item -Path $sourceMetaPath -Destination $targetMetaPath -Force
+              } else {
+                Write-Host "::warning::Meta file not found: $sourceMetaPath"
+              }
             } else {
               Write-Host "::warning::Package not found: $($pkg.Name) at $sourcePath"
             }
@@ -159,6 +169,37 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
 
+      - name: Resolve Unity packages
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          Write-Host "Opening Unity to resolve packages and compile scripts..."
+          $unityPath = $env:UNITY_PATH
+          $logFile = "$env:PROJECT_PATH\Logs\package-resolve.log"
+          
+          # Run Unity in batch mode just to import and compile - no build method
+          $process = Start-Process -FilePath $unityPath -ArgumentList @(
+            "-batchmode",
+            "-nographics",
+            "-quit",
+            "-projectPath", "$env:PROJECT_PATH",
+            "-logFile", $logFile
+          ) -Wait -PassThru -NoNewWindow
+          
+          $exitCode = $process.ExitCode
+          Write-Host "Unity package resolve exited with code: $exitCode"
+          
+          if (Test-Path $logFile) {
+            Write-Host "=== Unity Log (last 50 lines) ==="
+            Get-Content $logFile -Tail 50
+            Write-Host "=== End of Unity Log ==="
+          }
+          
+          # Exit code 0 means success, but we'll continue even with errors
+          # since the actual build step will fail if there are real issues
+          if ($exitCode -ne 0) {
+            Write-Host "::warning::Package resolve had issues (exit code: $exitCode). Continuing with build..."
+          }
+
       - name: Build Windows Desktop
         if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -175,7 +216,13 @@ jobs:
               New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
             }
             if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
             Copy-Item -Path $vuplexSource -Destination $vuplexTarget -Recurse -Force
+            # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
+            $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $vuplexMetaSource) {
+              Copy-Item -Path $vuplexMetaSource -Destination "$vuplexTarget.meta" -Force
+            }
           } else {
             Write-Host "::error::Vuplex Desktop not found at: $vuplexSource"
             exit 1
@@ -244,7 +291,13 @@ jobs:
               New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
             }
             if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
             Copy-Item -Path $vuplexSource -Destination $vuplexTarget -Recurse -Force
+            # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
+            $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $vuplexMetaSource) {
+              Copy-Item -Path $vuplexMetaSource -Destination "$vuplexTarget.meta" -Force
+            }
           } else {
             Write-Host "::error::Vuplex WebGL not found at: $vuplexSource"
             exit 1
@@ -390,13 +443,19 @@ jobs:
           Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
-          # Clean up copied packages
+          # Clean up copied packages and their .meta files
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
@@ -442,11 +501,21 @@ jobs:
             local rel_path="$2"
             local source_path="$ASSETS_PATH/$rel_path"
             local target_path="$PROJECT_PATH/Assets/$rel_path"
+            local source_meta="$source_path.meta"
+            local target_meta="$target_path.meta"
             
             if [ -d "$source_path" ]; then
               echo "Copying $name..."
               mkdir -p "$(dirname "$target_path")"
               cp -R "$source_path" "$target_path"
+              
+              # Also copy the .meta file to preserve GUIDs and assembly references
+              if [ -f "$source_meta" ]; then
+                echo "Copying $name.meta..."
+                cp "$source_meta" "$target_meta"
+              else
+                echo "::warning::Meta file not found: $source_meta"
+              fi
             else
               echo "::warning::Package not found: $name at $source_path"
             fi
@@ -465,7 +534,14 @@ jobs:
           echo "Installing Vuplex Desktop for Mac build..."
           if [ -d "$VUPLEX_SOURCE" ]; then
             mkdir -p "$(dirname "$VUPLEX_TARGET")"
+            rm -rf "$VUPLEX_TARGET" 2>/dev/null || true
+            rm -f "$VUPLEX_TARGET.meta" 2>/dev/null || true
             cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+            # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
+            VUPLEX_META_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if [ -f "$VUPLEX_META_SOURCE" ]; then
+              cp "$VUPLEX_META_SOURCE" "$VUPLEX_TARGET.meta"
+            fi
           else
             echo "::error::Vuplex Desktop not found at: $VUPLEX_SOURCE"
             exit 1
@@ -600,13 +676,19 @@ jobs:
           # Clean up build directories to save disk space
           rm -rf "$PROJECT_PATH/Builds" || true
           rm -rf "$PROJECT_PATH/Artifacts" || true
-          # Clean up copied packages
+          # Clean up copied packages and their .meta files
           rm -rf "$PROJECT_PATH/Assets/Digger" || true
+          rm -f "$PROJECT_PATH/Assets/Digger.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Samples" || true
+          rm -f "$PROJECT_PATH/Assets/Samples.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" || true
+          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" || true
+          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" || true
+          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" || true
+          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" || true
           rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" || true
           rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.http" || true
           rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" || true
