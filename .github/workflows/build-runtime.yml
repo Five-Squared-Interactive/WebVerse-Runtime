@@ -84,6 +84,19 @@ jobs:
           Write-Host "Setting up Unity Asset packages..."
           $assetsPath = "$env:UNITY_ASSETS_PATH"
           
+          # Debug: Show paths
+          Write-Host "GitHub Workspace: ${{ github.workspace }}"
+          Write-Host "PROJECT_PATH: $env:PROJECT_PATH"
+          Write-Host "Assets source path: $assetsPath"
+          
+          # Verify PROJECT_PATH exists and is correct
+          if (-not (Test-Path "$env:PROJECT_PATH\Assets")) {
+            Write-Host "::error::Project Assets folder not found at: $env:PROJECT_PATH\Assets"
+            Write-Host "Directory contents of PROJECT_PATH:"
+            Get-ChildItem "$env:PROJECT_PATH" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $_" }
+            exit 1
+          }
+          
           if (-not (Test-Path $assetsPath)) {
             Write-Host "::error::Unity assets not found at: $assetsPath"
             Write-Host "Please run the setup script first: scripts/setup-unity-assets.ps1"
@@ -105,13 +118,25 @@ jobs:
             $sourceMetaPath = "$sourcePath.meta"
             $targetMetaPath = "$targetPath.meta"
             
+            Write-Host "Package: $($pkg.Name)"
+            Write-Host "  Source: $sourcePath"
+            Write-Host "  Target: $targetPath"
+            
             if (Test-Path $sourcePath) {
               Write-Host "Copying $($pkg.Name)..."
               $targetParent = Split-Path $targetPath -Parent
               if (-not (Test-Path $targetParent)) {
+                Write-Host "  Creating parent directory: $targetParent"
                 New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
               }
-              Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+              # Remove existing target first to avoid nesting issues
+              if (Test-Path $targetPath) {
+                Write-Host "  Removing existing target..."
+                Remove-Item -Recurse -Force $targetPath
+              }
+              # Copy contents into target (not the folder itself)
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
               
               # Also copy the .meta file to preserve GUIDs and assembly references
               if (Test-Path $sourceMetaPath) {
@@ -217,7 +242,9 @@ jobs:
             }
             if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
             if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
-            Copy-Item -Path $vuplexSource -Destination $vuplexTarget -Recurse -Force
+            # Create target folder and copy contents into it
+            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
+            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
             # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
             $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
             if (Test-Path $vuplexMetaSource) {
@@ -292,7 +319,9 @@ jobs:
             }
             if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
             if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
-            Copy-Item -Path $vuplexSource -Destination $vuplexTarget -Recurse -Force
+            # Create target folder and copy contents into it
+            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
+            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
             # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
             $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
             if (Test-Path $vuplexMetaSource) {
@@ -489,6 +518,19 @@ jobs:
           echo "Setting up Unity Asset packages..."
           ASSETS_PATH="$UNITY_ASSETS_PATH"
           
+          # Debug: Show paths
+          echo "GitHub Workspace: ${{ github.workspace }}"
+          echo "PROJECT_PATH: $PROJECT_PATH"
+          echo "Assets source path: $ASSETS_PATH"
+          
+          # Verify PROJECT_PATH exists and is correct
+          if [ ! -d "$PROJECT_PATH/Assets" ]; then
+            echo "::error::Project Assets folder not found at: $PROJECT_PATH/Assets"
+            echo "Directory contents of PROJECT_PATH:"
+            ls -la "$PROJECT_PATH" 2>/dev/null || echo "  (directory does not exist)"
+            exit 1
+          fi
+          
           if [ ! -d "$ASSETS_PATH" ]; then
             echo "::error::Unity assets not found at: $ASSETS_PATH"
             echo "Please run the setup script first: scripts/setup-unity-assets.sh"
@@ -504,10 +546,18 @@ jobs:
             local source_meta="$source_path.meta"
             local target_meta="$target_path.meta"
             
+            echo "Package: $name"
+            echo "  Source: $source_path"
+            echo "  Target: $target_path"
+            
             if [ -d "$source_path" ]; then
               echo "Copying $name..."
               mkdir -p "$(dirname "$target_path")"
-              cp -R "$source_path" "$target_path"
+              # Remove existing target first to avoid nesting
+              rm -rf "$target_path" 2>/dev/null || true
+              # Create target and copy contents into it
+              mkdir -p "$target_path"
+              cp -R "$source_path/"* "$target_path/" 2>/dev/null || cp -R "$source_path/."* "$target_path/" 2>/dev/null || true
               
               # Also copy the .meta file to preserve GUIDs and assembly references
               if [ -f "$source_meta" ]; then
@@ -536,7 +586,9 @@ jobs:
             mkdir -p "$(dirname "$VUPLEX_TARGET")"
             rm -rf "$VUPLEX_TARGET" 2>/dev/null || true
             rm -f "$VUPLEX_TARGET.meta" 2>/dev/null || true
-            cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+            # Create target and copy contents into it
+            mkdir -p "$VUPLEX_TARGET"
+            cp -R "$VUPLEX_SOURCE/"* "$VUPLEX_TARGET/" 2>/dev/null || cp -R "$VUPLEX_SOURCE/."* "$VUPLEX_TARGET/" 2>/dev/null || true
             # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
             VUPLEX_META_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
             if [ -f "$VUPLEX_META_SOURCE" ]; then
