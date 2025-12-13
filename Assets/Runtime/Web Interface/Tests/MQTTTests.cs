@@ -35,12 +35,11 @@ public class MQTTTests
     {
         // Test connection to invalid host - should handle gracefully
         bool connected = false;
-        bool errorOccurred = false;
         
         Action<MQTTClient> onConnectedAction = (client) => { connected = true; };
         Action<MQTTClient, byte, string> onDisconnectedAction = (client, code, info) => { connected = false; };
         Action<MQTTClient, MQTTClient.ClientState, MQTTClient.ClientState> onStateChangedAction = (client, from, to) => { };
-        Action<MQTTClient, string> onErrorAction = (client, info) => { errorOccurred = true; };
+        Action<MQTTClient, string> onErrorAction = (client, info) => { };
 
         MQTTClient client = new MQTTClient("invalid-mqtt-host.local", 1883, false, MQTTClient.Transports.TCP,
             onConnectedAction, onDisconnectedAction, onStateChangedAction, onErrorAction, "/webversetest");
@@ -193,8 +192,8 @@ public class MQTTTests
     public void MQTTClient_ClientStateEnum_IsValid()
     {
         // Test that client state enum values are valid
-        Assert.IsTrue(Enum.IsDefined(typeof(MQTTClient.ClientState), MQTTClient.ClientState.Closed));
-        Assert.IsTrue(Enum.IsDefined(typeof(MQTTClient.ClientState), MQTTClient.ClientState.Connecting));
+        Assert.IsTrue(Enum.IsDefined(typeof(MQTTClient.ClientState), MQTTClient.ClientState.Disconnected));
+        Assert.IsTrue(Enum.IsDefined(typeof(MQTTClient.ClientState), MQTTClient.ClientState.TransportConnecting));
         Assert.IsTrue(Enum.IsDefined(typeof(MQTTClient.ClientState), MQTTClient.ClientState.Connected));
     }
 }
