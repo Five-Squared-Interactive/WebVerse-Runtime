@@ -19,13 +19,11 @@ public class WebSocketTests
     public void WebSocket_Constructor_InitializesCorrectly()
     {
         // Test WebSocket initialization without actually connecting
-        bool errorOccurred = false;
-        
         Action<WebSocket> onOpen = (ws) => { };
         Action<WebSocket, ushort, string> onClosed = (ws, code, msg) => { };
         Action<WebSocket, byte[]> onBinary = (ws, data) => { };
         Action<WebSocket, string> onMessage = (ws, msg) => { };
-        Action<WebSocket, string> onError = (ws, msg) => { errorOccurred = true; };
+        Action<WebSocket, string> onError = (ws, msg) => { };
 
         WebSocket webSocket = new WebSocket("wss://invalid-test-url.local",
             onOpen, onClosed, onBinary, onMessage, onError);
@@ -71,7 +69,6 @@ public class WebSocketTests
         // Test connection to invalid host - should handle gracefully
         bool connected = false;
         bool connected2 = false;
-        bool errorOccurred = false;
         
         Action<WebSocket> onOpen = (ws) => { connected = true; };
         Action<WebSocket> onOpen2 = (ws) => { connected2 = true; };
@@ -85,8 +82,8 @@ public class WebSocketTests
         Action<WebSocket, string> onMessage = (ws, msg) => { };
         Action<WebSocket, string> onMessage2 = (ws, msg) => { };
         
-        Action<WebSocket, string> onError = (ws, msg) => { errorOccurred = true; };
-        Action<WebSocket, string> onError2 = (ws, msg) => { errorOccurred = true; };
+        Action<WebSocket, string> onError = (ws, msg) => { };
+        Action<WebSocket, string> onError2 = (ws, msg) => { };
 
         WebSocket webSocket = new WebSocket("wss://invalid-host-for-testing.local",
             onOpen, onClosed, onBinary, onMessage, onError);
