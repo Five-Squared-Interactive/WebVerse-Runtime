@@ -64,7 +64,7 @@ jobs:
           lfs: true
 
       - name: Setup Unity packages (Assets folder)
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           Write-Host "Setting up Unity Asset packages..."
           $assetsPath = "$env:UNITY_ASSETS_PATH"
@@ -104,7 +104,7 @@ jobs:
           Write-Host "Assets packages setup completed."
 
       - name: Setup Unity packages (Embedded packages)
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           Write-Host "Setting up Unity embedded packages..."
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
@@ -141,13 +141,13 @@ jobs:
           Write-Host "Embedded packages setup completed."
 
       - name: Create Logs directory
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           New-Item -ItemType Directory -Path "${{ github.workspace }}\Logs" -Force | Out-Null
 
       - name: Build Windows Desktop
         if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           Write-Host "Building Windows Desktop..."
           $unityPath = $env:UNITY_PATH
@@ -180,7 +180,7 @@ jobs:
 
       - name: Build WebGL Compressed
         if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           Write-Host "Building WebGL Compressed..."
           $unityPath = $env:UNITY_PATH
@@ -208,7 +208,7 @@ jobs:
 
       - name: Build WebGL Uncompressed
         if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           Write-Host "Building WebGL Uncompressed..."
           $unityPath = $env:UNITY_PATH
@@ -235,7 +235,7 @@ jobs:
           Write-Host "WebGL Uncompressed build completed successfully."
 
       - name: Create build archives
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $buildId = "$env:BUILD_ID"
           $artifactsDir = "${{ github.workspace }}\Artifacts"
@@ -266,7 +266,7 @@ jobs:
           Get-ChildItem $artifactsDir
 
       - name: Upload to S3
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -298,7 +298,7 @@ jobs:
 
       - name: Cleanup
         if: always()
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           # Clean up build directories to save disk space
           Remove-Item -Path "${{ github.workspace }}\Builds" -Recurse -Force -ErrorAction SilentlyContinue
