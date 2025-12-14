@@ -152,6 +152,43 @@ jobs:
           
           Write-Host "Assets packages setup completed."
 
+      - name: Setup Vuplex (Desktop version for initial compile)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          # Install Vuplex Desktop version for initial package resolution
+          # This will be swapped to WebGL version when building WebGL
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          
+          Write-Host "Installing Vuplex Desktop for package resolution..."
+          Write-Host "  Source: $vuplexSource"
+          Write-Host "  Target: $vuplexTarget"
+          
+          if (Test-Path $vuplexSource) {
+            $targetParent = Split-Path $vuplexTarget -Parent
+            if (-not (Test-Path $targetParent)) {
+              New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+            }
+            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
+            # Create target folder and copy contents into it
+            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
+            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
+            # Copy Vuplex.meta file
+            $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $vuplexMetaSource) {
+              Copy-Item -Path $vuplexMetaSource -Destination "$vuplexTarget.meta" -Force
+            }
+            
+            # Verify
+            $itemCount = (Get-ChildItem $vuplexTarget -Recurse | Measure-Object).Count
+            Write-Host "  Copied $itemCount items"
+          } else {
+            Write-Host "::error::Vuplex Desktop not found at: $vuplexSource"
+            exit 1
+          }
+
       - name: Setup Unity packages (Embedded packages - common)
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
