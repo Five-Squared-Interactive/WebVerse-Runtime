@@ -20,8 +20,8 @@ namespace FiveSQD.WebVerse.Building
         private const string MacDesktopPath = BuildOutputRoot + "/Mac-Desktop";
 
         // Scene paths
-        private const string LightweightModeScene = "Assets/Runtime/TopLevel/Scenes/LightweightMode.unity";
-        private const string FocusedModeScene = "Assets/Runtime/TopLevel/Scenes/FocusedMode.unity";
+        private const string WebRuntimeScene = "Assets/Runtime/TopLevel/Scenes/WebRuntime.unity";
+        private const string DesktopRuntimeScene = "Assets/Runtime/TopLevel/Scenes/DesktopRuntime.unity";
 
         /// <summary>
         /// Build WebGL with Gzip compression.
@@ -38,7 +38,7 @@ namespace FiveSQD.WebVerse.Building
             {
                 locationPathName = WebGLCompressedPath,
                 options = BuildOptions.None,
-                scenes = new string[] { LightweightModeScene },
+                scenes = new string[] { WebRuntimeScene },
                 target = BuildTarget.WebGL
             };
 
@@ -60,7 +60,7 @@ namespace FiveSQD.WebVerse.Building
             {
                 locationPathName = WebGLUncompressedPath,
                 options = BuildOptions.None,
-                scenes = new string[] { LightweightModeScene },
+                scenes = new string[] { WebRuntimeScene },
                 target = BuildTarget.WebGL
             };
 
@@ -78,7 +78,7 @@ namespace FiveSQD.WebVerse.Building
             {
                 locationPathName = WindowsDesktopPath + "/WebVerse.exe",
                 options = BuildOptions.None,
-                scenes = new string[] { FocusedModeScene },
+                scenes = new string[] { DesktopRuntimeScene },
                 target = BuildTarget.StandaloneWindows64
             };
 
@@ -96,7 +96,7 @@ namespace FiveSQD.WebVerse.Building
             {
                 locationPathName = MacDesktopPath + "/WebVerse.app",
                 options = BuildOptions.None,
-                scenes = new string[] { FocusedModeScene },
+                scenes = new string[] { DesktopRuntimeScene },
                 target = BuildTarget.StandaloneOSX
             };
 
