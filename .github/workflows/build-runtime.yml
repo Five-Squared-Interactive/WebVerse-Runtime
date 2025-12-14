@@ -226,15 +226,20 @@ jobs:
           Write-Host "Unity package resolve exited with code: $exitCode"
           
           if (Test-Path $logFile) {
-            Write-Host "=== Unity Log (last 50 lines) ==="
-            Get-Content $logFile -Tail 50
+            # Show compiler errors if any
+            Write-Host "=== Compiler Errors ==="
+            Select-String -Path $logFile -Pattern "error CS|error:|Assets.*error" | ForEach-Object { Write-Host $_.Line }
+            Write-Host "=== End Compiler Errors ==="
+            
+            Write-Host ""
+            Write-Host "=== Unity Log (last 100 lines) ==="
+            Get-Content $logFile -Tail 100
             Write-Host "=== End of Unity Log ==="
           }
           
-          # Exit code 0 means success, but we'll continue even with errors
-          # since the actual build step will fail if there are real issues
           if ($exitCode -ne 0) {
-            Write-Host "::warning::Package resolve had issues (exit code: $exitCode). Continuing with build..."
+            Write-Host "::error::Package resolve failed with compiler errors (exit code: $exitCode)"
+            exit $exitCode
           }
 
       - name: Build Windows Desktop
