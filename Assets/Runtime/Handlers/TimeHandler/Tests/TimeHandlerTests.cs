@@ -59,7 +59,7 @@ public class TimeHandlerTests
         
         if (runtimeGO != null)
         {
-            Object.DestroyImmediate(runtimeGO);
+            UnityEngine.Object.DestroyImmediate(runtimeGO);
         }
     }
 

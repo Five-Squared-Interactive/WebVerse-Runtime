@@ -55,7 +55,7 @@ public class GLTFHandlerTests
         
         if (runtimeGO != null)
         {
-            Object.DestroyImmediate(runtimeGO);
+            UnityEngine.Object.DestroyImmediate(runtimeGO);
         }
     }
 
@@ -99,13 +99,11 @@ public class GLTFHandlerTests
     {
         // Test loading a GLTF file from a local path (should handle non-existent files gracefully)
         string localPath = Path.Combine(runtime.fileHandler.fileDirectory, "test.gltf");
-        
-        bool callbackExecuted = false;
+
         GameObject loadedObject = null;
         
         System.Action<GameObject> onLoaded = (gameObject) =>
         {
-            callbackExecuted = true;
             loadedObject = gameObject;
         };
 

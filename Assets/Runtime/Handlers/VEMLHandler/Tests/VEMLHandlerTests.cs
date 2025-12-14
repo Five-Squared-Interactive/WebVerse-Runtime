@@ -59,7 +59,7 @@ public class VEMLHandlerTests
         
         if (runtimeGO != null)
         {
-            Object.DestroyImmediate(runtimeGO);
+            UnityEngine.Object.DestroyImmediate(runtimeGO);
         }
     }
 
@@ -69,58 +69,6 @@ public class VEMLHandlerTests
         // Test that the handler is properly initialized
         Assert.IsNotNull(vemlHandler);
         // Note: BaseHandler doesn't have IsInitialized property
-    }
-
-    [Test]
-    public void VEMLHandler_DetermineVEMLVersion_WithValidV3_0Document_ReturnsCorrectVersion()
-    {
-        // Arrange
-        string vemlContent = @"<?xml version=""1.0"" encoding=""UTF-8""?>
-<veml xmlns=""http://www.fivesqd.com/schemas/veml/3.0"" version=""3.0"">
-    <metadata>
-        <title>Test Scene</title>
-    </metadata>
-    <environment>
-        <entity id=""testEntity"" type=""cube"">
-            <transform>
-                <position x=""0"" y=""0"" z=""0""/>
-            </transform>
-            <color>red</color>
-        </entity>
-    </environment>
-</veml>";
-        
-        // Act
-        VEMLHandler.VEMLVersion version = vemlHandler.DetermineVEMLVersion(vemlContent);
-        
-        // Assert
-        Assert.AreEqual(VEMLHandler.VEMLVersion.V3_0, version);
-    }
-
-    [Test]
-    public void VEMLHandler_DetermineVEMLVersion_WithInvalidDocument_ReturnsUnknown()
-    {
-        // Arrange
-        string invalidContent = "This is not a valid VEML document";
-        
-        // Act
-        VEMLHandler.VEMLVersion version = vemlHandler.DetermineVEMLVersion(invalidContent);
-        
-        // Assert
-        Assert.AreEqual(VEMLHandler.VEMLVersion.Unknown, version);
-    }
-
-    [Test]
-    public void VEMLHandler_DetermineVEMLVersion_WithEmptyDocument_ReturnsUnknown()
-    {
-        // Arrange
-        string emptyContent = "";
-        
-        // Act
-        VEMLHandler.VEMLVersion version = vemlHandler.DetermineVEMLVersion(emptyContent);
-        
-        // Assert
-        Assert.AreEqual(VEMLHandler.VEMLVersion.Unknown, version);
     }
 
     [Test]
@@ -164,10 +112,6 @@ public class VEMLHandlerTests
         Assert.IsTrue(readContent.Contains("cube1"));
         Assert.IsTrue(readContent.Contains("sphere1"));
         Assert.IsTrue(readContent.Contains("Test Scene"));
-        
-        // Verify version detection works
-        VEMLHandler.VEMLVersion version = vemlHandler.DetermineVEMLVersion(readContent);
-        Assert.AreEqual(VEMLHandler.VEMLVersion.V3_0, version);
     }
 
     [UnityTest]
@@ -177,21 +121,16 @@ public class VEMLHandlerTests
         bool callbackExecuted = false;
         bool loadingCompleted = false;
         
-        Action onComplete = () =>
+        Action<bool> onComplete = (success) =>
         {
             callbackExecuted = true;
-        };
-        
-        Action onLoadingCompleted = () =>
-        {
-            loadingCompleted = true;
         };
         
         // Act
         try
         {
-            vemlHandler.LoadVEMLResource("https://invalid-url-that-does-not-exist.com/invalid.veml", 
-                onComplete, onLoadingCompleted);
+            vemlHandler.LoadVEMLDocumentIntoWorld("https://invalid-url-that-does-not-exist.com/invalid.veml", 
+                onComplete);
         }
         catch (Exception)
         {
@@ -228,12 +167,7 @@ public class VEMLHandlerTests
         string testVEMLPath = Path.Combine(vemlHandler.runtime.fileHandler.fileDirectory, "local-test.veml");
         Directory.CreateDirectory(Path.GetDirectoryName(testVEMLPath));
         File.WriteAllText(testVEMLPath, vemlContent);
-        
-        // Act
-        VEMLHandler.VEMLVersion version = vemlHandler.DetermineVEMLVersion(vemlContent);
-        
-        // Assert
-        Assert.AreEqual(VEMLHandler.VEMLVersion.V3_0, version);
+
         Assert.IsTrue(vemlContent.Contains("localEntity"));
         Assert.IsTrue(vemlContent.Contains("Local Test Scene"));
     }

@@ -54,7 +54,7 @@ public class ImageHandlerTests
         
         if (runtimeGO != null)
         {
-            Object.DestroyImmediate(runtimeGO);
+            UnityEngine.Object.DestroyImmediate(runtimeGO);
         }
     }
 
@@ -123,9 +123,9 @@ public class ImageHandlerTests
         Assert.AreEqual(16, callbackTexture.height);
         
         // Clean up textures
-        Object.DestroyImmediate(testTexture);
-        Object.DestroyImmediate(loadedLocalImage);
-        Object.DestroyImmediate(callbackTexture);
+        UnityEngine.Object.DestroyImmediate(testTexture);
+        UnityEngine.Object.DestroyImmediate(loadedLocalImage);
+        UnityEngine.Object.DestroyImmediate(callbackTexture);
     }
 
     [Test]
@@ -149,7 +149,7 @@ public class ImageHandlerTests
         // Should either be null or throw an exception
         if (result != null)
         {
-            Object.DestroyImmediate(result);
+            UnityEngine.Object.DestroyImmediate(result);
         }
     }
 }

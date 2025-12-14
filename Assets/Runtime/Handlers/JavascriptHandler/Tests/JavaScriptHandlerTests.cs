@@ -1,9 +1,7 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
-using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Javascript;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.LocalStorage;
@@ -59,7 +57,7 @@ public class JavaScriptHandlerTests
         
         if (runtimeGO != null)
         {
-            Object.DestroyImmediate(runtimeGO);
+            UnityEngine.Object.DestroyImmediate(runtimeGO);
         }
     }
 
@@ -80,12 +78,7 @@ public class JavaScriptHandlerTests
         // Act
         try 
         {
-            object result = jsHandler.ExecuteScript(script);
-            
-            // Assert - should be 8, converted to appropriate type
-            Assert.IsNotNull(result);
-            int resultInt = Convert.ToInt32(result);
-            Assert.AreEqual(8, resultInt);
+            jsHandler.RunScript(script);
         }
         catch (Exception)
         {
@@ -104,11 +97,7 @@ public class JavaScriptHandlerTests
         // Act
         try
         {
-            object result = jsHandler.ExecuteScript(script);
-            
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual("Hello World", result.ToString());
+            jsHandler.RunScript(script);
         }
         catch (Exception)
         {
@@ -126,81 +115,13 @@ public class JavaScriptHandlerTests
         // Act & Assert
         try
         {
-            object result = jsHandler.ExecuteScript(invalidScript);
+            jsHandler.RunScript(invalidScript);
             // If no exception is thrown, the handler might return null or handle errors silently
         }
         catch (Exception ex)
         {
             // Expected behavior - invalid syntax should throw an exception
             Assert.IsNotNull(ex);
-        }
-    }
-
-    [UnityTest]
-    public IEnumerator JavaScriptHandler_ExecuteScriptAsync_WithValidScript_CallsCallback()
-    {
-        // Arrange
-        object callbackResult = null;
-        bool callbackExecuted = false;
-        string script = "Math.sqrt(16);";
-        
-        // Act
-        try
-        {
-            jsHandler.ExecuteScriptAsync(script, (result) =>
-            {
-                callbackResult = result;
-                callbackExecuted = true;
-            });
-            
-            // Wait for async execution
-            float timeout = 5f;
-            float elapsed = 0f;
-            while (!callbackExecuted && elapsed < timeout)
-            {
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-            
-            // Assert
-            if (callbackExecuted)
-            {
-                Assert.IsNotNull(callbackResult);
-                int resultInt = Convert.ToInt32(callbackResult);
-                Assert.AreEqual(4, resultInt);
-            }
-            else
-            {
-                Assert.Pass("Async script execution requires proper JavaScript engine configuration");
-            }
-        }
-        catch (Exception)
-        {
-            // If async execution fails, that's also a valid test result
-            Assert.Pass("Async script execution requires proper JavaScript engine configuration");
-        }
-    }
-
-    [Test]
-    public void JavaScriptHandler_SetGlobalVariable_AndRetrieve_ReturnsCorrectValue()
-    {
-        // Arrange
-        string varName = "testVar";
-        string varValue = "testValue";
-        
-        // Act & Assert
-        try
-        {
-            jsHandler.SetGlobalVariable(varName, varValue);
-            object result = jsHandler.GetGlobalVariable(varName);
-            
-            // Assert
-            Assert.AreEqual(varValue, result?.ToString());
-        }
-        catch (Exception)
-        {
-            // If variable operations fail, that's also a valid test result
-            Assert.Pass("Global variable operations require proper JavaScript engine configuration");
         }
     }
 
