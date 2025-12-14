@@ -176,12 +176,24 @@ jobs:
             $sourcePath = Join-Path $packagesPath $pkg
             $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
             
+            Write-Host "Embedded package: $pkg"
+            Write-Host "  Source: $sourcePath"
+            Write-Host "  Target: $targetPath"
+            
             if (Test-Path $sourcePath) {
               Write-Host "Copying $pkg..."
               if (Test-Path $targetPath) {
                 Remove-Item -Recurse -Force $targetPath
               }
-              Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+              # Create target folder and copy contents into it
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+              
+              # Verify copy
+              if (Test-Path $targetPath) {
+                $itemCount = (Get-ChildItem $targetPath -Recurse | Measure-Object).Count
+                Write-Host "  Copied $itemCount items"
+              }
             } else {
               Write-Host "::warning::Package not found: $pkg at $sourcePath"
             }
@@ -624,10 +636,22 @@ jobs:
             source_path="$PACKAGES_PATH/$pkg"
             target_path="$PROJECT_PATH/Packages/$pkg"
             
+            echo "Embedded package: $pkg"
+            echo "  Source: $source_path"
+            echo "  Target: $target_path"
+            
             if [ -d "$source_path" ]; then
               echo "Copying $pkg..."
               rm -rf "$target_path" 2>/dev/null || true
-              cp -R "$source_path" "$target_path"
+              # Create target folder and copy contents into it
+              mkdir -p "$target_path"
+              cp -R "$source_path/"* "$target_path/" 2>/dev/null || cp -R "$source_path/".* "$target_path/" 2>/dev/null || true
+              
+              # Verify copy
+              if [ -d "$target_path" ]; then
+                item_count=$(find "$target_path" -type f | wc -l)
+                echo "  Copied $item_count files"
+              fi
             else
               echo "::warning::Package not found: $pkg at $source_path"
             fi
