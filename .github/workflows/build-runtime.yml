@@ -47,6 +47,7 @@ jobs:
   build-windows:
     needs: prepare
     runs-on: [self-hosted, Windows, unity]
+    timeout-minutes: 480  # 8 hours max - WebGL builds can be slow
     if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' || github.event.inputs.build_webgl == 'true' }}
     
     env:
@@ -68,6 +69,30 @@ jobs:
         with:
           lfs: true
           submodules: recursive
+
+      - name: Restore Library cache (speeds up shader compilation)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          # Use a persistent cache location on the self-hosted runner
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          
+          if (Test-Path $cacheLocation) {
+            Write-Host "Restoring Library cache from: $cacheLocation"
+            if (Test-Path $libraryPath) {
+              Remove-Item -Recurse -Force $libraryPath
+            }
+            # Copy cached Library folder
+            Copy-Item -Path $cacheLocation -Destination $libraryPath -Recurse -Force
+            Write-Host "Library cache restored successfully."
+            
+            # Show cache age
+            $cacheInfo = Get-Item $cacheLocation
+            Write-Host "Cache last modified: $($cacheInfo.LastWriteTime)"
+          } else {
+            Write-Host "No Library cache found at: $cacheLocation"
+            Write-Host "First build will be slower due to shader compilation."
+          }
 
       - name: Setup Unity cache directories
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -283,30 +308,14 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Install Vuplex Desktop version for Windows build
-          $assetsPath = "$env:UNITY_ASSETS_PATH"
-          $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
-          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          $buildStart = Get-Date
+          Write-Host "Build started at: $buildStart"
           
-          Write-Host "Installing Vuplex Desktop for Windows build..."
-          if (Test-Path $vuplexSource) {
-            $targetParent = Split-Path $vuplexTarget -Parent
-            if (-not (Test-Path $targetParent)) {
-              New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-            }
-            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
-            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
-            # Create target folder and copy contents into it
-            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
-            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
-            # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
-            $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
-            if (Test-Path $vuplexMetaSource) {
-              Copy-Item -Path $vuplexMetaSource -Destination "$vuplexTarget.meta" -Force
-            }
-          } else {
-            Write-Host "::error::Vuplex Desktop not found at: $vuplexSource"
-            exit 1
+          # Vuplex Desktop should already be installed from setup step
+          # Just verify it exists
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          if (-not (Test-Path $vuplexTarget)) {
+            Write-Host "::warning::Vuplex not found, it should have been copied in setup step"
           }
           
           Write-Host "Building Windows Desktop..."
@@ -332,7 +341,11 @@ jobs:
           ) -Wait -PassThru -NoNewWindow
           
           $exitCode = $process.ExitCode
+          $buildEnd = Get-Date
+          $buildDuration = $buildEnd - $buildStart
+          
           Write-Host "Unity process exited with code: $exitCode"
+          Write-Host "Build duration: $($buildDuration.ToString('hh\:mm\:ss'))"
           
           # Always show the last part of the log
           if (Test-Path $logFile) {
@@ -341,12 +354,6 @@ jobs:
             Write-Host "=== End of Unity Log ==="
           } else {
             Write-Host "::warning::Log file not found at: $logFile"
-          }
-          
-          # Remove Vuplex after build
-          if (Test-Path $vuplexTarget) {
-            Write-Host "Removing Vuplex Desktop after build..."
-            Remove-Item -Recurse -Force $vuplexTarget
           }
           
           if ($exitCode -ne 0) {
@@ -360,7 +367,10 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Install Vuplex WebGL version
+          $buildStart = Get-Date
+          Write-Host "Build started at: $buildStart"
+          
+          # Install Vuplex WebGL version (swap from Desktop)
           $assetsPath = "$env:UNITY_ASSETS_PATH"
           $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
           $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
@@ -400,7 +410,11 @@ jobs:
           ) -Wait -PassThru -NoNewWindow
           
           $exitCode = $process.ExitCode
+          $buildEnd = Get-Date
+          $buildDuration = $buildEnd - $buildStart
+          
           Write-Host "Unity process exited with code: $exitCode"
+          Write-Host "Build duration: $($buildDuration.ToString('hh\:mm\:ss'))"
           
           if (Test-Path $logFile) {
             Write-Host "=== Unity Log (last 100 lines) ==="
@@ -419,6 +433,9 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
+          $buildStart = Get-Date
+          Write-Host "Build started at: $buildStart"
+          
           # Vuplex WebGL should already be installed from previous step
           Write-Host "Building WebGL Uncompressed..."
           $unityPath = $env:UNITY_PATH
@@ -434,7 +451,11 @@ jobs:
           ) -Wait -PassThru -NoNewWindow
           
           $exitCode = $process.ExitCode
+          $buildEnd = Get-Date
+          $buildDuration = $buildEnd - $buildStart
+          
           Write-Host "Unity process exited with code: $exitCode"
+          Write-Host "Build duration: $($buildDuration.ToString('hh\:mm\:ss'))"
           
           if (Test-Path $logFile) {
             Write-Host "=== Unity Log (last 100 lines) ==="
@@ -518,11 +539,41 @@ jobs:
           path: ${{ github.workspace }}/Artifacts/*.zip
           retention-days: 30
 
+      - name: Save Library cache
+        if: success()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          # Save the Library folder to persistent cache location
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          
+          if (Test-Path $libraryPath) {
+            Write-Host "Saving Library cache to: $cacheLocation"
+            
+            # Create cache directory if needed
+            $cacheParent = Split-Path $cacheLocation -Parent
+            if (-not (Test-Path $cacheParent)) {
+              New-Item -ItemType Directory -Path $cacheParent -Force | Out-Null
+            }
+            
+            # Remove old cache and copy new one
+            if (Test-Path $cacheLocation) {
+              Remove-Item -Recurse -Force $cacheLocation
+            }
+            Copy-Item -Path $libraryPath -Destination $cacheLocation -Recurse -Force
+            
+            # Show cache size
+            $cacheSize = (Get-ChildItem $cacheLocation -Recurse | Measure-Object -Property Length -Sum).Sum / 1GB
+            Write-Host "Library cache saved. Size: $([math]::Round($cacheSize, 2)) GB"
+          } else {
+            Write-Host "::warning::Library folder not found, cannot save cache"
+          }
+
       - name: Cleanup
         if: always()
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Clean up build directories to save disk space
+          # Clean up build directories to save disk space (but NOT Library - it's cached separately)
           Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
@@ -548,6 +599,7 @@ jobs:
   build-mac:
     needs: prepare
     runs-on: [self-hosted, macOS, unity]
+    timeout-minutes: 240  # 4 hours max for Mac Desktop build
     if: ${{ github.event_name == 'push' || github.event.inputs.build_mac == 'true' }}
     
     env:
@@ -566,6 +618,25 @@ jobs:
         with:
           lfs: true
           submodules: recursive
+
+      - name: Restore Library cache (speeds up shader compilation)
+        run: |
+          # Use a persistent cache location on the self-hosted runner
+          CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
+          LIBRARY_PATH="$PROJECT_PATH/Library"
+          
+          if [ -d "$CACHE_LOCATION" ]; then
+            echo "Restoring Library cache from: $CACHE_LOCATION"
+            rm -rf "$LIBRARY_PATH" 2>/dev/null || true
+            cp -R "$CACHE_LOCATION" "$LIBRARY_PATH"
+            echo "Library cache restored successfully."
+            
+            # Show cache age
+            echo "Cache last modified: $(stat -f '%Sm' "$CACHE_LOCATION" 2>/dev/null || stat -c '%y' "$CACHE_LOCATION" 2>/dev/null || echo 'unknown')"
+          else
+            echo "No Library cache found at: $CACHE_LOCATION"
+            echo "First build will be slower due to shader compilation."
+          fi
 
       - name: Setup Unity packages (Assets folder)
         run: |
@@ -714,8 +785,13 @@ jobs:
             exit 1
           fi
           
+          echo "Unity path: $UNITY"
+          echo "Project path: $PROJECT_PATH"
+          
           mkdir -p "$PROJECT_PATH/Logs"
           
+          # Run Unity and capture exit code (don't let it fail the script immediately)
+          set +e
           "$UNITY" \
             -batchmode \
             -nographics \
@@ -723,11 +799,22 @@ jobs:
             -projectPath "$PROJECT_PATH" \
             -executeMethod FiveSQD.WebVerse.Building.Builder.BuildMacDesktop \
             -logFile "$PROJECT_PATH/Logs/build-mac.log"
-          
           EXIT_CODE=$?
+          set -e
           
+          echo "Unity process exited with code: $EXIT_CODE"
+          
+          # Always show the log
           if [ -f "$PROJECT_PATH/Logs/build-mac.log" ]; then
-            tail -50 "$PROJECT_PATH/Logs/build-mac.log"
+            echo "=== Compiler Errors ==="
+            grep -i "error CS\|error:\|Assets.*error" "$PROJECT_PATH/Logs/build-mac.log" || echo "(none found)"
+            echo "=== End Compiler Errors ==="
+            echo ""
+            echo "=== Unity Log (last 100 lines) ==="
+            tail -100 "$PROJECT_PATH/Logs/build-mac.log"
+            echo "=== End of Unity Log ==="
+          else
+            echo "::warning::Log file not found at: $PROJECT_PATH/Logs/build-mac.log"
           fi
           
           if [ $EXIT_CODE -ne 0 ]; then
@@ -787,6 +874,32 @@ jobs:
           name: mac-builds-${{ needs.prepare.outputs.build_id }}
           path: ${{ github.workspace }}/Artifacts/*.zip
           retention-days: 30
+
+      - name: Save Library cache
+        if: success()
+        run: |
+          echo "=== Saving Library cache ==="
+          CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
+          LIBRARY_PATH="$PROJECT_PATH/Library"
+          
+          if [ -d "$LIBRARY_PATH" ]; then
+            echo "Library folder exists at $LIBRARY_PATH"
+            echo "Library size: $(du -sh "$LIBRARY_PATH" 2>/dev/null | cut -f1 || echo 'unknown')"
+            
+            # Create cache directory if it doesn't exist
+            mkdir -p "$CACHE_LOCATION"
+            
+            # Use rsync to efficiently update cache (delete files not in source)
+            echo "Syncing Library to cache..."
+            SYNC_START=$(date +%s)
+            rsync -a --delete "$LIBRARY_PATH/" "$CACHE_LOCATION/"
+            SYNC_END=$(date +%s)
+            SYNC_DURATION=$((SYNC_END - SYNC_START))
+            echo "Cache sync completed in ${SYNC_DURATION} seconds"
+            echo "Cache size: $(du -sh "$CACHE_LOCATION" 2>/dev/null | cut -f1 || echo 'unknown')"
+          else
+            echo "Library folder not found at $LIBRARY_PATH - nothing to cache"
+          fi
 
       - name: Cleanup
         if: always()
