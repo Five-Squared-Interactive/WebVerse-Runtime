@@ -897,6 +897,8 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_REGION: us-east-1
         run: |
           # Add common AWS CLI paths to PATH (Homebrew ARM64, Homebrew Intel, official installer)
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
@@ -909,6 +911,13 @@ jobs:
             exit 1
           fi
           echo "AWS CLI version: $(aws --version)"
+          
+          # Debug: Check if S3_BUCKET is set
+          if [ -z "$S3_BUCKET" ]; then
+            echo "::error::S3_BUCKET is empty. Please check that AWS_S3_BUCKET secret is set."
+            exit 1
+          fi
+          echo "S3 Bucket: $S3_BUCKET"
           
           BUILD_ID="$BUILD_ID"
           S3_PATH="s3://$S3_BUCKET/builds/$BUILD_ID"
