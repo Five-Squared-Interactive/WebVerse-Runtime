@@ -681,9 +681,17 @@ jobs:
               mkdir -p "$(dirname "$target_path")"
               # Remove existing target first to avoid nesting
               rm -rf "$target_path" 2>/dev/null || true
-              # Create target and copy contents into it
-              mkdir -p "$target_path"
-              cp -R "$source_path/"* "$target_path/" 2>/dev/null || cp -R "$source_path/."* "$target_path/" 2>/dev/null || true
+              # Copy the folder directly (macOS cp -R copies contents when source has no trailing slash)
+              cp -R "$source_path" "$target_path"
+              
+              # Verify copy succeeded
+              if [ -d "$target_path" ]; then
+                local item_count=$(find "$target_path" -type f 2>/dev/null | wc -l | tr -d ' ')
+                echo "  Copied $item_count files"
+              else
+                echo "::error::Failed to copy $name"
+                exit 1
+              fi
               
               # Also copy the .meta file to preserve GUIDs and assembly references
               if [ -f "$source_meta" ]; then
@@ -693,7 +701,9 @@ jobs:
                 echo "::warning::Meta file not found: $source_meta"
               fi
             else
-              echo "::warning::Package not found: $name at $source_path"
+              echo "::error::Package not found: $name at $source_path"
+              ls -la "$(dirname "$source_path")" 2>/dev/null || echo "  Parent directory does not exist"
+              exit 1
             fi
           }
           
@@ -712,9 +722,18 @@ jobs:
             mkdir -p "$(dirname "$VUPLEX_TARGET")"
             rm -rf "$VUPLEX_TARGET" 2>/dev/null || true
             rm -f "$VUPLEX_TARGET.meta" 2>/dev/null || true
-            # Create target and copy contents into it
-            mkdir -p "$VUPLEX_TARGET"
-            cp -R "$VUPLEX_SOURCE/"* "$VUPLEX_TARGET/" 2>/dev/null || cp -R "$VUPLEX_SOURCE/."* "$VUPLEX_TARGET/" 2>/dev/null || true
+            # Copy the folder directly
+            cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+            
+            # Verify copy succeeded
+            if [ -d "$VUPLEX_TARGET" ]; then
+              item_count=$(find "$VUPLEX_TARGET" -type f 2>/dev/null | wc -l | tr -d ' ')
+              echo "  Copied $item_count files"
+            else
+              echo "::error::Failed to copy Vuplex Desktop"
+              exit 1
+            fi
+            
             # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
             VUPLEX_META_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
             if [ -f "$VUPLEX_META_SOURCE" ]; then
@@ -722,6 +741,7 @@ jobs:
             fi
           else
             echo "::error::Vuplex Desktop not found at: $VUPLEX_SOURCE"
+            ls -la "$(dirname "$VUPLEX_SOURCE")" 2>/dev/null || echo "  Parent directory does not exist"
             exit 1
           fi
           
@@ -757,17 +777,21 @@ jobs:
             if [ -d "$source_path" ]; then
               echo "Copying $pkg..."
               rm -rf "$target_path" 2>/dev/null || true
-              # Create target folder and copy contents into it
-              mkdir -p "$target_path"
-              cp -R "$source_path/"* "$target_path/" 2>/dev/null || cp -R "$source_path/".* "$target_path/" 2>/dev/null || true
+              # Copy the folder directly
+              cp -R "$source_path" "$target_path"
               
-              # Verify copy
+              # Verify copy succeeded
               if [ -d "$target_path" ]; then
-                item_count=$(find "$target_path" -type f | wc -l)
+                item_count=$(find "$target_path" -type f 2>/dev/null | wc -l | tr -d ' ')
                 echo "  Copied $item_count files"
+              else
+                echo "::error::Failed to copy $pkg"
+                exit 1
               fi
             else
-              echo "::warning::Package not found: $pkg at $source_path"
+              echo "::error::Package not found: $pkg at $source_path"
+              ls -la "$PACKAGES_PATH" 2>/dev/null || echo "  Packages directory does not exist"
+              exit 1
             fi
           done
           
