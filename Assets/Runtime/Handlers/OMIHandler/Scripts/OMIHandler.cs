@@ -9,9 +9,11 @@ using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 using UnityEngine;
-using Newtonsoft.Json.Linq;
 using OMI;
 using OMI.Integration;
+#if NEWTONSOFT_JSON
+using Newtonsoft.Json.Linq;
+#endif
 #if USE_WEBINTERFACE
 using FiveSQD.WebVerse.WebInterface.HTTP;
 #endif
@@ -332,43 +334,71 @@ namespace FiveSQD.WebVerse.Handlers.OMI
         }
 
         /// <summary>
-        /// Load glTF from byte data using OMIGltfLoader.
+        /// Load glTF from byte data using OMI loader with StraightFour handlers.
         /// </summary>
         private IEnumerator LoadFromData(byte[] data, Uri baseUri, Action<bool> onComplete)
         {
             Logging.Log($"[OMIHandler] Starting LoadFromData with {data.Length} bytes, baseUri: {baseUri}");
             
-            // Parse JSON from the raw data for OMI extension processing
-            JObject rawJson = ParseGltfJson(data);
-            if (rawJson != null)
-            {
-                Logging.Log("[OMIHandler] Successfully parsed glTF JSON for OMI extensions.");
-            }
-            
+#if NEWTONSOFT_JSON
+            yield return StartCoroutine(LoadFromDataNewtonsoft(data, baseUri, onComplete));
+#else
+            Logging.LogError("[OMIHandler] NEWTONSOFT_JSON is required for OMI extension support. Please add the define symbol.");
+            onComplete?.Invoke(false);
+            yield break;
+#endif
+        }
+
+#if NEWTONSOFT_JSON
+        /// <summary>
+        /// Load glTF using OMIDirectJsonLoader with full extension support.
+        /// </summary>
+        private IEnumerator LoadFromDataNewtonsoft(byte[] data, Uri baseUri, Action<bool> onComplete)
+        {
             // Create a parent container for the loaded content
             GameObject parentContainer = new GameObject("OMI_LoadedWorld");
             
-            // Create the loader
-            OMIGltfLoader loader = null;
+            // Get the extension manager from the adapter with custom StraightFour handlers
+            OMIExtensionManager extensionManager = worldAdapter.CreateExtensionManager();
+            
+            // Create import settings
+            var importSettings = new OMIImportSettings
+            {
+                VerboseLogging = Settings.verboseLogging,
+                ImportPhysicsShapes = true,
+                ImportPhysicsBodies = true,
+                ImportPhysicsJoints = true,
+                ImportPhysicsGravity = true,
+                ImportSpawnPoints = true,
+                ImportSeats = true,
+                ImportLinks = true,
+                ImportAudioEmitters = true,
+                ImportPersonality = true,
+                ImportVehicleBodies = true,
+                ImportVehicleWheels = true
+            };
+            
+            // Create the OMI loader
+            OMIDirectJsonLoader loader = null;
             try
             {
-                loader = new OMIGltfLoader(null, new OMIImportSettings
-                {
-                    VerboseLogging = Settings.verboseLogging
-                });
+                loader = new OMIDirectJsonLoader(extensionManager, importSettings);
             }
             catch (Exception ex)
             {
                 Destroy(parentContainer);
-                Logging.LogError($"[OMIHandler] Failed to create OMIGltfLoader: {ex.Message}\n{ex.StackTrace}");
+                Logging.LogError($"[OMIHandler] Failed to create OMIDirectJsonLoader: {ex.Message}\n{ex.StackTrace}");
                 onComplete?.Invoke(false);
                 yield break;
             }
 
             using (loader)
             {
+                // Store runtime and spawn point registry in context (will be available after load)
+                // Note: Context is created during LoadAsync
+                
                 // Load the glTF data
-                Logging.Log("[OMIHandler] Starting glTF load...");
+                Logging.Log("[OMIHandler] Starting glTF load with Newtonsoft...");
                 Task<bool> loadTask = null;
                 try
                 {
@@ -409,8 +439,16 @@ namespace FiveSQD.WebVerse.Handlers.OMI
                 }
 
                 Logging.Log("[OMIHandler] glTF loaded successfully, instantiating...");
+                
+                // Store runtime and registry in context for handlers to access
+                if (loader.Context != null)
+                {
+                    loader.Context.CustomData[StraightFourCustomDataKeys.Runtime] = WebVerseRuntime.Instance;
+                    loader.Context.CustomData[StraightFourCustomDataKeys.SpawnPointRegistry] = spawnPointRegistry;
+                }
 
                 // Instantiate the scene with parent container
+                // This also processes all OMI extensions via the registered handlers
                 Task<GameObject> instantiateTask = null;
                 try
                 {
@@ -453,16 +491,17 @@ namespace FiveSQD.WebVerse.Handlers.OMI
                 GameObject rootObject = instantiateTask.Result;
                 Logging.Log($"[OMIHandler] Instantiated root object: {rootObject.name}");
 
-                // Process the loaded scene through the adapter with parsed JSON
-                yield return StartCoroutine(worldAdapter.ProcessLoadedScene(rootObject, rawJson));
+                // Post-processing (entity creation from context, if needed)
+                yield return StartCoroutine(worldAdapter.PostProcessScene(rootObject, loader.Context));
 
                 // Apply spawn point if available
                 ApplySpawnPoint();
 
-                Logging.Log("[OMIHandler] glTF world loaded successfully.");
+                Logging.Log("[OMIHandler] glTF world loaded successfully with Newtonsoft loader.");
                 onComplete?.Invoke(true);
             }
         }
+#endif
 
         /// <summary>
         /// Apply spawn point to player based on settings.
@@ -576,6 +615,7 @@ namespace FiveSQD.WebVerse.Handlers.OMI
         /// </summary>
         /// <param name="data">Raw glTF or GLB data.</param>
         /// <returns>Parsed JObject or null if parsing failed.</returns>
+#if NEWTONSOFT_JSON
         private JObject ParseGltfJson(byte[] data)
         {
             try
@@ -637,5 +677,6 @@ namespace FiveSQD.WebVerse.Handlers.OMI
             var jsonString = System.Text.Encoding.UTF8.GetString(data, 20, jsonChunkLength);
             return JObject.Parse(jsonString);
         }
+#endif
     }
 }

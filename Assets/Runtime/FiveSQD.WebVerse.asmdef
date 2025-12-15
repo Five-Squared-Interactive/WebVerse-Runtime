@@ -17,7 +17,8 @@
         "GUID:cd6342e5cfb9a4035838bb5b11cd5ce0",
         "GUID:c76e28da8ce572043b1fb2da95817e18",
         "GUID:4333e1ebda3404646a79cf687ca3e9e0",
-        "GUID:c0b325a909f937c479fbb85bf15af6bc"
+        "GUID:c0b325a909f937c479fbb85bf15af6bc",
+        "GUID:36cba8f6cb4db2047a2f431aab660248"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -32,6 +33,12 @@
     ],
     "autoReferenced": false,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "",
+            "define": "NEWTONSOFT_JSON"
+        }
+    ],
     "noEngineReferences": false
 }

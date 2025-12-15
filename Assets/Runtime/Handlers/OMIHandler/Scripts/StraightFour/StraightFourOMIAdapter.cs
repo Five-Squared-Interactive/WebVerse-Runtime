@@ -5,9 +5,13 @@ using FiveSQD.WebVerse.Utilities;
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using Newtonsoft.Json.Linq;
 using FiveSQD.StraightFour.Entity;
+using OMI;
 using OMI.Extensions.PhysicsBody;
+#if NEWTONSOFT_JSON
+using Newtonsoft.Json.Linq;
+using FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers;
+#endif
 
 namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
 {
@@ -92,7 +96,77 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
         }
 
         /// <summary>
+        /// Creates an OMIExtensionManager with all StraightFour handlers registered.
+        /// Call this before loading with OMINewtonsoftLoader.
+        /// </summary>
+        public OMIExtensionManager CreateExtensionManager()
+        {
+            var manager = new OMIExtensionManager();
+            
+#if NEWTONSOFT_JSON
+            // Register document-level handlers (process glTF extension roots)
+            manager.RegisterHandler(new StraightFourPhysicsShapeHandler());
+            manager.RegisterHandler(new StraightFourPhysicsBodyDocumentHandler());
+            manager.RegisterHandler(new StraightFourPhysicsGravityDocumentHandler());
+            manager.RegisterHandler(new StraightFourPhysicsJointDocumentHandler());
+            manager.RegisterHandler(new StraightFourEnvironmentSkyDocumentHandler());
+            manager.RegisterHandler(new StraightFourAudioDocumentHandler());
+            manager.RegisterHandler(new StraightFourVehicleWheelDocumentHandler());
+            
+            // Register node-level handlers (process per-node extension data)
+            manager.RegisterHandler(new StraightFourPhysicsBodyHandler());
+            manager.RegisterHandler(new StraightFourSpawnPointHandler());
+            manager.RegisterHandler(new StraightFourSeatHandler());
+            manager.RegisterHandler(new StraightFourLinkHandler());
+            manager.RegisterHandler(new StraightFourPhysicsGravityNodeHandler());
+            manager.RegisterHandler(new StraightFourPhysicsJointHandler());
+            manager.RegisterHandler(new StraightFourAudioEmitterHandler());
+            manager.RegisterHandler(new StraightFourPersonalityHandler());
+            manager.RegisterHandler(new StraightFourVehicleBodyHandler());
+            manager.RegisterHandler(new StraightFourVehicleWheelHandler());
+#endif
+            
+            Logging.Log("[StraightFourOMIAdapter] Created extension manager with all handlers.");
+            return manager;
+        }
+
+        /// <summary>
+        /// Post-process the scene after OMI handlers have run.
+        /// Creates StraightFour entities from the node-to-entity map if needed.
+        /// </summary>
+        /// <param name="root">Root GameObject of the loaded scene.</param>
+        /// <param name="context">Import context from OMINewtonsoftLoader.</param>
+        public IEnumerator PostProcessScene(GameObject root, OMIImportContext context)
+        {
+            Logging.Log("[StraightFourOMIAdapter] Post-processing scene...");
+            
+            if (context == null)
+            {
+                Logging.LogWarning("[StraightFourOMIAdapter] No import context available for post-processing.");
+                yield break;
+            }
+            
+            // Get the entity map if handlers created any
+            if (context.CustomData.TryGetValue(StraightFourCustomDataKeys.NodeToEntity, out var entityMapObj))
+            {
+                var entityMap = entityMapObj as Dictionary<int, BaseEntity>;
+                if (entityMap != null)
+                {
+                    Logging.Log($"[StraightFourOMIAdapter] Found {entityMap.Count} entities created by handlers.");
+                }
+            }
+            
+            // TODO: Any additional post-processing like applying spawn points to player
+            // For now, handlers do most of the work
+            
+            yield return null;
+            Logging.Log("[StraightFourOMIAdapter] Post-processing complete.");
+        }
+
+#if NEWTONSOFT_JSON
+        /// <summary>
         /// Process a loaded glTF scene and convert to StraightFour entities.
+        /// Legacy method for backward compatibility - uses direct JSON parsing.
         /// </summary>
         /// <param name="root">Root GameObject of the loaded scene.</param>
         /// <param name="rawJson">Parsed JSON from the glTF file, or null if not available.</param>
@@ -698,6 +772,7 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
             
             Logging.Log($"[StraightFourOMIAdapter] Applied link behavior to {transform.name}: {link.uri}");
         }
+#endif
 
         public void Cleanup()
         {
