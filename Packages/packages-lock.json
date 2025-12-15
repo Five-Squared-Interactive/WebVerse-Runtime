@@ -1,5 +1,15 @@
 {
   "dependencies": {
+    "com.fivesquared.omi-gltf": {
+      "version": "https://github.com/Five-Squared-Interactive/omi-gltf-unity.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.cloud.gltfast": "6.0.0",
+        "com.unity.nuget.newtonsoft-json": "3.0.0"
+      },
+      "hash": "ae1615bf14bb1aad312ca91f3d4529a08eeac8e7"
+    },
     "com.occasoftware.super-simple-skybox": {
       "version": "file:com.occasoftware.super-simple-skybox",
       "depth": 0,

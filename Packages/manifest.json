@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.fivesquared.omi-gltf": "https://github.com/Five-Squared-Interactive/omi-gltf-unity.git",
     "com.unity.ai.navigation": "2.0.9",
     "com.unity.burst": "1.8.25",
     "com.unity.cinemachine": "2.10.4",

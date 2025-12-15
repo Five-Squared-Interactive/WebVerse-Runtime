@@ -25,6 +25,7 @@ using FiveSQD.WebVerse.Input.Desktop;
 using Vuplex.WebView;
 using FiveSQD.WebVerse.Handlers.JSONEntity;
 using FiveSQD.WebVerse.Handlers.X3D;
+using FiveSQD.WebVerse.Handlers.OMI;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -196,6 +197,12 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The X3D Handler.")]
         public X3DHandler x3dHandler { get; private set; }
+
+        /// <summary>
+        /// The OMI Handler for loading glTF/GLB worlds with OMI extensions.
+        /// </summary>
+        [Tooltip("The OMI Handler for loading glTF/GLB worlds with OMI extensions.")]
+        public OMIHandler omiHandler { get; private set; }
 
 #if USE_WEBINTERFACE
         /// <summary>
@@ -666,6 +673,35 @@ namespace FiveSQD.WebVerse.Runtime
                     });
                 });
             }
+            else if (baseURL.EndsWith(".glb") || baseURL.EndsWith(".gltf"))
+            {
+                // Load glTF/GLB as OMI world
+                omiHandler.GetWorldTitle(baseURL, (title) =>
+                {
+                    state = RuntimeState.LoadingWorld;
+                    currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
+                    StraightFour.StraightFour.LoadWorld(title, queryParams);
+                    omiHandler.LoadOMIDocumentIntoWorld(baseURL, (result) =>
+                    {
+                        if (result == true)
+                        {
+                            reflectionProbe.enabled = false;
+                            reflectionProbe.enabled = true;
+                            reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
+                            state = RuntimeState.LoadedWorld;
+                        }
+                        else
+                        {
+                            state = RuntimeState.Error;
+                        }
+
+                        if (onLoaded != null)
+                        {
+                            onLoaded.Invoke(StraightFour.StraightFour.ActiveWorld.siteName);
+                        }
+                    });
+                });
+            }
             else
             {
                 Action<bool> onLoadComplete = ((result) =>
@@ -749,7 +785,14 @@ namespace FiveSQD.WebVerse.Runtime
                 vosSynchronizationManager.Reset();
             }
 #endif
-            Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Unloading World...");
+            Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Resetting OMI Handler...");
+
+            if (omiHandler != null)
+            {
+                omiHandler.Reset();
+            }
+
+            Logging.Log("[WebVerseRuntime->UnloadWorld] OMI Handler reset. Unloading World...");
 
             StraightFour.StraightFour.UnloadWorld();
             state = RuntimeState.Unloaded;
@@ -904,6 +947,14 @@ namespace FiveSQD.WebVerse.Runtime
             x3dAdapter.Initialize();
             x3dHandler.SetWorldAdapter(x3dAdapter);
 
+            // Set up OMI Handler for glTF/GLB world loading.
+            GameObject omiHandlerGO = new GameObject("OMI");
+            omiHandlerGO.transform.SetParent(handlersGO.transform);
+            omiHandler = omiHandlerGO.AddComponent<OMIHandler>();
+            omiHandler.runtime = this;
+            omiHandler.timeout = timeout;
+            omiHandler.Initialize();
+
             // Set up VOS Synchronization Manager.
             GameObject vosSynchronizationManagerGO = new GameObject("VOSSynchronizationManager");
             vosSynchronizationManagerGO.transform.SetParent(transform);
@@ -1002,6 +1053,7 @@ namespace FiveSQD.WebVerse.Runtime
             imageHandler.Terminate();
             fileHandler.Terminate();
             x3dHandler.Terminate();
+            omiHandler.Terminate();
             Destroy(fileHandler.transform.parent.gameObject);
 
             // Terminate World Engine.
