@@ -676,20 +676,30 @@ jobs:
             echo "  Source: $source_path"
             echo "  Target: $target_path"
             
+            # Debug: Show source contents
+            echo "  Source contents:"
+            ls -la "$source_path" 2>/dev/null | head -10 || echo "    (cannot list)"
+            
             if [ -d "$source_path" ]; then
               echo "Copying $name..."
               mkdir -p "$(dirname "$target_path")"
               # Remove existing target first to avoid nesting
               rm -rf "$target_path" 2>/dev/null || true
-              # Copy the folder directly (macOS cp -R copies contents when source has no trailing slash)
-              cp -R "$source_path" "$target_path"
+              # Copy the folder directly - use ditto on macOS for more reliable copying
+              if command -v ditto &> /dev/null; then
+                ditto "$source_path" "$target_path"
+              else
+                cp -R "$source_path" "$target_path"
+              fi
               
               # Verify copy succeeded
               if [ -d "$target_path" ]; then
                 local item_count=$(find "$target_path" -type f 2>/dev/null | wc -l | tr -d ' ')
                 echo "  Copied $item_count files"
+                echo "  Target contents:"
+                ls -la "$target_path" 2>/dev/null | head -10 || echo "    (cannot list)"
               else
-                echo "::error::Failed to copy $name"
+                echo "::error::Failed to copy $name - target directory does not exist"
                 exit 1
               fi
               
@@ -718,17 +728,26 @@ jobs:
           VUPLEX_TARGET="$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
           
           echo "Installing Vuplex Desktop for Mac build..."
+          echo "  Source contents:"
+          ls -la "$VUPLEX_SOURCE" 2>/dev/null | head -10 || echo "    (cannot list)"
+          
           if [ -d "$VUPLEX_SOURCE" ]; then
             mkdir -p "$(dirname "$VUPLEX_TARGET")"
             rm -rf "$VUPLEX_TARGET" 2>/dev/null || true
             rm -f "$VUPLEX_TARGET.meta" 2>/dev/null || true
-            # Copy the folder directly
-            cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+            # Copy the folder directly - use ditto on macOS for more reliable copying
+            if command -v ditto &> /dev/null; then
+              ditto "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+            else
+              cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
+            fi
             
             # Verify copy succeeded
             if [ -d "$VUPLEX_TARGET" ]; then
               item_count=$(find "$VUPLEX_TARGET" -type f 2>/dev/null | wc -l | tr -d ' ')
               echo "  Copied $item_count files"
+              echo "  Target contents:"
+              ls -la "$VUPLEX_TARGET" 2>/dev/null | head -10 || echo "    (cannot list)"
             else
               echo "::error::Failed to copy Vuplex Desktop"
               exit 1
@@ -776,14 +795,23 @@ jobs:
             
             if [ -d "$source_path" ]; then
               echo "Copying $pkg..."
+              echo "  Source contents:"
+              ls -la "$source_path" 2>/dev/null | head -5 || echo "    (cannot list)"
+              
               rm -rf "$target_path" 2>/dev/null || true
-              # Copy the folder directly
-              cp -R "$source_path" "$target_path"
+              # Copy the folder directly - use ditto on macOS for more reliable copying
+              if command -v ditto &> /dev/null; then
+                ditto "$source_path" "$target_path"
+              else
+                cp -R "$source_path" "$target_path"
+              fi
               
               # Verify copy succeeded
               if [ -d "$target_path" ]; then
                 item_count=$(find "$target_path" -type f 2>/dev/null | wc -l | tr -d ' ')
                 echo "  Copied $item_count files"
+                echo "  Target contents:"
+                ls -la "$target_path" 2>/dev/null | head -5 || echo "    (cannot list)"
               else
                 echo "::error::Failed to copy $pkg"
                 exit 1
