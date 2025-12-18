@@ -13,8 +13,12 @@ on:
         description: 'Build Mac Desktop'
         type: boolean
         default: true
-      build_webgl:
-        description: 'Build WebGL (both compressed and uncompressed)'
+      build_webgl_compressed:
+        description: 'Build WebGL Compressed'
+        type: boolean
+        default: true
+      build_webgl_uncompressed:
+        description: 'Build WebGL Uncompressed'
         type: boolean
         default: true
 
@@ -24,7 +28,6 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-  # Prepare build metadata
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -41,25 +44,19 @@ jobs:
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
-          echo "Build ID: $BUILD_ID"
 
-  # Windows builds (Desktop + WebGL)
-  build-windows:
+  # Windows Desktop build
+  build-windows-desktop:
     needs: prepare
     runs-on: [self-hosted, Windows, unity]
-    timeout-minutes: 480  # 8 hours max - WebGL builds can be slow
-    if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' || github.event.inputs.build_webgl == 'true' }}
-    
+    timeout-minutes: 360
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
-      # Project path (github.workspace IS the project root when running from WebVerse-Runtime repo)
       PROJECT_PATH: ${{ github.workspace }}
-      # Configurable Unity path - can be overridden in runner environment
       UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
-      # Path to Unity assets/packages on the build machine
       UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Assets' }}
       UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Packages' }}
-      # Unity cache directories - needed when runner runs as a service account
       LOCALAPPDATA: ${{ github.workspace }}\.unity-cache\LocalAppData
       APPDATA: ${{ github.workspace }}\.unity-cache\AppData
 
@@ -70,65 +67,34 @@ jobs:
           lfs: true
           submodules: recursive
 
-      - name: Restore Library cache (speeds up shader compilation)
+      - name: Restore Library cache
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Use a persistent cache location on the self-hosted runner
           $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
           $libraryPath = "$env:PROJECT_PATH\Library"
-          
           if (Test-Path $cacheLocation) {
             Write-Host "Restoring Library cache from: $cacheLocation"
-            if (Test-Path $libraryPath) {
-              Remove-Item -Recurse -Force $libraryPath
-            }
-            # Copy cached Library folder
+            if (Test-Path $libraryPath) { Remove-Item -Recurse -Force $libraryPath }
             Copy-Item -Path $cacheLocation -Destination $libraryPath -Recurse -Force
-            Write-Host "Library cache restored successfully."
-            
-            # Show cache age
-            $cacheInfo = Get-Item $cacheLocation
-            Write-Host "Cache last modified: $($cacheInfo.LastWriteTime)"
+            Write-Host "Cache last modified: $((Get-Item $cacheLocation).LastWriteTime)"
           } else {
-            Write-Host "No Library cache found at: $cacheLocation"
-            Write-Host "First build will be slower due to shader compilation."
+            Write-Host "No Library cache found. First build will be slower."
           }
 
       - name: Setup Unity cache directories
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Create cache directories for Unity when running as a service account
           $cacheDir = "${{ github.workspace }}\.unity-cache"
           New-Item -ItemType Directory -Path "$cacheDir\LocalAppData\Unity\Caches" -Force | Out-Null
           New-Item -ItemType Directory -Path "$cacheDir\AppData\Unity" -Force | Out-Null
-          Write-Host "Unity cache directories created at: $cacheDir"
 
-      - name: Setup Unity packages (Assets folder - excluding Vuplex)
+      - name: Setup Unity packages (Assets)
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          Write-Host "Setting up Unity Asset packages..."
           $assetsPath = "$env:UNITY_ASSETS_PATH"
+          if (-not (Test-Path "$env:PROJECT_PATH\Assets")) { Write-Host "::error::Project Assets not found"; exit 1 }
+          if (-not (Test-Path $assetsPath)) { Write-Host "::error::Unity assets not found at $assetsPath"; exit 1 }
           
-          # Debug: Show paths
-          Write-Host "GitHub Workspace: ${{ github.workspace }}"
-          Write-Host "PROJECT_PATH: $env:PROJECT_PATH"
-          Write-Host "Assets source path: $assetsPath"
-          
-          # Verify PROJECT_PATH exists and is correct
-          if (-not (Test-Path "$env:PROJECT_PATH\Assets")) {
-            Write-Host "::error::Project Assets folder not found at: $env:PROJECT_PATH\Assets"
-            Write-Host "Directory contents of PROJECT_PATH:"
-            Get-ChildItem "$env:PROJECT_PATH" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $_" }
-            exit 1
-          }
-          
-          if (-not (Test-Path $assetsPath)) {
-            Write-Host "::error::Unity assets not found at: $assetsPath"
-            Write-Host "Please run the setup script first: scripts/setup-unity-assets.ps1"
-            exit 1
-          }
-          
-          # Define packages to copy with their relative paths (Vuplex handled separately per build)
           $packages = @(
             @{ Name = "Digger"; RelPath = "Digger" },
             @{ Name = "Samples"; RelPath = "Samples" },
@@ -140,373 +106,85 @@ jobs:
           foreach ($pkg in $packages) {
             $sourcePath = Join-Path $assetsPath $pkg.RelPath
             $targetPath = Join-Path "$env:PROJECT_PATH\Assets" $pkg.RelPath
-            $sourceMetaPath = "$sourcePath.meta"
-            $targetMetaPath = "$targetPath.meta"
-            
-            Write-Host "Package: $($pkg.Name)"
-            Write-Host "  Source: $sourcePath"
-            Write-Host "  Target: $targetPath"
-            
             if (Test-Path $sourcePath) {
-              Write-Host "Copying $($pkg.Name)..."
               $targetParent = Split-Path $targetPath -Parent
-              if (-not (Test-Path $targetParent)) {
-                Write-Host "  Creating parent directory: $targetParent"
-                New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-              }
-              # Remove existing target first to avoid nesting issues
-              if (Test-Path $targetPath) {
-                Write-Host "  Removing existing target..."
-                Remove-Item -Recurse -Force $targetPath
-              }
-              # Copy contents into target (not the folder itself)
+              if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
               New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
               Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
-              
-              # Also copy the .meta file to preserve GUIDs and assembly references
-              if (Test-Path $sourceMetaPath) {
-                Write-Host "Copying $($pkg.Name).meta..."
-                Copy-Item -Path $sourceMetaPath -Destination $targetMetaPath -Force
-              } else {
-                Write-Host "::warning::Meta file not found: $sourceMetaPath"
-              }
-            } else {
-              Write-Host "::warning::Package not found: $($pkg.Name) at $sourcePath"
+              if (Test-Path "$sourcePath.meta") { Copy-Item -Path "$sourcePath.meta" -Destination "$targetPath.meta" -Force }
+              Write-Host "Copied $($pkg.Name)"
             }
           }
-          
-          Write-Host "Assets packages setup completed."
 
-      - name: Setup Vuplex (Desktop version for initial compile)
+      - name: Setup Vuplex Desktop
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Install Vuplex Desktop version for initial package resolution
-          # This will be swapped to WebGL version when building WebGL
-          $assetsPath = "$env:UNITY_ASSETS_PATH"
-          $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
           $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
-          
-          Write-Host "Installing Vuplex Desktop for package resolution..."
-          Write-Host "  Source: $vuplexSource"
-          Write-Host "  Target: $vuplexTarget"
-          
           if (Test-Path $vuplexSource) {
             $targetParent = Split-Path $vuplexTarget -Parent
-            if (-not (Test-Path $targetParent)) {
-              New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-            }
+            if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
             if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
             if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
-            # Create target folder and copy contents into it
             New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
             Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
-            # Copy Vuplex.meta file
-            $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
-            if (Test-Path $vuplexMetaSource) {
-              Copy-Item -Path $vuplexMetaSource -Destination "$vuplexTarget.meta" -Force
-            }
-            
-            # Verify
-            $itemCount = (Get-ChildItem $vuplexTarget -Recurse | Measure-Object).Count
-            Write-Host "  Copied $itemCount items"
-          } else {
-            Write-Host "::error::Vuplex Desktop not found at: $vuplexSource"
-            exit 1
-          }
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
+            Write-Host "Copied Vuplex Desktop"
+          } else { Write-Host "::error::Vuplex Desktop not found"; exit 1 }
 
-      - name: Setup Unity packages (Embedded packages - common)
+      - name: Setup Unity packages (Embedded)
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          Write-Host "Setting up Unity embedded packages (common)..."
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
-          
-          if (-not (Test-Path $packagesPath)) {
-            Write-Host "::error::Unity packages not found at: $packagesPath"
-            Write-Host "Please run the setup script first: scripts/setup-unity-assets.ps1"
-            exit 1
-          }
-          
-          # Define common embedded packages (non-platform-specific)
-          $embeddedPackages = @(
-            "com.occasoftware.super-simple-skybox",
-            "com.tivadar.best.http",
-            "com.tivadar.best.mqtt",
-            "com.tivadar.best.websockets"
-          )
-          
+          if (-not (Test-Path $packagesPath)) { Write-Host "::error::Packages not found"; exit 1 }
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
           foreach ($pkg in $embeddedPackages) {
             $sourcePath = Join-Path $packagesPath $pkg
             $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
-            
-            Write-Host "Embedded package: $pkg"
-            Write-Host "  Source: $sourcePath"
-            Write-Host "  Target: $targetPath"
-            
             if (Test-Path $sourcePath) {
-              Write-Host "Copying $pkg..."
-              if (Test-Path $targetPath) {
-                Remove-Item -Recurse -Force $targetPath
-              }
-              # Create target folder and copy contents into it
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
               New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
               Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
-              
-              # Verify copy
-              if (Test-Path $targetPath) {
-                $itemCount = (Get-ChildItem $targetPath -Recurse | Measure-Object).Count
-                Write-Host "  Copied $itemCount items"
-              }
-            } else {
-              Write-Host "::warning::Package not found: $pkg at $sourcePath"
+              Write-Host "Copied $pkg"
             }
           }
-          
-          Write-Host "Common embedded packages setup completed."
 
       - name: Create Logs directory
         shell: powershell -ExecutionPolicy Bypass {0}
-        run: |
-          New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
+        run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
 
       - name: Resolve Unity packages
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          Write-Host "Opening Unity to resolve packages and compile scripts..."
-          $unityPath = $env:UNITY_PATH
           $logFile = "$env:PROJECT_PATH\Logs\package-resolve.log"
-          
-          # Run Unity in batch mode just to import and compile - no build method
-          $process = Start-Process -FilePath $unityPath -ArgumentList @(
-            "-batchmode",
-            "-nographics",
-            "-quit",
-            "-projectPath", "$env:PROJECT_PATH",
-            "-logFile", $logFile
-          ) -Wait -PassThru -NoNewWindow
-          
-          $exitCode = $process.ExitCode
-          Write-Host "Unity package resolve exited with code: $exitCode"
-          
-          if (Test-Path $logFile) {
-            # Show compiler errors if any
-            Write-Host "=== Compiler Errors ==="
-            Select-String -Path $logFile -Pattern "error CS|error:|Assets.*error" | ForEach-Object { Write-Host $_.Line }
-            Write-Host "=== End Compiler Errors ==="
-            
-            Write-Host ""
-            Write-Host "=== Unity Log (last 100 lines) ==="
-            Get-Content $logFile -Tail 100
-            Write-Host "=== End of Unity Log ==="
-          }
-          
-          if ($exitCode -ne 0) {
-            Write-Host "::error::Package resolve failed with compiler errors (exit code: $exitCode)"
-            exit $exitCode
-          }
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
+          if (Test-Path $logFile) { Select-String -Path $logFile -Pattern "error CS|error:" | ForEach-Object { Write-Host $_.Line } }
+          if ($process.ExitCode -ne 0) { Write-Host "::error::Package resolve failed"; exit $process.ExitCode }
 
       - name: Build Windows Desktop
-        if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $buildStart = Get-Date
-          Write-Host "Build started at: $buildStart"
-          
-          # Vuplex Desktop should already be installed from setup step
-          # Just verify it exists
-          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
-          if (-not (Test-Path $vuplexTarget)) {
-            Write-Host "::warning::Vuplex not found, it should have been copied in setup step"
-          }
-          
-          Write-Host "Building Windows Desktop..."
-          $unityPath = $env:UNITY_PATH
           $logFile = "$env:PROJECT_PATH\Logs\build-windows.log"
-          
-          if (-not (Test-Path $unityPath)) {
-            Write-Host "::error::Unity not found at: $unityPath"
-            exit 1
-          }
-          
-          Write-Host "Unity path: $unityPath"
-          Write-Host "Project path: $env:PROJECT_PATH"
-          Write-Host "Log file: $logFile"
-          
-          $process = Start-Process -FilePath $unityPath -ArgumentList @(
-            "-batchmode",
-            "-nographics",
-            "-quit",
-            "-projectPath", "$env:PROJECT_PATH",
-            "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop",
-            "-logFile", $logFile
-          ) -Wait -PassThru -NoNewWindow
-          
-          $exitCode = $process.ExitCode
-          $buildEnd = Get-Date
-          $buildDuration = $buildEnd - $buildStart
-          
-          Write-Host "Unity process exited with code: $exitCode"
-          Write-Host "Build duration: $($buildDuration.ToString('hh\:mm\:ss'))"
-          
-          # Always show the last part of the log
-          if (Test-Path $logFile) {
-            Write-Host "=== Unity Log (last 100 lines) ==="
-            Get-Content $logFile -Tail 100
-            Write-Host "=== End of Unity Log ==="
-          } else {
-            Write-Host "::warning::Log file not found at: $logFile"
-          }
-          
-          if ($exitCode -ne 0) {
-            Write-Host "::error::Windows Desktop build failed with exit code: $exitCode"
-            exit $exitCode
-          }
-          
-          Write-Host "Windows Desktop build completed successfully."
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
+          Write-Host "Build duration: $((Get-Date) - $buildStart)"
+          if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
+          if ($process.ExitCode -ne 0) { Write-Host "::error::Build failed"; exit $process.ExitCode }
 
-      - name: Build WebGL Compressed
-        if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
+      - name: Create archive
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          $buildStart = Get-Date
-          Write-Host "Build started at: $buildStart"
-          
-          # Install Vuplex WebGL version (swap from Desktop)
-          $assetsPath = "$env:UNITY_ASSETS_PATH"
-          $vuplexSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
-          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
-          
-          Write-Host "Installing Vuplex WebGL for WebGL builds..."
-          if (Test-Path $vuplexSource) {
-            $targetParent = Split-Path $vuplexTarget -Parent
-            if (-not (Test-Path $targetParent)) {
-              New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-            }
-            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
-            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
-            # Create target folder and copy contents into it
-            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
-            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
-            # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
-            $vuplexMetaSource = Join-Path $assetsPath "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
-            if (Test-Path $vuplexMetaSource) {
-              Copy-Item -Path $vuplexMetaSource -Destination "$vuplexTarget.meta" -Force
-            }
-          } else {
-            Write-Host "::error::Vuplex WebGL not found at: $vuplexSource"
-            exit 1
-          }
-          
-          Write-Host "Building WebGL Compressed..."
-          $unityPath = $env:UNITY_PATH
-          $logFile = "$env:PROJECT_PATH\Logs\build-webgl-compressed.log"
-          
-          $process = Start-Process -FilePath $unityPath -ArgumentList @(
-            "-batchmode",
-            "-nographics",
-            "-quit",
-            "-projectPath", "$env:PROJECT_PATH",
-            "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLCompressed",
-            "-logFile", $logFile
-          ) -Wait -PassThru -NoNewWindow
-          
-          $exitCode = $process.ExitCode
-          $buildEnd = Get-Date
-          $buildDuration = $buildEnd - $buildStart
-          
-          Write-Host "Unity process exited with code: $exitCode"
-          Write-Host "Build duration: $($buildDuration.ToString('hh\:mm\:ss'))"
-          
-          if (Test-Path $logFile) {
-            Write-Host "=== Unity Log (last 100 lines) ==="
-            Get-Content $logFile -Tail 100
-            Write-Host "=== End of Unity Log ==="
-          }
-          
-          if ($exitCode -ne 0) {
-            Write-Host "::error::WebGL Compressed build failed with exit code: $exitCode"
-            exit $exitCode
-          }
-          
-          Write-Host "WebGL Compressed build completed successfully."
-
-      - name: Build WebGL Uncompressed
-        if: ${{ github.event_name == 'push' || github.event.inputs.build_webgl == 'true' }}
-        shell: powershell -ExecutionPolicy Bypass {0}
-        run: |
-          $buildStart = Get-Date
-          Write-Host "Build started at: $buildStart"
-          
-          # Vuplex WebGL should already be installed from previous step
-          Write-Host "Building WebGL Uncompressed..."
-          $unityPath = $env:UNITY_PATH
-          $logFile = "$env:PROJECT_PATH\Logs\build-webgl-uncompressed.log"
-          
-          $process = Start-Process -FilePath $unityPath -ArgumentList @(
-            "-batchmode",
-            "-nographics",
-            "-quit",
-            "-projectPath", "$env:PROJECT_PATH",
-            "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLUncompressed",
-            "-logFile", $logFile
-          ) -Wait -PassThru -NoNewWindow
-          
-          $exitCode = $process.ExitCode
-          $buildEnd = Get-Date
-          $buildDuration = $buildEnd - $buildStart
-          
-          Write-Host "Unity process exited with code: $exitCode"
-          Write-Host "Build duration: $($buildDuration.ToString('hh\:mm\:ss'))"
-          
-          if (Test-Path $logFile) {
-            Write-Host "=== Unity Log (last 100 lines) ==="
-            Get-Content $logFile -Tail 100
-            Write-Host "=== End of Unity Log ==="
-          }
-          
-          # Remove Vuplex WebGL after builds
-          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
-          if (Test-Path $vuplexTarget) {
-            Write-Host "Removing Vuplex WebGL after builds..."
-            Remove-Item -Recurse -Force $vuplexTarget
-          }
-          
-          if ($exitCode -ne 0) {
-            Write-Host "::error::WebGL Uncompressed build failed with exit code: $exitCode"
-            exit $exitCode
-          }
-          
-          Write-Host "WebGL Uncompressed build completed successfully."
-
-      - name: Create build archives
-        shell: powershell -ExecutionPolicy Bypass {0}
-        run: |
-          $buildId = "$env:BUILD_ID"
           $artifactsDir = "$env:PROJECT_PATH\Artifacts"
-          New-Item -ItemType Directory -Path $artifactsDir -Force
-          
-          # Archive Windows Desktop
+          New-Item -ItemType Directory -Path $artifactsDir -Force | Out-Null
+          $excludeFolders = @("*_BackUpThisFolder_ButDontShipItWithYourGame", "*_BurstDebugInformation_DoNotShip")
           if (Test-Path "$env:PROJECT_PATH\Builds\Windows-Desktop") {
-            Write-Host "Archiving Windows Desktop build..."
-            Compress-Archive -Path "$env:PROJECT_PATH\Builds\Windows-Desktop\*" `
-              -DestinationPath "$artifactsDir\Windows-Desktop-$buildId.zip"
+            foreach ($pattern in $excludeFolders) {
+              Get-ChildItem "$env:PROJECT_PATH\Builds\Windows-Desktop" -Directory -Filter $pattern -Recurse | ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
+            }
+            Compress-Archive -Path "$env:PROJECT_PATH\Builds\Windows-Desktop\*" -DestinationPath "$artifactsDir\Windows-Desktop-$env:BUILD_ID.zip"
           }
-          
-          # Archive WebGL Compressed
-          if (Test-Path "$env:PROJECT_PATH\Builds\WebGL-Compressed") {
-            Write-Host "Archiving WebGL Compressed build..."
-            Compress-Archive -Path "$env:PROJECT_PATH\Builds\WebGL-Compressed\*" `
-              -DestinationPath "$artifactsDir\WebGL-Compressed-$buildId.zip"
-          }
-          
-          # Archive WebGL Uncompressed
-          if (Test-Path "$env:PROJECT_PATH\Builds\WebGL-Uncompressed") {
-            Write-Host "Archiving WebGL Uncompressed build..."
-            Compress-Archive -Path "$env:PROJECT_PATH\Builds\WebGL-Uncompressed\*" `
-              -DestinationPath "$artifactsDir\WebGL-Uncompressed-$buildId.zip"
-          }
-          
-          Write-Host "Archives created in: $artifactsDir"
-          Get-ChildItem $artifactsDir
 
       - name: Upload to S3
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -514,28 +192,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          $buildId = "$env:BUILD_ID"
-          $s3Path = "s3://$env:S3_BUCKET/builds/$buildId"
-          
-          Write-Host "Uploading builds to S3: $s3Path"
-          
-          $artifacts = Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip"
-          foreach ($artifact in $artifacts) {
-            Write-Host "Uploading: $($artifact.Name)"
-            aws s3 cp $artifact.FullName "$s3Path/$($artifact.Name)" --region $env:AWS_REGION
-          }
-          
-          Write-Host "Upload completed."
-          Write-Host ""
-          Write-Host "=== S3 URLs ==="
-          foreach ($artifact in $artifacts) {
-            Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$buildId/$($artifact.Name)"
+          $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
+          Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
+            aws s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-builds-${{ needs.prepare.outputs.build_id }}
+          name: windows-desktop-${{ needs.prepare.outputs.build_id }}
           path: ${{ github.workspace }}/Artifacts/*.zip
           retention-days: 30
 
@@ -543,41 +209,22 @@ jobs:
         if: success()
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Save the Library folder to persistent cache location
           $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
           $libraryPath = "$env:PROJECT_PATH\Library"
-          
           if (Test-Path $libraryPath) {
-            Write-Host "Saving Library cache to: $cacheLocation"
-            
-            # Create cache directory if needed
-            $cacheParent = Split-Path $cacheLocation -Parent
-            if (-not (Test-Path $cacheParent)) {
-              New-Item -ItemType Directory -Path $cacheParent -Force | Out-Null
-            }
-            
-            # Remove old cache and copy new one
-            if (Test-Path $cacheLocation) {
-              Remove-Item -Recurse -Force $cacheLocation
-            }
+            if (Test-Path $cacheLocation) { Remove-Item -Recurse -Force $cacheLocation }
             Copy-Item -Path $libraryPath -Destination $cacheLocation -Recurse -Force
-            
-            # Show cache size
             $cacheSize = (Get-ChildItem $cacheLocation -Recurse | Measure-Object -Property Length -Sum).Sum / 1GB
             Write-Host "Library cache saved. Size: $([math]::Round($cacheSize, 2)) GB"
-          } else {
-            Write-Host "::warning::Library folder not found, cannot save cache"
           }
 
       - name: Cleanup
         if: always()
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          # Clean up build directories to save disk space (but NOT Library - it's cached separately)
           Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
-          # Clean up copied packages and their .meta files
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger.meta" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
@@ -595,21 +242,368 @@ jobs:
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
 
-  # Mac Desktop build
+  # WebGL Compressed build (runs after Windows Desktop to benefit from Library cache)
+  build-webgl-compressed:
+    needs: [prepare, build-windows-desktop]
+    if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_webgl_compressed == 'true') && (needs.build-windows-desktop.result == 'success' || needs.build-windows-desktop.result == 'skipped') }}
+    runs-on: [self-hosted, Windows, unity]
+    timeout-minutes: 480
+    env:
+      BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      PROJECT_PATH: ${{ github.workspace }}
+      UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
+      UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Assets' }}
+      UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Packages' }}
+      LOCALAPPDATA: ${{ github.workspace }}\.unity-cache\LocalAppData
+      APPDATA: ${{ github.workspace }}\.unity-cache\AppData
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: Restore Library cache
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          if (Test-Path $cacheLocation) {
+            if (Test-Path $libraryPath) { Remove-Item -Recurse -Force $libraryPath }
+            Copy-Item -Path $cacheLocation -Destination $libraryPath -Recurse -Force
+            Write-Host "Library cache restored"
+          }
+
+      - name: Setup Unity cache directories
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheDir = "${{ github.workspace }}\.unity-cache"
+          New-Item -ItemType Directory -Path "$cacheDir\LocalAppData\Unity\Caches" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$cacheDir\AppData\Unity" -Force | Out-Null
+
+      - name: Setup Unity packages (Assets)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          $packages = @(
+            @{ Name = "Digger"; RelPath = "Digger" },
+            @{ Name = "Samples"; RelPath = "Samples" },
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" }
+          )
+          foreach ($pkg in $packages) {
+            $sourcePath = Join-Path $assetsPath $pkg.RelPath
+            $targetPath = Join-Path "$env:PROJECT_PATH\Assets" $pkg.RelPath
+            if (Test-Path $sourcePath) {
+              $targetParent = Split-Path $targetPath -Parent
+              if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+              if (Test-Path "$sourcePath.meta") { Copy-Item -Path "$sourcePath.meta" -Destination "$targetPath.meta" -Force }
+            }
+          }
+
+      - name: Setup Vuplex WebGL
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          if (Test-Path $vuplexSource) {
+            $targetParent = Split-Path $vuplexTarget -Parent
+            if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
+            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
+            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
+          } else { Write-Host "::error::Vuplex WebGL not found"; exit 1 }
+
+      - name: Setup Unity packages (Embedded)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $packagesPath = "$env:UNITY_PACKAGES_PATH"
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          foreach ($pkg in $embeddedPackages) {
+            $sourcePath = Join-Path $packagesPath $pkg
+            $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
+            if (Test-Path $sourcePath) {
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+            }
+          }
+
+      - name: Create Logs directory
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
+
+      - name: Build WebGL Compressed
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $buildStart = Get-Date
+          $logFile = "$env:PROJECT_PATH\Logs\build-webgl-compressed.log"
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLCompressed", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
+          Write-Host "Build duration: $((Get-Date) - $buildStart)"
+          if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
+          if ($process.ExitCode -ne 0) { Write-Host "::error::Build failed"; exit $process.ExitCode }
+
+      - name: Create archive
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $artifactsDir = "$env:PROJECT_PATH\Artifacts"
+          New-Item -ItemType Directory -Path $artifactsDir -Force | Out-Null
+          $excludeFolders = @("*_BackUpThisFolder_ButDontShipItWithYourGame", "*_BurstDebugInformation_DoNotShip")
+          if (Test-Path "$env:PROJECT_PATH\Builds\WebGL-Compressed") {
+            foreach ($pattern in $excludeFolders) {
+              Get-ChildItem "$env:PROJECT_PATH\Builds\WebGL-Compressed" -Directory -Filter $pattern -Recurse | ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
+            }
+            Compress-Archive -Path "$env:PROJECT_PATH\Builds\WebGL-Compressed\*" -DestinationPath "$artifactsDir\WebGL-Compressed-$env:BUILD_ID.zip"
+          }
+
+      - name: Upload to S3
+        shell: powershell -ExecutionPolicy Bypass {0}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
+          Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
+            aws s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgl-compressed-${{ needs.prepare.outputs.build_id }}
+          path: ${{ github.workspace }}/Artifacts/*.zip
+          retention-days: 30
+
+      - name: Save Library cache
+        if: success()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          if (Test-Path $libraryPath) {
+            if (Test-Path $cacheLocation) { Remove-Item -Recurse -Force $cacheLocation }
+            Copy-Item -Path $libraryPath -Destination $cacheLocation -Recurse -Force
+          }
+
+      - name: Cleanup
+        if: always()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+
+  # WebGL Uncompressed build (runs after WebGL Compressed)
+  build-webgl-uncompressed:
+    needs: [prepare, build-webgl-compressed]
+    if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_webgl_uncompressed == 'true') && (needs.build-webgl-compressed.result == 'success' || needs.build-webgl-compressed.result == 'skipped') }}
+    runs-on: [self-hosted, Windows, unity]
+    timeout-minutes: 480
+    env:
+      BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      PROJECT_PATH: ${{ github.workspace }}
+      UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
+      UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Assets' }}
+      UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Packages' }}
+      LOCALAPPDATA: ${{ github.workspace }}\.unity-cache\LocalAppData
+      APPDATA: ${{ github.workspace }}\.unity-cache\AppData
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: Restore Library cache
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          if (Test-Path $cacheLocation) {
+            if (Test-Path $libraryPath) { Remove-Item -Recurse -Force $libraryPath }
+            Copy-Item -Path $cacheLocation -Destination $libraryPath -Recurse -Force
+            Write-Host "Library cache restored"
+          }
+
+      - name: Setup Unity cache directories
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheDir = "${{ github.workspace }}\.unity-cache"
+          New-Item -ItemType Directory -Path "$cacheDir\LocalAppData\Unity\Caches" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$cacheDir\AppData\Unity" -Force | Out-Null
+
+      - name: Setup Unity packages (Assets)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          $packages = @(
+            @{ Name = "Digger"; RelPath = "Digger" },
+            @{ Name = "Samples"; RelPath = "Samples" },
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" }
+          )
+          foreach ($pkg in $packages) {
+            $sourcePath = Join-Path $assetsPath $pkg.RelPath
+            $targetPath = Join-Path "$env:PROJECT_PATH\Assets" $pkg.RelPath
+            if (Test-Path $sourcePath) {
+              $targetParent = Split-Path $targetPath -Parent
+              if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+              if (Test-Path "$sourcePath.meta") { Copy-Item -Path "$sourcePath.meta" -Destination "$targetPath.meta" -Force }
+            }
+          }
+
+      - name: Setup Vuplex WebGL
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          if (Test-Path $vuplexSource) {
+            $targetParent = Split-Path $vuplexTarget -Parent
+            if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
+            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
+            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
+          } else { Write-Host "::error::Vuplex WebGL not found"; exit 1 }
+
+      - name: Setup Unity packages (Embedded)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $packagesPath = "$env:UNITY_PACKAGES_PATH"
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          foreach ($pkg in $embeddedPackages) {
+            $sourcePath = Join-Path $packagesPath $pkg
+            $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
+            if (Test-Path $sourcePath) {
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+            }
+          }
+
+      - name: Create Logs directory
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
+
+      - name: Build WebGL Uncompressed
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $buildStart = Get-Date
+          $logFile = "$env:PROJECT_PATH\Logs\build-webgl-uncompressed.log"
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWebGLUncompressed", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
+          Write-Host "Build duration: $((Get-Date) - $buildStart)"
+          if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
+          if ($process.ExitCode -ne 0) { Write-Host "::error::Build failed"; exit $process.ExitCode }
+
+      - name: Create archive
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $artifactsDir = "$env:PROJECT_PATH\Artifacts"
+          New-Item -ItemType Directory -Path $artifactsDir -Force | Out-Null
+          $excludeFolders = @("*_BackUpThisFolder_ButDontShipItWithYourGame", "*_BurstDebugInformation_DoNotShip")
+          if (Test-Path "$env:PROJECT_PATH\Builds\WebGL-Uncompressed") {
+            foreach ($pattern in $excludeFolders) {
+              Get-ChildItem "$env:PROJECT_PATH\Builds\WebGL-Uncompressed" -Directory -Filter $pattern -Recurse | ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
+            }
+            Compress-Archive -Path "$env:PROJECT_PATH\Builds\WebGL-Uncompressed\*" -DestinationPath "$artifactsDir\WebGL-Uncompressed-$env:BUILD_ID.zip"
+          }
+
+      - name: Upload to S3
+        shell: powershell -ExecutionPolicy Bypass {0}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
+          Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
+            aws s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgl-uncompressed-${{ needs.prepare.outputs.build_id }}
+          path: ${{ github.workspace }}/Artifacts/*.zip
+          retention-days: 30
+
+      - name: Save Library cache
+        if: success()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          if (Test-Path $libraryPath) {
+            if (Test-Path $cacheLocation) { Remove-Item -Recurse -Force $cacheLocation }
+            Copy-Item -Path $libraryPath -Destination $cacheLocation -Recurse -Force
+          }
+
+      - name: Cleanup
+        if: always()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+
+  # Mac Desktop build (runs in parallel with Windows jobs)
   build-mac:
     needs: prepare
     runs-on: [self-hosted, macOS, unity]
-    timeout-minutes: 240  # 4 hours max for Mac Desktop build
+    timeout-minutes: 360
     if: ${{ github.event_name == 'push' || github.event.inputs.build_mac == 'true' }}
-    
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
-      # Project path (github.workspace IS the project root when running from WebVerse-Runtime repo)
       PROJECT_PATH: ${{ github.workspace }}
-      # Configurable Unity path - can be overridden in runner environment
-      # Note: ARM64 Macs use the -arm64 suffix in the Unity path
       UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2-arm64/Unity.app/Contents/MacOS/Unity' }}
-      # Path to Unity assets/packages on the build machine
       UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Assets' }}
       UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Packages' }}
 
@@ -620,278 +614,80 @@ jobs:
           lfs: true
           submodules: recursive
 
-      - name: Restore Library cache (speeds up shader compilation)
+      - name: Restore Library cache
         run: |
-          # Use a persistent cache location on the self-hosted runner
           CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
           LIBRARY_PATH="$PROJECT_PATH/Library"
-          
           if [ -d "$CACHE_LOCATION" ]; then
-            echo "Restoring Library cache from: $CACHE_LOCATION"
             rm -rf "$LIBRARY_PATH" 2>/dev/null || true
             cp -R "$CACHE_LOCATION" "$LIBRARY_PATH"
-            echo "Library cache restored successfully."
-            
-            # Show cache age
-            echo "Cache last modified: $(stat -f '%Sm' "$CACHE_LOCATION" 2>/dev/null || stat -c '%y' "$CACHE_LOCATION" 2>/dev/null || echo 'unknown')"
-          else
-            echo "No Library cache found at: $CACHE_LOCATION"
-            echo "First build will be slower due to shader compilation."
+            echo "Library cache restored"
           fi
 
-      - name: Setup Unity packages (Assets folder)
+      - name: Setup Unity packages (Assets)
         run: |
-          echo "Setting up Unity Asset packages..."
           ASSETS_PATH="$UNITY_ASSETS_PATH"
-          
-          # Debug: Show paths
-          echo "GitHub Workspace: ${{ github.workspace }}"
-          echo "PROJECT_PATH: $PROJECT_PATH"
-          echo "Assets source path: $ASSETS_PATH"
-          
-          # Verify PROJECT_PATH exists and is correct
-          if [ ! -d "$PROJECT_PATH/Assets" ]; then
-            echo "::error::Project Assets folder not found at: $PROJECT_PATH/Assets"
-            echo "Directory contents of PROJECT_PATH:"
-            ls -la "$PROJECT_PATH" 2>/dev/null || echo "  (directory does not exist)"
-            exit 1
-          fi
-          
-          if [ ! -d "$ASSETS_PATH" ]; then
-            echo "::error::Unity assets not found at: $ASSETS_PATH"
-            echo "Please run the setup script first: scripts/setup-unity-assets.sh"
-            exit 1
-          fi
-          
-          # Copy packages using simple arrays (bash 3.x compatible)
           copy_package() {
-            local name="$1"
-            local rel_path="$2"
+            local name="$1"; local rel_path="$2"
             local source_path="$ASSETS_PATH/$rel_path"
             local target_path="$PROJECT_PATH/Assets/$rel_path"
-            local source_meta="$source_path.meta"
-            local target_meta="$target_path.meta"
-            
-            echo "Package: $name"
-            echo "  Source: $source_path"
-            echo "  Target: $target_path"
-            
-            # Debug: Show source contents
-            echo "  Source contents:"
-            ls -la "$source_path" 2>/dev/null | head -10 || echo "    (cannot list)"
-            
             if [ -d "$source_path" ]; then
-              echo "Copying $name..."
               mkdir -p "$(dirname "$target_path")"
-              # Remove existing target first to avoid nesting
               rm -rf "$target_path" 2>/dev/null || true
-              # Copy the folder directly - use ditto on macOS for more reliable copying
-              if command -v ditto &> /dev/null; then
-                ditto "$source_path" "$target_path"
-              else
-                cp -R "$source_path" "$target_path"
-              fi
-              
-              # Verify copy succeeded
-              if [ -d "$target_path" ]; then
-                local item_count=$(find "$target_path" -type f 2>/dev/null | wc -l | tr -d ' ')
-                echo "  Copied $item_count files"
-                echo "  Target contents:"
-                ls -la "$target_path" 2>/dev/null | head -10 || echo "    (cannot list)"
-              else
-                echo "::error::Failed to copy $name - target directory does not exist"
-                exit 1
-              fi
-              
-              # Also copy the .meta file to preserve GUIDs and assembly references
-              if [ -f "$source_meta" ]; then
-                echo "Copying $name.meta..."
-                cp "$source_meta" "$target_meta"
-              else
-                echo "::warning::Meta file not found: $source_meta"
-              fi
-            else
-              echo "::error::Package not found: $name at $source_path"
-              ls -la "$(dirname "$source_path")" 2>/dev/null || echo "  Parent directory does not exist"
-              exit 1
+              if command -v ditto &> /dev/null; then ditto "$source_path" "$target_path"; else cp -R "$source_path" "$target_path"; fi
+              [ -f "$source_path.meta" ] && cp "$source_path.meta" "$target_path.meta"
+              echo "Copied $name"
             fi
           }
-          
           copy_package "Digger" "Digger"
           copy_package "Samples" "Samples"
           copy_package "NWH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH"
           copy_package "Silantro" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro"
           copy_package "URPWater" "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater"
           
-          # Copy Vuplex Desktop for Mac build
+          # Vuplex Desktop
           VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
           VUPLEX_TARGET="$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
-          
-          echo "Installing Vuplex Desktop for Mac build..."
-          echo "  Source contents:"
-          ls -la "$VUPLEX_SOURCE" 2>/dev/null | head -10 || echo "    (cannot list)"
-          
           if [ -d "$VUPLEX_SOURCE" ]; then
             mkdir -p "$(dirname "$VUPLEX_TARGET")"
-            rm -rf "$VUPLEX_TARGET" 2>/dev/null || true
-            rm -f "$VUPLEX_TARGET.meta" 2>/dev/null || true
-            # Copy the folder directly - use ditto on macOS for more reliable copying
-            if command -v ditto &> /dev/null; then
-              ditto "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
-            else
-              cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"
-            fi
-            
-            # Verify copy succeeded
-            if [ -d "$VUPLEX_TARGET" ]; then
-              item_count=$(find "$VUPLEX_TARGET" -type f 2>/dev/null | wc -l | tr -d ' ')
-              echo "  Copied $item_count files"
-              echo "  Target contents:"
-              ls -la "$VUPLEX_TARGET" 2>/dev/null | head -10 || echo "    (cannot list)"
-            else
-              echo "::error::Failed to copy Vuplex Desktop"
-              exit 1
-            fi
-            
-            # Copy Vuplex.meta file (same name regardless of Desktop/WebGL source)
-            VUPLEX_META_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
-            if [ -f "$VUPLEX_META_SOURCE" ]; then
-              cp "$VUPLEX_META_SOURCE" "$VUPLEX_TARGET.meta"
-            fi
-          else
-            echo "::error::Vuplex Desktop not found at: $VUPLEX_SOURCE"
-            ls -la "$(dirname "$VUPLEX_SOURCE")" 2>/dev/null || echo "  Parent directory does not exist"
-            exit 1
+            rm -rf "$VUPLEX_TARGET" "$VUPLEX_TARGET.meta" 2>/dev/null || true
+            if command -v ditto &> /dev/null; then ditto "$VUPLEX_SOURCE" "$VUPLEX_TARGET"; else cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"; fi
+            [ -f "$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" ] && cp "$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" "$VUPLEX_TARGET.meta"
           fi
-          
-          echo "Assets packages setup completed."
 
-      - name: Setup Unity packages (Embedded packages)
+      - name: Setup Unity packages (Embedded)
         run: |
-          echo "Setting up Unity embedded packages..."
           PACKAGES_PATH="$UNITY_PACKAGES_PATH"
-          
-          if [ ! -d "$PACKAGES_PATH" ]; then
-            echo "::error::Unity packages not found at: $PACKAGES_PATH"
-            echo "Please run the setup script first: scripts/setup-unity-assets.sh"
-            exit 1
-          fi
-          
-          # Define embedded packages to copy (non-platform-specific only)
-          EMBEDDED_PACKAGES=(
-            "com.occasoftware.super-simple-skybox"
-            "com.tivadar.best.http"
-            "com.tivadar.best.mqtt"
-            "com.tivadar.best.websockets"
-          )
-          
-          for pkg in "${EMBEDDED_PACKAGES[@]}"; do
+          for pkg in "com.occasoftware.super-simple-skybox" "com.tivadar.best.http" "com.tivadar.best.mqtt" "com.tivadar.best.websockets"; do
             source_path="$PACKAGES_PATH/$pkg"
             target_path="$PROJECT_PATH/Packages/$pkg"
-            
-            echo "Embedded package: $pkg"
-            echo "  Source: $source_path"
-            echo "  Target: $target_path"
-            
             if [ -d "$source_path" ]; then
-              echo "Copying $pkg..."
-              echo "  Source contents:"
-              ls -la "$source_path" 2>/dev/null | head -5 || echo "    (cannot list)"
-              
               rm -rf "$target_path" 2>/dev/null || true
-              # Copy the folder directly - use ditto on macOS for more reliable copying
-              if command -v ditto &> /dev/null; then
-                ditto "$source_path" "$target_path"
-              else
-                cp -R "$source_path" "$target_path"
-              fi
-              
-              # Verify copy succeeded
-              if [ -d "$target_path" ]; then
-                item_count=$(find "$target_path" -type f 2>/dev/null | wc -l | tr -d ' ')
-                echo "  Copied $item_count files"
-                echo "  Target contents:"
-                ls -la "$target_path" 2>/dev/null | head -5 || echo "    (cannot list)"
-              else
-                echo "::error::Failed to copy $pkg"
-                exit 1
-              fi
-            else
-              echo "::error::Package not found: $pkg at $source_path"
-              ls -la "$PACKAGES_PATH" 2>/dev/null || echo "  Packages directory does not exist"
-              exit 1
+              if command -v ditto &> /dev/null; then ditto "$source_path" "$target_path"; else cp -R "$source_path" "$target_path"; fi
             fi
           done
-          
-          echo "Embedded packages setup completed."
 
       - name: Create Logs directory
         run: mkdir -p "$PROJECT_PATH/Logs"
 
       - name: Build Mac Desktop
         run: |
-          echo "Building Mac Desktop..."
-          UNITY="$UNITY_PATH"
-          
-          if [ ! -f "$UNITY" ]; then
-            echo "::error::Unity not found at: $UNITY"
-            exit 1
-          fi
-          
-          echo "Unity path: $UNITY"
-          echo "Project path: $PROJECT_PATH"
-          
-          mkdir -p "$PROJECT_PATH/Logs"
-          
-          # Run Unity and capture exit code (don't let it fail the script immediately)
           set +e
-          "$UNITY" \
-            -batchmode \
-            -nographics \
-            -quit \
-            -projectPath "$PROJECT_PATH" \
-            -executeMethod FiveSQD.WebVerse.Building.Builder.BuildMacDesktop \
-            -logFile "$PROJECT_PATH/Logs/build-mac.log"
+          "$UNITY_PATH" -batchmode -nographics -quit -projectPath "$PROJECT_PATH" -executeMethod FiveSQD.WebVerse.Building.Builder.BuildMacDesktop -logFile "$PROJECT_PATH/Logs/build-mac.log"
           EXIT_CODE=$?
           set -e
-          
-          echo "Unity process exited with code: $EXIT_CODE"
-          
-          # Always show the log
-          if [ -f "$PROJECT_PATH/Logs/build-mac.log" ]; then
-            echo "=== Compiler Errors ==="
-            grep -i "error CS\|error:\|Assets.*error" "$PROJECT_PATH/Logs/build-mac.log" || echo "(none found)"
-            echo "=== End Compiler Errors ==="
-            echo ""
-            echo "=== Unity Log (last 100 lines) ==="
-            tail -100 "$PROJECT_PATH/Logs/build-mac.log"
-            echo "=== End of Unity Log ==="
-          else
-            echo "::warning::Log file not found at: $PROJECT_PATH/Logs/build-mac.log"
-          fi
-          
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Mac Desktop build failed with exit code: $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-          
-          echo "Mac Desktop build completed successfully."
+          [ -f "$PROJECT_PATH/Logs/build-mac.log" ] && tail -50 "$PROJECT_PATH/Logs/build-mac.log"
+          [ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE
 
-      - name: Create build archive
+      - name: Create archive
         run: |
-          BUILD_ID="$BUILD_ID"
-          ARTIFACTS_DIR="$PROJECT_PATH/Artifacts"
-          mkdir -p "$ARTIFACTS_DIR"
-          
-          # Archive Mac Desktop
+          mkdir -p "$PROJECT_PATH/Artifacts"
           if [ -d "$PROJECT_PATH/Builds/Mac-Desktop" ]; then
-            echo "Archiving Mac Desktop build..."
             cd "$PROJECT_PATH/Builds/Mac-Desktop"
-            zip -r "$ARTIFACTS_DIR/Mac-Desktop-$BUILD_ID.zip" .
+            find . -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
+            find . -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
+            zip -r "$PROJECT_PATH/Artifacts/Mac-Desktop-$BUILD_ID.zip" .
           fi
-          
-          echo "Archives created in: $ARTIFACTS_DIR"
-          ls -la "$ARTIFACTS_DIR"
 
       - name: Upload to S3
         env:
@@ -900,46 +696,10 @@ jobs:
           S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_REGION: us-east-1
         run: |
-          # Add common AWS CLI paths to PATH (Homebrew ARM64, Homebrew Intel, official installer)
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          
-          # Verify AWS CLI is available
-          if ! command -v aws &> /dev/null; then
-            echo "::error::AWS CLI not found. Please install it on the Mac runner."
-            echo "Install via Homebrew: brew install awscli"
-            echo "Or official installer: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
-            exit 1
-          fi
-          echo "AWS CLI version: $(aws --version)"
-          
-          # Debug: Check if S3_BUCKET is set
-          if [ -z "$S3_BUCKET" ]; then
-            echo "::error::S3_BUCKET is empty. Please check that AWS_S3_BUCKET secret is set."
-            exit 1
-          fi
-          echo "S3 Bucket: $S3_BUCKET"
-          
-          BUILD_ID="$BUILD_ID"
           S3_PATH="s3://$S3_BUCKET/builds/$BUILD_ID"
-          
-          echo "Uploading builds to S3: $S3_PATH"
-          
           for artifact in $PROJECT_PATH/Artifacts/*.zip; do
-            if [ -f "$artifact" ]; then
-              FILENAME=$(basename "$artifact")
-              echo "Uploading: $FILENAME"
-              aws s3 cp "$artifact" "$S3_PATH/$FILENAME" --region $AWS_REGION
-            fi
-          done
-          
-          echo "Upload completed."
-          echo ""
-          echo "=== S3 URLs ==="
-          for artifact in $PROJECT_PATH/Artifacts/*.zip; do
-            if [ -f "$artifact" ]; then
-              FILENAME=$(basename "$artifact")
-              echo "https://$S3_BUCKET.s3.$AWS_REGION.amazonaws.com/builds/$BUILD_ID/$FILENAME"
-            fi
+            [ -f "$artifact" ] && aws s3 cp "$artifact" "$S3_PATH/$(basename "$artifact")" --region $AWS_REGION --acl public-read
           done
 
       - name: Upload artifacts
@@ -952,78 +712,42 @@ jobs:
       - name: Save Library cache
         if: success()
         run: |
-          echo "=== Saving Library cache ==="
           CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
-          LIBRARY_PATH="$PROJECT_PATH/Library"
-          
-          if [ -d "$LIBRARY_PATH" ]; then
-            echo "Library folder exists at $LIBRARY_PATH"
-            echo "Library size: $(du -sh "$LIBRARY_PATH" 2>/dev/null | cut -f1 || echo 'unknown')"
-            
-            # Create cache directory if it doesn't exist
-            mkdir -p "$CACHE_LOCATION"
-            
-            # Use rsync to efficiently update cache (delete files not in source)
-            echo "Syncing Library to cache..."
-            SYNC_START=$(date +%s)
-            rsync -a --delete "$LIBRARY_PATH/" "$CACHE_LOCATION/"
-            SYNC_END=$(date +%s)
-            SYNC_DURATION=$((SYNC_END - SYNC_START))
-            echo "Cache sync completed in ${SYNC_DURATION} seconds"
-            echo "Cache size: $(du -sh "$CACHE_LOCATION" 2>/dev/null | cut -f1 || echo 'unknown')"
-          else
-            echo "Library folder not found at $LIBRARY_PATH - nothing to cache"
-          fi
+          [ -d "$PROJECT_PATH/Library" ] && rsync -a --delete "$PROJECT_PATH/Library/" "$CACHE_LOCATION/"
 
       - name: Cleanup
         if: always()
         run: |
-          # Clean up build directories to save disk space
-          rm -rf "$PROJECT_PATH/Builds" || true
-          rm -rf "$PROJECT_PATH/Artifacts" || true
-          # Clean up copied packages and their .meta files
-          rm -rf "$PROJECT_PATH/Assets/Digger" || true
-          rm -f "$PROJECT_PATH/Assets/Digger.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Samples" || true
-          rm -f "$PROJECT_PATH/Assets/Samples.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" || true
-          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" || true
-          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" || true
-          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" || true
-          rm -f "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" || true
-          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" || true
-          rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.http" || true
-          rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" || true
-          rm -rf "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
+          rm -rf "$PROJECT_PATH/Builds" "$PROJECT_PATH/Artifacts" || true
+          rm -rf "$PROJECT_PATH/Assets/Digger" "$PROJECT_PATH/Assets/Digger.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Samples" "$PROJECT_PATH/Assets/Samples.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" || true
+          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
 
   # Summary job
   summary:
-    needs: [prepare, build-windows, build-mac]
+    needs: [prepare, build-windows-desktop, build-webgl-compressed, build-webgl-uncompressed, build-mac]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Build Summary
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Build ID:** ${{ needs.prepare.outputs.build_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### S3 URLs" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Build | URL |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows Desktop | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Windows-Desktop-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Mac Desktop | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Mac-Desktop-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| WebGL Compressed | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Compressed-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| WebGL Uncompressed | \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Uncompressed-${{ needs.prepare.outputs.build_id }}.zip\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Status" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows Builds | ${{ needs.build-windows.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Mac Build | ${{ needs.build-mac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows Desktop | ${{ needs.build-windows-desktop.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| WebGL Compressed | ${{ needs.build-webgl-compressed.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| WebGL Uncompressed | ${{ needs.build-webgl-uncompressed.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mac Desktop | ${{ needs.build-mac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### S3 URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Windows-Desktop-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Mac: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Mac-Desktop-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- WebGL Compressed: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Compressed-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- WebGL Uncompressed: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Uncompressed-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
