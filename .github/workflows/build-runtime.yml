@@ -199,7 +199,7 @@ jobs:
           }
           $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
           Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
-            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION
             Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
@@ -382,7 +382,7 @@ jobs:
           }
           $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
           Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
-            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION
             Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
@@ -563,7 +563,7 @@ jobs:
           }
           $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
           Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
-            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION
             Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
@@ -728,7 +728,7 @@ jobs:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           S3_PATH="s3://$S3_BUCKET/builds/$BUILD_ID"
           for artifact in $PROJECT_PATH/Artifacts/*.zip; do
-            [ -f "$artifact" ] && aws s3 cp "$artifact" "$S3_PATH/$(basename "$artifact")" --region $AWS_REGION --acl public-read
+            [ -f "$artifact" ] && aws s3 cp "$artifact" "$S3_PATH/$(basename "$artifact")" --region $AWS_REGION
           done
 
       - name: Upload artifacts
