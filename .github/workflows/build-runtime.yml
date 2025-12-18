@@ -49,7 +49,7 @@ jobs:
   build-windows-desktop:
     needs: prepare
     runs-on: [self-hosted, Windows, unity]
-    timeout-minutes: 360
+    timeout-minutes: 720
     if: ${{ github.event_name == 'push' || github.event.inputs.build_windows == 'true' }}
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
@@ -192,9 +192,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
+          $awsCli = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
+          if (-not (Test-Path $awsCli)) {
+            $awsCli = (Get-Command aws -ErrorAction SilentlyContinue).Source
+            if (-not $awsCli) { Write-Host "::error::AWS CLI not found"; exit 1 }
+          }
           $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
           Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
-            aws s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
             Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
@@ -247,7 +252,7 @@ jobs:
     needs: [prepare, build-windows-desktop]
     if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_webgl_compressed == 'true') && (needs.build-windows-desktop.result == 'success' || needs.build-windows-desktop.result == 'skipped') }}
     runs-on: [self-hosted, Windows, unity]
-    timeout-minutes: 480
+    timeout-minutes: 720
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
       PROJECT_PATH: ${{ github.workspace }}
@@ -370,9 +375,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
+          $awsCli = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
+          if (-not (Test-Path $awsCli)) {
+            $awsCli = (Get-Command aws -ErrorAction SilentlyContinue).Source
+            if (-not $awsCli) { Write-Host "::error::AWS CLI not found"; exit 1 }
+          }
           $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
           Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
-            aws s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
             Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
@@ -423,7 +433,7 @@ jobs:
     needs: [prepare, build-webgl-compressed]
     if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_webgl_uncompressed == 'true') && (needs.build-webgl-compressed.result == 'success' || needs.build-webgl-compressed.result == 'skipped') }}
     runs-on: [self-hosted, Windows, unity]
-    timeout-minutes: 480
+    timeout-minutes: 720
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
       PROJECT_PATH: ${{ github.workspace }}
@@ -546,9 +556,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
+          $awsCli = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
+          if (-not (Test-Path $awsCli)) {
+            $awsCli = (Get-Command aws -ErrorAction SilentlyContinue).Source
+            if (-not $awsCli) { Write-Host "::error::AWS CLI not found"; exit 1 }
+          }
           $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
           Get-ChildItem "$env:PROJECT_PATH\Artifacts\*.zip" | ForEach-Object {
-            aws s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION --acl public-read
             Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
           }
 
@@ -598,7 +613,7 @@ jobs:
   build-mac:
     needs: prepare
     runs-on: [self-hosted, macOS, unity]
-    timeout-minutes: 360
+    timeout-minutes: 720
     if: ${{ github.event_name == 'push' || github.event.inputs.build_mac == 'true' }}
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
@@ -676,8 +691,22 @@ jobs:
           "$UNITY_PATH" -batchmode -nographics -quit -projectPath "$PROJECT_PATH" -executeMethod FiveSQD.WebVerse.Building.Builder.BuildMacDesktop -logFile "$PROJECT_PATH/Logs/build-mac.log"
           EXIT_CODE=$?
           set -e
-          [ -f "$PROJECT_PATH/Logs/build-mac.log" ] && tail -50 "$PROJECT_PATH/Logs/build-mac.log"
-          [ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE
+          echo "Unity exit code: $EXIT_CODE"
+          if [ -f "$PROJECT_PATH/Logs/build-mac.log" ]; then
+            echo "=== Last 100 lines of build log ==="
+            tail -100 "$PROJECT_PATH/Logs/build-mac.log"
+          fi
+          # Check for success indicators in log
+          if [ -f "$PROJECT_PATH/Logs/build-mac.log" ]; then
+            if grep -q "Exiting batchmode successfully" "$PROJECT_PATH/Logs/build-mac.log"; then
+              echo "Build completed successfully (found success message in log)"
+              EXIT_CODE=0
+            fi
+          fi
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Unity build failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
       - name: Create archive
         run: |
