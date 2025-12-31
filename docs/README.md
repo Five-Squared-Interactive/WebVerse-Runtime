@@ -26,6 +26,11 @@ Welcome to the comprehensive documentation for WebVerse-Runtime, the Unity3D run
 - [Handler Configuration](./configuration/handlers.md)
 - [Build Configuration](./configuration/build.md)
 
+### Performance & Optimization
+- [WebGL/WebGPU Memory Optimization](./developer/webgl-memory-optimization-summary.md)
+  - [Detailed Analysis](./developer/webgl-memory-optimization-analysis.md)
+  - [Implementation Guide](./developer/webgl-memory-optimization-implementation.md)
+
 ### Extensibility
 - [Creating Custom Handlers](./extensibility/custom-handlers.md)
 - [Extending APIs](./extensibility/api-extensions.md)
@@ -40,6 +45,9 @@ Welcome to the comprehensive documentation for WebVerse-Runtime, the Unity3D run
 - [Testing Guide](./developer/testing.md)
 - [Build System](./developer/build-system.md)
 - [Contributing Guidelines](./developer/contributing.md)
+- [WebGL/WebGPU Memory Optimization](./developer/webgl-memory-optimization-summary.md)
+  - [Full Analysis](./developer/webgl-memory-optimization-analysis.md)
+  - [Implementation Guide](./developer/webgl-memory-optimization-implementation.md)
 
 ## Overview
 

@@ -231,41 +231,77 @@ PlayerSettings.WebGL.enableWebGPU = true;
 - Consider Brotli compression for better compression ratios (if Unity version supports)
 - Implement asset bundling for large resources
 
-### 10. Build-Time Optimizations
+### Step 10: Build-Time Optimizations
 
 #### Issue: No Automated Asset Processing
 **Current**: Manual asset configuration
 **Impact**: Inconsistent asset settings, missed optimization opportunities
 
 **Recommendation**:
-Add pre-build texture compression and optimization:
+Add pre-build texture compression and optimization with batched operations:
 ```csharp
 public static void OptimizeWebGLAssets()
 {
     // Find all textures
     string[] textureGUIDs = AssetDatabase.FindAssets("t:Texture2D");
     
-    foreach (string guid in textureGUIDs)
+    // Exclusion patterns for paths that should not be optimized
+    string[] exclusionPatterns = new string[]
     {
-        string path = AssetDatabase.GUIDToAssetPath(guid);
-        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        
-        if (importer != null)
+        Path.DirectorySeparatorChar + "3rd-party" + Path.DirectorySeparatorChar,
+        Path.DirectorySeparatorChar + "TextMesh Pro" + Path.DirectorySeparatorChar,
+        Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar
+    };
+    
+    AssetDatabase.StartAssetEditing(); // Batch asset operations for performance
+    
+    try
+    {
+        foreach (string guid in textureGUIDs)
         {
-            // Set WebGL-specific settings
-            TextureImporterPlatformSettings settings = new TextureImporterPlatformSettings
-            {
-                name = "WebGL",
-                overridden = true,
-                maxTextureSize = 2048,
-                format = TextureImporterFormat.DXT5Crunched,
-                compressionQuality = 50,
-                crunchedCompression = true
-            };
+            string path = AssetDatabase.GUIDToAssetPath(guid);
             
-            importer.SetPlatformTextureSettings(settings);
-            AssetDatabase.ImportAsset(path);
+            // Skip excluded paths
+            bool shouldExclude = false;
+            foreach (string pattern in exclusionPatterns)
+            {
+                if (path.Contains(pattern))
+                {
+                    shouldExclude = true;
+                    break;
+                }
+            }
+            
+            if (shouldExclude)
+            {
+                continue;
+            }
+            
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            
+            if (importer != null)
+            {
+                // Set WebGL-specific settings
+                TextureImporterPlatformSettings settings = new TextureImporterPlatformSettings
+                {
+                    name = "WebGL",
+                    overridden = true,
+                    maxTextureSize = 2048,
+                    format = TextureImporterFormat.DXT5Crunched,
+                    compressionQuality = 50,
+                    crunchedCompression = true
+                };
+                
+                importer.SetPlatformTextureSettings(settings);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
         }
+    }
+    finally
+    {
+        AssetDatabase.StopAssetEditing(); // Apply all changes in batch
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
     }
 }
 ```

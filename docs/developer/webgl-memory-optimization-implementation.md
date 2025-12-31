@@ -189,37 +189,66 @@ public static void OptimizeTexturesForWebGL()
     string[] textureGUIDs = AssetDatabase.FindAssets("t:Texture2D");
     int optimizedCount = 0;
     
-    foreach (string guid in textureGUIDs)
+    // Exclusion patterns for paths that should not be optimized
+    string[] exclusionPatterns = new string[]
     {
-        string path = AssetDatabase.GUIDToAssetPath(guid);
-        
-        // Skip certain paths (e.g., third-party assets)
-        if (path.Contains("/3rd-party/") || path.Contains("/TextMesh Pro/"))
+        Path.DirectorySeparatorChar + "3rd-party" + Path.DirectorySeparatorChar,
+        Path.DirectorySeparatorChar + "TextMesh Pro" + Path.DirectorySeparatorChar,
+        Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar
+    };
+    
+    AssetDatabase.StartAssetEditing(); // Batch asset operations
+    
+    try
+    {
+        foreach (string guid in textureGUIDs)
         {
-            continue;
-        }
-        
-        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        
-        if (importer != null)
-        {
-            TextureImporterPlatformSettings webglSettings = importer.GetPlatformTextureSettings("WebGL");
+            string path = AssetDatabase.GUIDToAssetPath(guid);
             
-            // Only update if not already configured
-            if (!webglSettings.overridden)
+            // Skip certain paths using configurable exclusion patterns
+            bool shouldExclude = false;
+            foreach (string pattern in exclusionPatterns)
             {
-                webglSettings.name = "WebGL";
-                webglSettings.overridden = true;
-                webglSettings.maxTextureSize = 2048;
-                webglSettings.format = TextureImporterFormat.DXT5Crunched;
-                webglSettings.compressionQuality = 50;
-                webglSettings.crunchedCompression = true;
+                if (path.Contains(pattern))
+                {
+                    shouldExclude = true;
+                    break;
+                }
+            }
+            
+            if (shouldExclude)
+            {
+                continue;
+            }
+            
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            
+            if (importer != null)
+            {
+                TextureImporterPlatformSettings webglSettings = importer.GetPlatformTextureSettings("WebGL");
                 
-                importer.SetPlatformTextureSettings(webglSettings);
-                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-                optimizedCount++;
+                // Only update if not already configured
+                if (!webglSettings.overridden)
+                {
+                    webglSettings.name = "WebGL";
+                    webglSettings.overridden = true;
+                    webglSettings.maxTextureSize = 2048;
+                    webglSettings.format = TextureImporterFormat.DXT5Crunched;
+                    webglSettings.compressionQuality = 50;
+                    webglSettings.crunchedCompression = true;
+                    
+                    importer.SetPlatformTextureSettings(webglSettings);
+                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                    optimizedCount++;
+                }
             }
         }
+    }
+    finally
+    {
+        AssetDatabase.StopAssetEditing(); // Batch import all changes
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
     }
     
     Debug.Log($"Optimized {optimizedCount} textures for WebGL.");
@@ -465,7 +494,7 @@ namespace FiveSQD.WebVerse.Runtime
 // Add to class members
 private ResourceManager resourceManager;
 
-// Add to Initialize method or Awake
+// Add to Initialize method
 public void InitializeResourceManager()
 {
     GameObject rmObject = new GameObject("ResourceManager");
@@ -476,6 +505,17 @@ public void InitializeResourceManager()
     // Enable automatic cleanup for WebGL
     resourceManager.StartResourceCleanup();
     #endif
+}
+
+// Call from existing Initialize method
+public void Initialize(...)
+{
+    // ... existing initialization code ...
+    
+    // Initialize resource management for WebGL
+    InitializeResourceManager();
+    
+    // ... rest of initialization ...
 }
 
 // Add cleanup on world unload
