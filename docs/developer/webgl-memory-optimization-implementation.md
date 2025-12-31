@@ -190,11 +190,12 @@ public static void OptimizeTexturesForWebGL()
     int optimizedCount = 0;
     
     // Exclusion patterns for paths that should not be optimized
+    // Using simple folder name matching - Unity paths are always forward-slash normalized
     string[] exclusionPatterns = new string[]
     {
-        Path.DirectorySeparatorChar + "3rd-party" + Path.DirectorySeparatorChar,
-        Path.DirectorySeparatorChar + "TextMesh Pro" + Path.DirectorySeparatorChar,
-        Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar
+        "3rd-party",
+        "TextMesh Pro",
+        "Editor"
     };
     
     AssetDatabase.StartAssetEditing(); // Batch asset operations
@@ -205,11 +206,11 @@ public static void OptimizeTexturesForWebGL()
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             
-            // Skip certain paths using configurable exclusion patterns
+            // Skip excluded paths - Unity normalizes to forward slashes
             bool shouldExclude = false;
             foreach (string pattern in exclusionPatterns)
             {
-                if (path.Contains(pattern))
+                if (path.Contains("/" + pattern + "/") || path.EndsWith("/" + pattern))
                 {
                     shouldExclude = true;
                     break;
