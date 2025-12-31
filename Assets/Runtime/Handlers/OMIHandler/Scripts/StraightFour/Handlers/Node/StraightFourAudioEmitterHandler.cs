@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FiveSQD.StraightFour.Entity;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
@@ -50,8 +51,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             var emitterComponent = targetObject.AddComponent<OMIAudioEmitterBehavior>();
             emitterComponent.Initialize(emitter, context);
 
-            // Create entity for the audio source
-            GetOrCreateEntity(context, nodeIndex, targetObject, null);
+            // Find parent entity using glTF parent node index
+            BaseEntity parentEntity = null;
+            if (context.CustomData != null && context.CustomData.TryGetValue("SF_NodeParentIndices", out var parentMapObj))
+            {
+                var parentMap = parentMapObj as Dictionary<int, int>;
+                if (parentMap != null && parentMap.TryGetValue(nodeIndex, out var parentNodeIndex))
+                {
+                    parentEntity = GetEntityForNode(context, parentNodeIndex);
+                }
+            }
+            // Create entity for the audio source with correct parent
+            GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
 
             Logging.Log($"[StraightFour] Created audio emitter: {emitter.name ?? "unnamed"}, type={emitter.type}");
 

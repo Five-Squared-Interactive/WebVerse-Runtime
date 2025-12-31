@@ -112,9 +112,13 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
             manager.RegisterHandler(new StraightFourEnvironmentSkyDocumentHandler());
             manager.RegisterHandler(new StraightFourAudioDocumentHandler());
             manager.RegisterHandler(new StraightFourVehicleWheelDocumentHandler());
+            var thrusterDocHandler = new StraightFourVehicleThrusterDocumentHandler();
+            Logging.Log($"[StraightFourOMIAdapter] Registering thruster doc handler, ExtensionName={thrusterDocHandler.ExtensionName}");
+            manager.RegisterHandler(thrusterDocHandler);
             
             // Register node-level handlers (process per-node extension data)
             manager.RegisterHandler(new StraightFourPhysicsBodyHandler());
+            manager.RegisterHandler(new StraightFourPhysicsShapeNodeHandler()); // Handle shape refs on nodes
             manager.RegisterHandler(new StraightFourSpawnPointHandler());
             manager.RegisterHandler(new StraightFourSeatHandler());
             manager.RegisterHandler(new StraightFourLinkHandler());
@@ -124,6 +128,7 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
             manager.RegisterHandler(new StraightFourPersonalityHandler());
             manager.RegisterHandler(new StraightFourVehicleBodyHandler());
             manager.RegisterHandler(new StraightFourVehicleWheelHandler());
+            manager.RegisterHandler(new StraightFourVehicleThrusterHandler());
 #endif
             
             Logging.Log("[StraightFourOMIAdapter] Created extension manager with all handlers.");
@@ -601,6 +606,14 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
             {
                 // Add MeshEntity component to existing GameObject
                 var meshEntity = transform.gameObject.AddComponent<MeshEntity>();
+                if (parent != null)
+                {
+                    Debug.Log($"[StraightFourOMIAdapter] SetParent for {transform.name}: parent entity = {parent.name}, parent GameObject = {parent.gameObject.name}");
+                }
+                else
+                {
+                    Debug.Log($"[StraightFourOMIAdapter] SetParent for {transform.name}: parent entity = null");
+                }
                 meshEntity.SetParent(parent);
                 meshEntity.Initialize(entityId);
                 entity = meshEntity;
@@ -609,6 +622,14 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
             {
                 // Add ContainerEntity component to existing GameObject  
                 var containerEntity = transform.gameObject.AddComponent<ContainerEntity>();
+                if (parent != null)
+                {
+                    Debug.Log($"[StraightFourOMIAdapter] SetParent for {transform.name}: parent entity = {parent.name}, parent GameObject = {parent.gameObject.name}");
+                }
+                else
+                {
+                    Debug.Log($"[StraightFourOMIAdapter] SetParent for {transform.name}: parent entity = null");
+                }
                 containerEntity.SetParent(parent);
                 containerEntity.Initialize(entityId);
                 entity = containerEntity;
@@ -783,6 +804,29 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour
             nodeSpawnPoints.Clear();
             nodeNameToIndex.Clear();
             Logging.Log("[StraightFourOMIAdapter] Cleaned up.");
+        }
+
+        /// <summary>
+        /// Build a mapping of child node index to parent node index from glTF JSON.
+        /// </summary>
+        public static Dictionary<int, int> BuildNodeParentMapping(Newtonsoft.Json.Linq.JObject json)
+        {
+            var parentMap = new Dictionary<int, int>();
+            var nodes = json["nodes"] as Newtonsoft.Json.Linq.JArray;
+            if (nodes == null) return parentMap;
+            for (int parentIdx = 0; parentIdx < nodes.Count; parentIdx++)
+            {
+                var node = nodes[parentIdx] as Newtonsoft.Json.Linq.JObject;
+                if (node == null) continue;
+                var children = node["children"] as Newtonsoft.Json.Linq.JArray;
+                if (children == null) continue;
+                foreach (var childToken in children)
+                {
+                    int childIdx = childToken.Value<int>();
+                    parentMap[childIdx] = parentIdx;
+                }
+            }
+            return parentMap;
         }
     }
 }

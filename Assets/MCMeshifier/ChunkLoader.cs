@@ -2,17 +2,29 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
+using GLTFast.Export;
 
 public class ChunkLoader : MonoBehaviour
 {
+    [Header("Input Source (use one or the other)")]
     [SerializeField] private string jsonFilePath;
+    [SerializeField] private string jsonDirectoryPath;
+    [SerializeField] private bool deleteSourceFilesAfterProcessing = false;
+    
+    [Header("Settings")]
     [SerializeField] private Material atlasMaterial;
     [SerializeField] private TextAsset atlasDataFile;
     [SerializeField] private float blockSize = 1f;
     [SerializeField] private float delayBetweenChunks = 1f;
     [SerializeField] private KeyCode continueKey = KeyCode.Space;
     [SerializeField] private bool deleteChunksAfterGeneration = true;
+    
+    [Header("GLTF Export")]
+    [SerializeField] private bool exportToGltf = false;
+    [SerializeField] private string gltfExportDirectory;
+    [SerializeField] private bool exportAsGlb = true;
 
     private GameObject currentChunkObject;
     private bool isPaused = false;
@@ -28,10 +40,124 @@ public class ChunkLoader : MonoBehaviour
     {
         LoadAtlasData();
         
-        if (!string.IsNullOrEmpty(jsonFilePath))
+        // Directory mode takes priority if specified
+        if (!string.IsNullOrEmpty(jsonDirectoryPath))
+        {
+            StartCoroutine(LoadAndProcessDirectoryCoroutine(jsonDirectoryPath));
+        }
+        else if (!string.IsNullOrEmpty(jsonFilePath))
         {
             StartCoroutine(LoadAndProcessChunksCoroutine(jsonFilePath));
         }
+    }
+
+    private IEnumerator LoadAndProcessDirectoryCoroutine(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+        {
+            Debug.LogError($"Directory not found: {directoryPath}");
+            yield break;
+        }
+
+        string[] jsonFiles = Directory.GetFiles(directoryPath, "*.json");
+        
+        if (jsonFiles.Length == 0)
+        {
+            Debug.LogWarning($"No JSON files found in directory: {directoryPath}");
+            yield break;
+        }
+
+        Debug.Log($"Found {jsonFiles.Length} JSON files in directory.");
+        Debug.Log("===================================");
+
+        isFirstChunk = true;
+
+        for (int i = 0; i < jsonFiles.Length; i++)
+        {
+            string filePath = jsonFiles[i];
+            
+            Chunk chunk = null;
+            try
+            {
+                string jsonContent = File.ReadAllText(filePath);
+                chunk = JsonUtility.FromJson<Chunk>(jsonContent);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Error parsing JSON file {filePath}: {ex.Message}");
+                continue;
+            }
+
+            if (chunk == null || chunk.blocks == null)
+            {
+                Debug.LogWarning($"Invalid chunk data in file: {filePath}");
+                continue;
+            }
+
+            int blockCount = chunk.blocks?.Count ?? 0;
+            int entityCount = chunk.entities?.Count ?? 0;
+            int blockEntityCount = chunk.block_entities?.Count ?? 0;
+
+            Debug.Log($"File {i + 1}/{jsonFiles.Length}: {Path.GetFileName(filePath)}");
+            Debug.Log($"Chunk ({chunk.chunk_x}, {chunk.chunk_z}) - Dimension: {chunk.dimension}");
+            Debug.Log($"  Blocks: {blockCount}, Entities: {entityCount}, Block Entities: {blockEntityCount}");
+
+            // Destroy previous chunk if it exists and deletion is enabled
+            if (deleteChunksAfterGeneration && currentChunkObject != null)
+            {
+                Destroy(currentChunkObject);
+            }
+
+            // Generate the chunk mesh
+            GenerateChunkMesh(chunk);
+
+            // Export to GLTF if enabled
+            if (exportToGltf && currentChunkObject != null)
+            {
+                yield return StartCoroutine(ExportChunkToGltfCoroutine(chunk, currentChunkObject));
+            }
+
+            // Pause after first chunk and wait for user input
+            if (isFirstChunk)
+            {
+                isFirstChunk = false;
+                isPaused = true;
+                Debug.Log($"Paused after first chunk. Press '{continueKey}' to continue...");
+                
+                while (isPaused)
+                {
+                    yield return null;
+                }
+            }
+            else
+            {
+                // Wait before processing the next chunk
+                yield return new WaitForSeconds(delayBetweenChunks);
+            }
+
+            // Delete source file if enabled
+            if (deleteSourceFilesAfterProcessing)
+            {
+                try
+                {
+                    File.Delete(filePath);
+                    Debug.Log($"Deleted source file: {Path.GetFileName(filePath)}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Failed to delete source file {filePath}: {ex.Message}");
+                }
+            }
+        }
+
+        // Clean up the last chunk if deletion is enabled
+        if (deleteChunksAfterGeneration && currentChunkObject != null)
+        {
+            Destroy(currentChunkObject);
+            currentChunkObject = null;
+        }
+
+        Debug.Log("Finished processing all files in directory.");
     }
 
     private void LoadAtlasData()
@@ -148,6 +274,12 @@ public class ChunkLoader : MonoBehaviour
             // Generate the new chunk
             GenerateChunkMesh(chunk);
 
+            // Export to GLTF if enabled
+            if (exportToGltf && currentChunkObject != null)
+            {
+                yield return StartCoroutine(ExportChunkToGltfCoroutine(chunk, currentChunkObject));
+            }
+
             // Pause after first chunk and wait for user input
             if (isFirstChunk)
             {
@@ -175,6 +307,87 @@ public class ChunkLoader : MonoBehaviour
         }
 
         Debug.Log("Finished processing all chunks.");
+    }
+
+    private IEnumerator ExportChunkToGltfCoroutine(Chunk chunk, GameObject chunkObject)
+    {
+        if (string.IsNullOrEmpty(gltfExportDirectory))
+        {
+            Debug.LogWarning("GLTF export directory not specified. Skipping export.");
+            yield break;
+        }
+
+        // Ensure export directory exists
+        if (!Directory.Exists(gltfExportDirectory))
+        {
+            try
+            {
+                Directory.CreateDirectory(gltfExportDirectory);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to create export directory: {ex.Message}");
+                yield break;
+            }
+        }
+
+        string extension = exportAsGlb ? "glb" : "gltf";
+        string fileName = $"chunk_{chunk.chunk_x}_{chunk.chunk_z}.{extension}";
+        string filePath = Path.Combine(gltfExportDirectory, fileName);
+
+        Debug.Log($"Exporting chunk to: {filePath}");
+
+        // Use a task to run the async export
+        Task<bool> exportTask = ExportGameObjectToGltfAsync(chunkObject, filePath);
+        
+        // Wait for the task to complete
+        while (!exportTask.IsCompleted)
+        {
+            yield return null;
+        }
+
+        if (exportTask.Exception != null)
+        {
+            Debug.LogError($"GLTF export failed with exception: {exportTask.Exception.InnerException?.Message ?? exportTask.Exception.Message}");
+        }
+        else if (exportTask.Result)
+        {
+            Debug.Log($"Successfully exported chunk to: {filePath}");
+        }
+        else
+        {
+            Debug.LogError($"GLTF export failed for chunk ({chunk.chunk_x}, {chunk.chunk_z})");
+        }
+    }
+
+    private async Task<bool> ExportGameObjectToGltfAsync(GameObject gameObject, string filePath)
+    {
+        try
+        {
+            var exportSettings = new ExportSettings
+            {
+                Format = Path.GetExtension(filePath).ToLowerInvariant() == ".glb"
+                    ? GltfFormat.Binary
+                    : GltfFormat.Json,
+                FileConflictResolution = FileConflictResolution.Overwrite
+            };
+
+            var gameObjectExportSettings = new GameObjectExportSettings
+            {
+                OnlyActiveInHierarchy = true,
+                DisabledComponents = false
+            };
+
+            var export = new GameObjectExport(exportSettings, gameObjectExportSettings);
+            export.AddScene(new[] { gameObject }, gameObject.name);
+
+            return await export.SaveToFileAndDispose(filePath);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"GLTF export error: {ex.Message}");
+            return false;
+        }
     }
 
     private void GenerateChunkMesh(Chunk chunk)

@@ -13,6 +13,24 @@ using OMI;
 using OMI.Integration;
 #if NEWTONSOFT_JSON
 using Newtonsoft.Json.Linq;
+using OMIPhysicsShapeRoot = global::OMI.Extensions.PhysicsShape.OMIPhysicsShapeRoot;
+using OMIPhysicsBodyRoot = global::OMI.Extensions.PhysicsBody.OMIPhysicsBodyRoot;
+using OMIPhysicsBodyNode = global::OMI.Extensions.PhysicsBody.OMIPhysicsBodyNode;
+using OMIPhysicsJointRoot = global::OMI.Extensions.PhysicsJoint.OMIPhysicsJointRoot;
+using OMIPhysicsJointNode = global::OMI.Extensions.PhysicsJoint.OMIPhysicsJointNode;
+using OMIPhysicsGravityRoot = global::OMI.Extensions.PhysicsGravity.OMIPhysicsGravityRoot;
+using OMIPhysicsGravityNode = global::OMI.Extensions.PhysicsGravity.OMIPhysicsGravityNode;
+using OMISpawnPointNode = global::OMI.Extensions.SpawnPoint.OMISpawnPointNode;
+using OMISeatNode = global::OMI.Extensions.Seat.OMISeatNode;
+using OMILinkNode = global::OMI.Extensions.Link.OMILinkNode;
+using OMIPersonalityNode = global::OMI.Extensions.Personality.OMIPersonalityNode;
+using OMIVehicleBodyNode = global::OMI.Extensions.Vehicle.OMIVehicleBodyNode;
+using OMIVehicleThrusterNode = global::OMI.Extensions.Vehicle.OMIVehicleThrusterNode;
+using OMIVehicleThrusterRoot = global::OMI.Extensions.Vehicle.OMIVehicleThrusterRoot;
+using OMIVehicleWheelNode = global::OMI.Extensions.Vehicle.OMIVehicleWheelNode;
+using OMIVehicleWheelRoot = global::OMI.Extensions.Vehicle.OMIVehicleWheelRoot;
+using OMIVehicleHoverThrusterNode = global::OMI.Extensions.Vehicle.OMIVehicleHoverThrusterNode;
+using OMIEnvironmentSkyDocumentData = global::OMI.Extensions.EnvironmentSky.OMIEnvironmentSkyDocumentData;
 #endif
 #if USE_WEBINTERFACE
 using FiveSQD.WebVerse.WebInterface.HTTP;
@@ -351,7 +369,7 @@ namespace FiveSQD.WebVerse.Handlers.OMI
 
 #if NEWTONSOFT_JSON
         /// <summary>
-        /// Load glTF using OMIDirectJsonLoader with full extension support.
+        /// Load glTF using custom loader with proper glTFast settings and OMI extension support.
         /// </summary>
         private IEnumerator LoadFromDataNewtonsoft(byte[] data, Uri baseUri, Action<bool> onComplete)
         {
@@ -361,8 +379,8 @@ namespace FiveSQD.WebVerse.Handlers.OMI
             // Get the extension manager from the adapter with custom StraightFour handlers
             OMIExtensionManager extensionManager = worldAdapter.CreateExtensionManager();
             
-            // Create import settings
-            var importSettings = new OMIImportSettings
+            // Create OMI import settings
+            var omiSettings = new OMIImportSettings
             {
                 VerboseLogging = Settings.verboseLogging,
                 ImportPhysicsShapes = true,
@@ -375,130 +393,623 @@ namespace FiveSQD.WebVerse.Handlers.OMI
                 ImportAudioEmitters = true,
                 ImportPersonality = true,
                 ImportVehicleBodies = true,
-                ImportVehicleWheels = true
+                ImportVehicleWheels = true,
+                ImportVehicleThrusters = true,
+                ImportVehicleHoverThrusters = true
             };
             
-            // Create the OMI loader
-            OMIDirectJsonLoader loader = null;
+            // Create glTFast import with proper settings (matching GLTFLoader)
+            GLTFast.GltfImport gltfImport = new GLTFast.GltfImport();
+            
+            // Load with proper import settings
+            Logging.Log("[OMIHandler] Starting glTF load with proper ImportSettings...");
+            Task<bool> loadTask = null;
             try
             {
-                loader = new OMIDirectJsonLoader(extensionManager, importSettings);
+                loadTask = gltfImport.Load(data, baseUri, new GLTFast.ImportSettings()
+                {
+                    GenerateMipMaps = true,
+                    NodeNameMethod = GLTFast.NameImportMethod.OriginalUnique
+                });
             }
             catch (Exception ex)
             {
                 Destroy(parentContainer);
-                Logging.LogError($"[OMIHandler] Failed to create OMIDirectJsonLoader: {ex.Message}\n{ex.StackTrace}");
+                Logging.LogError($"[OMIHandler] Exception starting glTF LoadAsync: {ex.Message}\n{ex.StackTrace}");
                 onComplete?.Invoke(false);
                 yield break;
             }
 
-            using (loader)
+            while (!loadTask.IsCompleted)
             {
-                // Store runtime and spawn point registry in context (will be available after load)
-                // Note: Context is created during LoadAsync
-                
-                // Load the glTF data
-                Logging.Log("[OMIHandler] Starting glTF load with Newtonsoft...");
-                Task<bool> loadTask = null;
-                try
-                {
-                    loadTask = loader.LoadAsync(data, baseUri);
-                }
-                catch (Exception ex)
-                {
-                    Destroy(parentContainer);
-                    Logging.LogError($"[OMIHandler] Exception starting LoadAsync: {ex.Message}\n{ex.StackTrace}");
-                    onComplete?.Invoke(false);
-                    yield break;
-                }
+                yield return null;
+            }
 
-                while (!loadTask.IsCompleted)
-                {
-                    yield return null;
-                }
+            if (loadTask.IsFaulted)
+            {
+                Destroy(parentContainer);
+                string errorMsg = loadTask.Exception?.InnerException?.Message ?? loadTask.Exception?.Message ?? "Unknown error";
+                Logging.LogError($"[OMIHandler] Failed to load glTF (faulted): {errorMsg}");
+                onComplete?.Invoke(false);
+                yield break;
+            }
 
-                if (loadTask.IsFaulted)
+            if (!loadTask.Result)
+            {
+                Destroy(parentContainer);
+                Logging.LogError("[OMIHandler] glTF LoadAsync returned false - parsing failed");
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            Logging.Log("[OMIHandler] glTF loaded successfully, instantiating...");
+            
+            // Instantiate the scene
+            Task<bool> instantiateTask = null;
+            try
+            {
+                instantiateTask = gltfImport.InstantiateMainSceneAsync(parentContainer.transform);
+            }
+            catch (Exception ex)
+            {
+                Destroy(parentContainer);
+                Logging.LogError($"[OMIHandler] Exception starting InstantiateMainSceneAsync: {ex.Message}\n{ex.StackTrace}");
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            while (!instantiateTask.IsCompleted)
+            {
+                yield return null;
+            }
+
+            if (instantiateTask.IsFaulted || !instantiateTask.Result)
+            {
+                Destroy(parentContainer);
+                string errorMsg = instantiateTask.Exception?.InnerException?.Message ?? instantiateTask.Exception?.Message ?? "Instantiation failed";
+                Logging.LogError($"[OMIHandler] Failed to instantiate glTF: {errorMsg}");
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            // Find the instantiated root object
+            GameObject rootObject = null;
+            if (parentContainer.transform.childCount > 0)
+            {
+                rootObject = parentContainer.transform.GetChild(parentContainer.transform.childCount - 1).gameObject;
+            }
+
+            if (rootObject == null)
+            {
+                Destroy(parentContainer);
+                Logging.LogError("[OMIHandler] Could not find instantiated root object");
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            Logging.Log($"[OMIHandler] Instantiated root object: {rootObject.name}");
+
+            // --- DEBUG: Print Unity hierarchy after import ---
+            PrintHierarchy(rootObject.transform, 0);
+
+            // Parse OMI extensions from the glTF JSON
+            JObject jsonRoot = OMIJsonExtensions.ParseGltfData(data);
+            if (jsonRoot == null)
+            {
+                Logging.LogWarning("[OMIHandler] Could not parse glTF JSON for OMI extensions, continuing without extensions");
+            }
+            
+            // Create OMI import context with our properly-configured glTFast import
+            OMIImportContext context = new OMIImportContext(gltfImport, extensionManager, omiSettings);
+            context.RootObject = rootObject;
+            context.BuildNodeMapping(rootObject);
+
+            // Build and store node parent mapping for handler use
+            if (jsonRoot != null)
+            {
+                var parentMap = FiveSQD.WebVerse.Handlers.OMI.StraightFour.StraightFourOMIAdapter.BuildNodeParentMapping(jsonRoot);
+                context.CustomData["SF_NodeParentIndices"] = parentMap;
+            }
+
+            // Store runtime and registry in context for handlers to access
+            context.CustomData[StraightFourCustomDataKeys.Runtime] = WebVerseRuntime.Instance;
+            context.CustomData[StraightFourCustomDataKeys.SpawnPointRegistry] = spawnPointRegistry;
+
+            // Process OMI extensions if JSON was parsed successfully
+            if (jsonRoot != null)
+            {
+                yield return StartCoroutine(ProcessOMIExtensionsCoroutine(jsonRoot, context, extensionManager, omiSettings));
+            }
+
+            // Post-processing (entity creation from context, if needed)
+            yield return StartCoroutine(worldAdapter.PostProcessScene(rootObject, context));
+
+            // --- DEBUG: Print Unity hierarchy after OMI/entity processing ---
+            PrintHierarchy(rootObject.transform, 0);
+
+            // Apply spawn point if available
+            ApplySpawnPoint();
+
+            Logging.Log("[OMIHandler] glTF world loaded successfully.");
+            onComplete?.Invoke(true);
+        }
+
+        /// <summary>
+        /// Process OMI extensions from parsed JSON.
+        /// </summary>
+        private IEnumerator ProcessOMIExtensionsCoroutine(JObject root, OMIImportContext context, OMIExtensionManager extensionManager, OMIImportSettings settings)
+        {
+            Logging.Log("[OMIHandler] Processing OMI extensions...");
+
+            // Process document-level extensions
+            yield return StartCoroutine(ProcessDocumentExtensionsCoroutine(root, context, extensionManager, settings));
+
+            // Process node-level extensions
+            yield return StartCoroutine(ProcessNodeExtensionsCoroutine(root, context, extensionManager, settings));
+
+            // Execute any deferred actions (e.g., resolving cross-references like pilotSeat)
+            context.ExecuteDeferredActions();
+        }
+
+        private IEnumerator ProcessDocumentExtensionsCoroutine(JObject root, OMIImportContext context, OMIExtensionManager extensionManager, OMIImportSettings settings)
+        {
+            Logging.Log($"[OMIHandler] ProcessDocumentExtensionsCoroutine: ImportPhysicsShapes={settings.ImportPhysicsShapes}");
+            
+            // Process OMI_physics_shape document extension
+            if (settings.ImportPhysicsShapes)
+            {
+                Logging.Log("[OMIHandler] Trying to get OMI_physics_shape document extension...");
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIPhysicsShapeRoot>(root, OMIJsonExtensions.ExtensionNames.PhysicsShape, out var shapesRoot))
                 {
-                    Destroy(parentContainer);
-                    string errorMsg = loadTask.Exception?.InnerException?.Message ?? loadTask.Exception?.Message ?? "Unknown error";
-                    Logging.LogError($"[OMIHandler] Failed to load glTF (faulted): {errorMsg}");
-                    if (loadTask.Exception != null)
+                    Logging.Log($"[OMIHandler] Found OMI_physics_shape with {shapesRoot?.Shapes?.Length ?? 0} shapes");
+                    
+                    // Find document handler by iterating (since document and node handlers share extension name)
+                    IOMIDocumentExtensionHandler<OMIPhysicsShapeRoot> handler = null;
+                    var docHandlers = extensionManager.GetDocumentHandlers();
+                    for (int i = 0; i < docHandlers.Count; i++)
                     {
-                        Logging.LogError($"[OMIHandler] Stack trace: {loadTask.Exception.StackTrace}");
+                        if (docHandlers[i] is IOMIDocumentExtensionHandler<OMIPhysicsShapeRoot> typedHandler)
+                        {
+                            handler = typedHandler;
+                            break;
+                        }
                     }
-                    onComplete?.Invoke(false);
-                    yield break;
-                }
-
-                if (!loadTask.Result)
-                {
-                    Destroy(parentContainer);
-                    Logging.LogError("[OMIHandler] LoadAsync returned false - glTF parsing failed");
-                    onComplete?.Invoke(false);
-                    yield break;
-                }
-
-                Logging.Log("[OMIHandler] glTF loaded successfully, instantiating...");
-                
-                // Store runtime and registry in context for handlers to access
-                if (loader.Context != null)
-                {
-                    loader.Context.CustomData[StraightFourCustomDataKeys.Runtime] = WebVerseRuntime.Instance;
-                    loader.Context.CustomData[StraightFourCustomDataKeys.SpawnPointRegistry] = spawnPointRegistry;
-                }
-
-                // Instantiate the scene with parent container
-                // This also processes all OMI extensions via the registered handlers
-                Task<GameObject> instantiateTask = null;
-                try
-                {
-                    instantiateTask = loader.InstantiateAsync(parentContainer.transform);
-                }
-                catch (Exception ex)
-                {
-                    Destroy(parentContainer);
-                    Logging.LogError($"[OMIHandler] Exception starting InstantiateAsync: {ex.Message}\n{ex.StackTrace}");
-                    onComplete?.Invoke(false);
-                    yield break;
-                }
-
-                while (!instantiateTask.IsCompleted)
-                {
-                    yield return null;
-                }
-
-                if (instantiateTask.IsFaulted)
-                {
-                    Destroy(parentContainer);
-                    string errorMsg = instantiateTask.Exception?.InnerException?.Message ?? instantiateTask.Exception?.Message ?? "Unknown error";
-                    Logging.LogError($"[OMIHandler] Failed to instantiate glTF (faulted): {errorMsg}");
-                    if (instantiateTask.Exception != null)
+                    
+                    Logging.Log($"[OMIHandler] Handler for OMI_physics_shape: {handler?.GetType().Name ?? "NULL"}");
+                    if (handler != null)
                     {
-                        Logging.LogError($"[OMIHandler] Stack trace: {instantiateTask.Exception.StackTrace}");
+                        var task = handler.OnDocumentImportAsync(shapesRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                        Logging.Log("[OMIHandler] OMI_physics_shape document handler completed");
                     }
-                    onComplete?.Invoke(false);
-                    yield break;
                 }
-
-                if (instantiateTask.Result == null)
+                else
                 {
-                    Destroy(parentContainer);
-                    Logging.LogError("[OMIHandler] InstantiateAsync returned null");
-                    onComplete?.Invoke(false);
-                    yield break;
+                    Logging.Log("[OMIHandler] No OMI_physics_shape document extension found");
+                }
+            }
+
+            // Process OMI_physics_body document extension
+            if (settings.ImportPhysicsBodies)
+            {
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIPhysicsBodyRoot>(root, OMIJsonExtensions.ExtensionNames.PhysicsBody, out var bodyRoot))
+                {
+                    var handler = extensionManager.GetHandler<OMIPhysicsBodyRoot>(OMIJsonExtensions.ExtensionNames.PhysicsBody);
+                    if (handler != null)
+                    {
+                        var task = handler.OnImportAsync(bodyRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_physics_joint document extension
+            if (settings.ImportPhysicsJoints)
+            {
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIPhysicsJointRoot>(root, OMIJsonExtensions.ExtensionNames.PhysicsJoint, out var jointRoot))
+                {
+                    var handler = extensionManager.GetHandler<OMIPhysicsJointRoot>(OMIJsonExtensions.ExtensionNames.PhysicsJoint);
+                    if (handler != null)
+                    {
+                        var task = handler.OnImportAsync(jointRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_physics_gravity document extension
+            if (settings.ImportPhysicsGravity)
+            {
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIPhysicsGravityRoot>(root, OMIJsonExtensions.ExtensionNames.PhysicsGravity, out var gravityRoot))
+                {
+                    var handler = extensionManager.GetHandler<OMIPhysicsGravityRoot>(OMIJsonExtensions.ExtensionNames.PhysicsGravity);
+                    if (handler != null)
+                    {
+                        var task = handler.OnImportAsync(gravityRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_vehicle_thruster document extension
+            if (settings.ImportVehicleThrusters)
+            {
+                Logging.Log($"[OMIHandler] Looking for OMI_vehicle_thruster document extension...");
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIVehicleThrusterRoot>(root, OMIJsonExtensions.ExtensionNames.VehicleThruster, out var thrusterRoot))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_vehicle_thruster document extension, thrusters count={thrusterRoot?.thrusters?.Length ?? 0}");
+                    
+                    // Find document handler by scanning all document handlers (since node handler uses same extension name)
+                    IOMIDocumentExtensionHandler<OMIVehicleThrusterRoot> handler = null;
+                    foreach (var h in extensionManager.GetDocumentHandlers())
+                    {
+                        if (h is IOMIDocumentExtensionHandler<OMIVehicleThrusterRoot> docHandler)
+                        {
+                            handler = docHandler;
+                            break;
+                        }
+                    }
+                    
+                    Logging.Log($"[OMIHandler] Document handler for OMI_vehicle_thruster: {(handler != null ? handler.GetType().Name : "NULL")}");
+                    if (handler != null)
+                    {
+                        var task = handler.OnImportAsync(thrusterRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+                else
+                {
+                    Logging.Log($"[OMIHandler] OMI_vehicle_thruster document extension NOT found in glTF");
+                }
+            }
+            else
+            {
+                Logging.Log($"[OMIHandler] ImportVehicleThrusters is disabled");
+            }
+
+            // Process OMI_vehicle_wheel document extension
+            if (settings.ImportVehicleWheels)
+            {
+                Logging.Log($"[OMIHandler] Looking for OMI_vehicle_wheel document extension...");
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIVehicleWheelRoot>(root, OMIJsonExtensions.ExtensionNames.VehicleWheel, out var wheelRoot))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_vehicle_wheel document extension, wheels count={wheelRoot?.wheels?.Length ?? 0}");
+                    
+                    // Find document handler by scanning all document handlers (since node handler uses same extension name)
+                    IOMIDocumentExtensionHandler<OMIVehicleWheelRoot> handler = null;
+                    foreach (var h in extensionManager.GetDocumentHandlers())
+                    {
+                        if (h is IOMIDocumentExtensionHandler<OMIVehicleWheelRoot> docHandler)
+                        {
+                            handler = docHandler;
+                            break;
+                        }
+                    }
+                    
+                    Logging.Log($"[OMIHandler] Document handler for OMI_vehicle_wheel: {(handler != null ? handler.GetType().Name : "NULL")}");
+                    if (handler != null)
+                    {
+                        var task = handler.OnDocumentImportAsync(wheelRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                        Logging.Log("[OMIHandler] OMI_vehicle_wheel document handler completed");
+                    }
+                }
+                else
+                {
+                    Logging.Log($"[OMIHandler] OMI_vehicle_wheel document extension NOT found in glTF");
+                }
+            }
+            else
+            {
+                Logging.Log($"[OMIHandler] ImportVehicleWheels is disabled");
+            }
+
+            // Process OMI_environment_sky document extension (always enabled)
+            {
+                Logging.Log($"[OMIHandler] Looking for OMI_environment_sky document extension...");
+                if (OMIJsonExtensions.TryGetDocumentExtension<OMIEnvironmentSkyDocumentData>(root, OMIJsonExtensions.ExtensionNames.EnvironmentSky, out var skyRoot))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_environment_sky document extension, skies count={skyRoot?.Skies?.Count ?? 0}");
+                    
+                    // Find document handler by scanning all document handlers
+                    IOMIDocumentExtensionHandler<OMIEnvironmentSkyDocumentData> handler = null;
+                    foreach (var h in extensionManager.GetDocumentHandlers())
+                    {
+                        if (h is IOMIDocumentExtensionHandler<OMIEnvironmentSkyDocumentData> docHandler)
+                        {
+                            handler = docHandler;
+                            break;
+                        }
+                    }
+                    
+                    Logging.Log($"[OMIHandler] Document handler for OMI_environment_sky: {(handler != null ? handler.GetType().Name : "NULL")}");
+                    if (handler != null)
+                    {
+                        var task = handler.OnDocumentImportAsync(skyRoot, context, default);
+                        while (!task.IsCompleted) yield return null;
+                        Logging.Log("[OMIHandler] OMI_environment_sky document handler completed");
+                    }
+                }
+                else
+                {
+                    Logging.Log($"[OMIHandler] OMI_environment_sky document extension NOT found in glTF");
+                }
+            }
+        }
+
+        private IEnumerator ProcessNodeExtensionsCoroutine(JObject root, OMIImportContext context, OMIExtensionManager extensionManager, OMIImportSettings settings)
+        {
+            var nodes = OMIJsonExtensions.GetNodes(root);
+            if (nodes == null) yield break;
+
+            Logging.Log($"[OMIHandler] ProcessNodeExtensionsCoroutine: Processing {nodes.Count} nodes");
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var node = nodes[i] as JObject;
+                if (node == null) continue;
+
+                var gameObject = context.GetGameObject(i);
+                if (gameObject == null)
+                {
+                    if (settings.VerboseLogging)
+                    {
+                        Logging.LogWarning($"[OMIHandler] No GameObject for node {i}");
+                    }
+                    continue;
                 }
 
-                GameObject rootObject = instantiateTask.Result;
-                Logging.Log($"[OMIHandler] Instantiated root object: {rootObject.name}");
+                // Log all extensions on this node
+                var nodeExt = node["extensions"] as JObject;
+                if (nodeExt != null)
+                {
+                    var extNames = new System.Collections.Generic.List<string>();
+                    foreach (var prop in nodeExt.Properties())
+                    {
+                        extNames.Add(prop.Name);
+                    }
+                    Logging.Log($"[OMIHandler] Node {i} ({gameObject.name}) extensions: [{string.Join(", ", extNames)}]");
+                    
+                    // Log the raw physics body JSON if present
+                    if (nodeExt.ContainsKey("OMI_physics_body"))
+                    {
+                        Logging.Log($"[OMIHandler] Node {i} OMI_physics_body raw: {nodeExt["OMI_physics_body"]}");
+                    }
+                }
+                else
+                {
+                    Logging.Log($"[OMIHandler] Node {i} ({gameObject.name}) has no extensions");
+                }
 
-                // Post-processing (entity creation from context, if needed)
-                yield return StartCoroutine(worldAdapter.PostProcessScene(rootObject, loader.Context));
+                yield return StartCoroutine(ProcessNodeExtensionCoroutine(node, i, gameObject, context, extensionManager, settings));
+            }
+        }
 
-                // Apply spawn point if available
-                ApplySpawnPoint();
+        private IEnumerator ProcessNodeExtensionCoroutine(JObject node, int nodeIndex, GameObject gameObject, OMIImportContext context, OMIExtensionManager extensionManager, OMIImportSettings settings)
+        {
+            // Check what extensions this node has
+            var nodeExtensions = node["extensions"] as JObject;
+            if (nodeExtensions != null && nodeExtensions.ContainsKey("OMI_physics_shape"))
+            {
+                Logging.Log($"[OMIHandler] Node {nodeIndex} ({gameObject?.name}) has OMI_physics_shape, ImportPhysicsShapes={settings.ImportPhysicsShapes}");
+            }
+            
+            // Process OMI_physics_body node extension
+            if (settings.ImportPhysicsBodies)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIPhysicsBodyNode>(node, OMIJsonExtensions.ExtensionNames.PhysicsBody, out var bodyNode))
+                {
+                    var handler = extensionManager.GetHandler<OMIPhysicsBodyNode>(OMIJsonExtensions.ExtensionNames.PhysicsBody) as IOMINodeExtensionHandler<OMIPhysicsBodyNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(bodyNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
 
-                Logging.Log("[OMIHandler] glTF world loaded successfully with Newtonsoft loader.");
-                onComplete?.Invoke(true);
+            // Process OMI_physics_shape node extension (shape references on nodes for compound colliders)
+            if (settings.ImportPhysicsShapes)
+            {
+                // First check if node has the extension at all
+                var extensions = node["extensions"] as JObject;
+                var hasShapeExt = extensions != null && extensions.ContainsKey(OMIJsonExtensions.ExtensionNames.PhysicsShape);
+                if (hasShapeExt)
+                {
+                    Logging.Log($"[OMIHandler] Node {nodeIndex} ({gameObject.name}) has OMI_physics_shape extension: {extensions[OMIJsonExtensions.ExtensionNames.PhysicsShape]}");
+                }
+                
+                if (OMIJsonExtensions.TryGetNodeExtension<FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers.OMIPhysicsShapeNodeRef>(node, OMIJsonExtensions.ExtensionNames.PhysicsShape, out var shapeNode))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_physics_shape on node {nodeIndex} (GameObject: {gameObject.name}), shape={shapeNode.Shape}");
+                    
+                    // Find node handler by iterating (since document and node handlers share extension name)
+                    IOMINodeExtensionHandler<FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers.OMIPhysicsShapeNodeRef> handler = null;
+                    var nodeHandlers = extensionManager.GetNodeHandlers();
+                    Logging.Log($"[OMIHandler] Found {nodeHandlers.Count} node handlers");
+                    for (int i = 0; i < nodeHandlers.Count; i++)
+                    {
+                        Logging.Log($"[OMIHandler] Node handler {i}: {nodeHandlers[i].GetType().Name}");
+                        if (nodeHandlers[i] is IOMINodeExtensionHandler<FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers.OMIPhysicsShapeNodeRef> typedHandler)
+                        {
+                            handler = typedHandler;
+                            Logging.Log($"[OMIHandler] Found matching handler: {typedHandler.GetType().Name}");
+                            break;
+                        }
+                    }
+                    
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(shapeNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                        Logging.Log($"[OMIHandler] Processed OMI_physics_shape on {gameObject.name}");
+                    }
+                    else
+                    {
+                        Logging.LogWarning($"[OMIHandler] No handler registered for OMI_physics_shape node extension");
+                    }
+                }
+                else if (hasShapeExt)
+                {
+                    Logging.LogWarning($"[OMIHandler] Failed to parse OMI_physics_shape on node {nodeIndex}");
+                }
+            }
+
+            // Process OMI_physics_joint node extension
+            if (settings.ImportPhysicsJoints)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIPhysicsJointNode>(node, OMIJsonExtensions.ExtensionNames.PhysicsJoint, out var jointNode))
+                {
+                    var handler = extensionManager.GetHandler<OMIPhysicsJointNode>(OMIJsonExtensions.ExtensionNames.PhysicsJoint) as IOMINodeExtensionHandler<OMIPhysicsJointNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(jointNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_physics_gravity node extension
+            if (settings.ImportPhysicsGravity)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIPhysicsGravityNode>(node, OMIJsonExtensions.ExtensionNames.PhysicsGravity, out var gravityNode))
+                {
+                    var handler = extensionManager.GetHandler<OMIPhysicsGravityNode>(OMIJsonExtensions.ExtensionNames.PhysicsGravity) as IOMINodeExtensionHandler<OMIPhysicsGravityNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(gravityNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_spawn_point node extension
+            if (settings.ImportSpawnPoints)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMISpawnPointNode>(node, OMIJsonExtensions.ExtensionNames.SpawnPoint, out var spawnNode))
+                {
+                    var handler = extensionManager.GetHandler<OMISpawnPointNode>(OMIJsonExtensions.ExtensionNames.SpawnPoint) as IOMINodeExtensionHandler<OMISpawnPointNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(spawnNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_seat node extension
+            if (settings.ImportSeats)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMISeatNode>(node, OMIJsonExtensions.ExtensionNames.Seat, out var seatNode))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_seat on node {nodeIndex} (GameObject: {gameObject.name})");
+                    var handler = extensionManager.GetHandler<OMISeatNode>(OMIJsonExtensions.ExtensionNames.Seat) as IOMINodeExtensionHandler<OMISeatNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(seatNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                        Logging.Log($"[OMIHandler] Processed OMI_seat on {gameObject.name}");
+                    }
+                    else
+                    {
+                        Logging.LogWarning($"[OMIHandler] No handler registered for OMI_seat");
+                    }
+                }
+            }
+
+            // Process OMI_link node extension
+            if (settings.ImportLinks)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMILinkNode>(node, OMIJsonExtensions.ExtensionNames.Link, out var linkNode))
+                {
+                    var handler = extensionManager.GetHandler<OMILinkNode>(OMIJsonExtensions.ExtensionNames.Link) as IOMINodeExtensionHandler<OMILinkNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(linkNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_personality node extension
+            if (settings.ImportPersonality)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIPersonalityNode>(node, OMIJsonExtensions.ExtensionNames.Personality, out var personalityNode))
+                {
+                    var handler = extensionManager.GetHandler<OMIPersonalityNode>(OMIJsonExtensions.ExtensionNames.Personality) as IOMINodeExtensionHandler<OMIPersonalityNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(personalityNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_vehicle_body node extension
+            if (settings.ImportVehicleBodies)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIVehicleBodyNode>(node, OMIJsonExtensions.ExtensionNames.VehicleBody, out var vehicleBodyNode))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_vehicle_body on node {nodeIndex} (GameObject: {gameObject.name}), pilotSeat: {vehicleBodyNode.pilotSeat}");
+                    var handler = extensionManager.GetHandler<OMIVehicleBodyNode>(OMIJsonExtensions.ExtensionNames.VehicleBody) as IOMINodeExtensionHandler<OMIVehicleBodyNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(vehicleBodyNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                        Logging.Log($"[OMIHandler] Processed OMI_vehicle_body on {gameObject.name}");
+                    }
+                    else
+                    {
+                        Logging.LogWarning($"[OMIHandler] No handler registered for OMI_vehicle_body");
+                    }
+                }
+            }
+
+            // Process OMI_vehicle_thruster node extension
+            if (settings.ImportVehicleThrusters)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIVehicleThrusterNode>(node, OMIJsonExtensions.ExtensionNames.VehicleThruster, out var vehicleThrusterNode))
+                {
+                    Logging.Log($"[OMIHandler] Found OMI_vehicle_thruster on node {nodeIndex} (GameObject: {gameObject.name})");
+                    var handler = extensionManager.GetHandler<OMIVehicleThrusterNode>(OMIJsonExtensions.ExtensionNames.VehicleThruster) as IOMINodeExtensionHandler<OMIVehicleThrusterNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(vehicleThrusterNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                    else
+                    {
+                        Logging.LogWarning($"[OMIHandler] No handler registered for OMI_vehicle_thruster");
+                    }
+                }
+            }
+
+            // Process OMI_vehicle_wheel node extension
+            if (settings.ImportVehicleWheels)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIVehicleWheelNode>(node, OMIJsonExtensions.ExtensionNames.VehicleWheel, out var vehicleWheelNode))
+                {
+                    var handler = extensionManager.GetHandler<OMIVehicleWheelNode>(OMIJsonExtensions.ExtensionNames.VehicleWheel) as IOMINodeExtensionHandler<OMIVehicleWheelNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(vehicleWheelNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
+            }
+
+            // Process OMI_vehicle_hover_thruster node extension
+            if (settings.ImportVehicleHoverThrusters)
+            {
+                if (OMIJsonExtensions.TryGetNodeExtension<OMIVehicleHoverThrusterNode>(node, OMIJsonExtensions.ExtensionNames.VehicleHoverThruster, out var vehicleHoverThrusterNode))
+                {
+                    var handler = extensionManager.GetHandler<OMIVehicleHoverThrusterNode>(OMIJsonExtensions.ExtensionNames.VehicleHoverThruster) as IOMINodeExtensionHandler<OMIVehicleHoverThrusterNode>;
+                    if (handler != null)
+                    {
+                        var task = handler.OnNodeImportAsync(vehicleHoverThrusterNode, nodeIndex, gameObject, context, default);
+                        while (!task.IsCompleted) yield return null;
+                    }
+                }
             }
         }
 #endif
@@ -678,5 +1189,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI
             return JObject.Parse(jsonString);
         }
 #endif
+
+        /// <summary>
+        /// Recursively print the Unity hierarchy for debugging.
+        /// </summary>
+        private void PrintHierarchy(Transform t, int indent)
+        {
+            string prefix = new string(' ', indent * 2);
+            Debug.Log($"{prefix}{t.name}");
+            for (int i = 0; i < t.childCount; i++)
+            {
+                PrintHierarchy(t.GetChild(i), indent + 1);
+            }
+        }
     }
 }

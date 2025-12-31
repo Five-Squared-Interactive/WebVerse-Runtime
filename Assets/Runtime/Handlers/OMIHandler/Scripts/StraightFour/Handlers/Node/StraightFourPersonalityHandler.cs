@@ -4,10 +4,12 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FiveSQD.WebVerse.Utilities;
+using FiveSQD.StraightFour.Entity;
 using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
 using OMI.Extensions.Personality;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 {
@@ -33,8 +35,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             var personalityComponent = targetObject.AddComponent<OMIPersonalityBehavior>();
             personalityComponent.Initialize(data);
 
-            // Create entity for the NPC
-            GetOrCreateEntity(context, nodeIndex, targetObject, null);
+            // Find parent entity using glTF parent node index
+            BaseEntity parentEntity = null;
+            if (context.CustomData != null && context.CustomData.TryGetValue("SF_NodeParentIndices", out var parentMapObj))
+            {
+                var parentMap = parentMapObj as Dictionary<int, int>;
+                if (parentMap != null && parentMap.TryGetValue(nodeIndex, out var parentNodeIndex))
+                {
+                    parentEntity = GetEntityForNode(context, parentNodeIndex);
+                }
+            }
+            // Create entity for the NPC with correct parent
+            GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
 
             Logging.Log($"[StraightFour] Created personality for agent: {data.Agent}");
 

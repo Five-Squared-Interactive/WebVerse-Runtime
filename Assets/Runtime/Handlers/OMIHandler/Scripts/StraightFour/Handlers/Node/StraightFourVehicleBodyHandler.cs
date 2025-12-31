@@ -3,6 +3,8 @@
 #if NEWTONSOFT_JSON
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using FiveSQD.StraightFour.Entity;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
@@ -40,8 +42,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                 rb = targetObject.AddComponent<Rigidbody>();
             }
 
-            // Create entity for the vehicle
-            GetOrCreateEntity(context, nodeIndex, targetObject, null);
+            // Find parent entity using glTF parent node index
+            BaseEntity parentEntity = null;
+            if (context.CustomData != null && context.CustomData.TryGetValue("SF_NodeParentIndices", out var parentMapObj))
+            {
+                var parentMap = parentMapObj as Dictionary<int, int>;
+                if (parentMap != null && parentMap.TryGetValue(nodeIndex, out var parentNodeIndex))
+                {
+                    parentEntity = GetEntityForNode(context, parentNodeIndex);
+                }
+            }
+            // Create entity for the vehicle with correct parent
+            GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
 
             Logging.Log($"[StraightFour] Created vehicle body on {targetObject.name}");
 

@@ -25,6 +25,8 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 
         public override Task OnNodeImportAsync(OMIPhysicsBodyNode data, int nodeIndex, GameObject targetObject, OMIImportContext context, CancellationToken cancellationToken = default)
         {
+            Logging.Log($"[StraightFour] PhysicsBodyHandler called for node {nodeIndex}: {targetObject?.name}, hasMotion={data?.Motion != null}, hasCollider={data?.Collider != null}, hasTrigger={data?.Trigger != null}");
+            
             if (data == null || targetObject == null)
             {
                 return Task.CompletedTask;
@@ -32,8 +34,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 
             LogVerbose(context, $"[StraightFour] Processing physics body for node {nodeIndex}: {targetObject.name}");
 
-            // Get or create entity
-            var entity = GetOrCreateEntity(context, nodeIndex, targetObject, null);
+            // Find parent entity using glTF parent node index
+            BaseEntity parentEntity = null;
+            if (context.CustomData != null && context.CustomData.TryGetValue("SF_NodeParentIndices", out var parentMapObj))
+            {
+                var parentMap = parentMapObj as Dictionary<int, int>;
+                if (parentMap != null && parentMap.TryGetValue(nodeIndex, out var parentNodeIndex))
+                {
+                    parentEntity = GetEntityForNode(context, parentNodeIndex);
+                }
+            }
+            // Get or create entity with correct parent
+            var entity = GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
             if (entity == null)
             {
                 Logging.LogWarning($"[StraightFour] Failed to create entity for node {nodeIndex}");
@@ -69,12 +81,29 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             // Process collider
             if (data.Collider != null)
             {
+                Logging.Log($"[StraightFour] Processing collider for node {nodeIndex}, shape index={data.Collider.Shape}");
                 ProcessCollider(data.Collider, targetObject, context, false);
+            }
+            else
+            {
+                Logging.Log($"[StraightFour] No collider data for node {nodeIndex}. Data type: {data.GetType().FullName}, Motion={data.Motion != null}, Trigger={data.Trigger != null}");
+                
+                // Debug: Try to see what's actually in the object
+                try
+                {
+                    var json = Newtonsoft.Json.JsonConvert.SerializeObject(data);
+                    Logging.Log($"[StraightFour] Serialized data object: {json}");
+                }
+                catch (System.Exception ex)
+                {
+                    Logging.Log($"[StraightFour] Failed to serialize data: {ex.Message}");
+                }
             }
 
             // Process trigger
             if (data.Trigger != null)
             {
+                Logging.Log($"[StraightFour] Processing trigger for node {nodeIndex}");
                 ProcessCollider(data.Trigger.Shape, targetObject, context, true);
             }
 
@@ -122,15 +151,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 
         private void ProcessCollider(int shapeIndex, GameObject targetObject, OMIImportContext context, bool isTrigger)
         {
+            Logging.Log($"[StraightFour] ProcessCollider: shapeIndex={shapeIndex}, target={targetObject.name}, isTrigger={isTrigger}");
+            
             if (shapeIndex < 0)
             {
+                Logging.Log($"[StraightFour] ProcessCollider: Invalid shape index {shapeIndex}");
                 return;
             }
 
             // Get shapes from context
             if (!context.CustomData.TryGetValue(StraightFourCustomDataKeys.PhysicsShapes, out var shapesObj))
             {
-                Logging.LogWarning("[StraightFour] No physics shapes found in context");
+                Logging.LogWarning("[StraightFour] No physics shapes found in context (SF_PhysicsShapes key missing)");
                 return;
             }
 
@@ -142,10 +174,10 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             }
 
             var shape = shapes[shapeIndex];
-            CreateCollider(shape, targetObject, isTrigger);
+            CreateCollider(shape, targetObject, isTrigger, context);
         }
 
-        private void CreateCollider(OMIPhysicsShape shape, GameObject targetObject, bool isTrigger)
+        private void CreateCollider(OMIPhysicsShape shape, GameObject targetObject, bool isTrigger, OMIImportContext importContext)
         {
             Collider collider = null;
 
@@ -195,18 +227,40 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 
                 case OMIPhysicsShapeType.Convex:
                 case OMIPhysicsShapeType.Trimesh:
-                    // For convex and trimesh, use the existing mesh
-                    var meshFilter = targetObject.GetComponent<MeshFilter>();
-                    if (meshFilter != null && meshFilter.sharedMesh != null)
+                    // For convex and trimesh, get mesh from the shape's mesh reference
+                    Mesh shapeMesh = null;
+                    
+                    // First try to get mesh from shape's mesh index
+                    int meshIndex = shape.Type == OMIPhysicsShapeType.Convex ? shape.Convex?.Mesh ?? -1 : shape.Trimesh?.Mesh ?? -1;
+                    if (meshIndex >= 0 && importContext.GltfImport != null)
+                    {
+                        // Get mesh from glTF import (meshIndex, primitiveIndex)
+                        shapeMesh = importContext.GltfImport.GetMesh(meshIndex, 0);
+                        Logging.Log($"[StraightFour] Got mesh {meshIndex} from glTF for {shape.Type} collider: {(shapeMesh != null ? shapeMesh.name : "null")}");
+                    }
+                    
+                    // Fallback to mesh on target object
+                    if (shapeMesh == null)
+                    {
+                        var meshFilter = targetObject.GetComponent<MeshFilter>();
+                        if (meshFilter != null && meshFilter.sharedMesh != null)
+                        {
+                            shapeMesh = meshFilter.sharedMesh;
+                            Logging.Log($"[StraightFour] Using mesh from target object for {shape.Type} collider: {shapeMesh.name}");
+                        }
+                    }
+                    
+                    if (shapeMesh != null)
                     {
                         var meshCollider = targetObject.AddComponent<MeshCollider>();
-                        meshCollider.sharedMesh = meshFilter.sharedMesh;
+                        meshCollider.sharedMesh = shapeMesh;
                         meshCollider.convex = shape.Type == OMIPhysicsShapeType.Convex;
                         collider = meshCollider;
+                        Logging.Log($"[StraightFour] Created {shape.Type} MeshCollider on {targetObject.name}");
                     }
                     else
                     {
-                        Logging.LogWarning($"[StraightFour] No mesh found for {shape.Type} collider on {targetObject.name}");
+                        Logging.LogWarning($"[StraightFour] No mesh found for {shape.Type} collider on {targetObject.name} (meshIndex={meshIndex})");
                     }
                     break;
 

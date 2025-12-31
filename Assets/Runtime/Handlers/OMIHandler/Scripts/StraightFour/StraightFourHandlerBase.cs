@@ -85,13 +85,21 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
         /// <returns>The created or existing entity.</returns>
         protected BaseEntity GetOrCreateEntity(OMIImportContext context, int nodeIndex, GameObject gameObject, BaseEntity parent = null)
         {
+            Logging.Log($"[StraightFour] GetOrCreateEntity called for node {nodeIndex}: {gameObject?.name}");
+            
             // Check if entity already exists
             var existing = GetEntityForNode(context, nodeIndex);
             if (existing != null)
+            {
+                Logging.Log($"[StraightFour] Entity already exists for node {nodeIndex}: {existing.GetType().Name}");
                 return existing;
+            }
 
             if (gameObject == null)
+            {
+                Logging.Log($"[StraightFour] GameObject is null for node {nodeIndex}");
                 return null;
+            }
 
             BaseEntity entity = null;
             System.Guid entityId = System.Guid.NewGuid();
@@ -111,6 +119,14 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                 else
                 {
                     var meshEntity = gameObject.AddComponent<MeshEntity>();
+                    if (parent != null)
+                    {
+                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = {parent.name}, parent GameObject = {parent.gameObject.name}");
+                    }
+                    else
+                    {
+                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = null");
+                    }
                     meshEntity.SetParent(parent);
                     meshEntity.Initialize(entityId);
                     entity = meshEntity;
@@ -127,6 +143,14 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                 else
                 {
                     var containerEntity = gameObject.AddComponent<ContainerEntity>();
+                    if (parent != null)
+                    {
+                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = {parent.name}, parent GameObject = {parent.gameObject.name}");
+                    }
+                    else
+                    {
+                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = null");
+                    }
                     containerEntity.SetParent(parent);
                     containerEntity.Initialize(entityId);
                     entity = containerEntity;
@@ -137,11 +161,16 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             {
                 entity.entityTag = entityId.ToString();
                 RegisterEntity(context, nodeIndex, entity);
+                Logging.Log($"[StraightFour] Created and registered {entity.GetType().Name} for node {nodeIndex}: {gameObject.name}");
 
                 if (context.Settings.VerboseLogging)
                 {
                     Logging.Log($"[StraightFour] Created entity for node {nodeIndex}: {gameObject.name}");
                 }
+            }
+            else
+            {
+                Logging.LogWarning($"[StraightFour] Failed to create entity for node {nodeIndex}: {gameObject.name}");
             }
 
             return entity;

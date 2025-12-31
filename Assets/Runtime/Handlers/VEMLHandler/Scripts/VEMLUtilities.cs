@@ -1699,7 +1699,8 @@ namespace FiveSQD.WebVerse.Handlers.VEML
 
         private static string FullyNotateVEML(string inputVEML, string fullVEMLTag)
         {
-            if (!inputVEML.StartsWith(xmlHeadingTag))
+            if (!inputVEML.StartsWith(xmlHeadingTag, StringComparison.InvariantCultureIgnoreCase) &&
+                !inputVEML.StartsWith(xmlHeadingTag.Replace("\"", "\'"), StringComparison.InvariantCultureIgnoreCase))
             {
                 inputVEML = xmlHeadingTag + "\n" + inputVEML;
             }

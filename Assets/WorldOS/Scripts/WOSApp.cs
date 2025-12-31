@@ -67,6 +67,7 @@ public class WOSApp : MonoBehaviour
     /// <param name="onConnect">Callback invoked when connection is established</param>
     public void ConnectToWOS(string appName, int wosPort, Action onConnect)
     {
+#if UNITY_EDITOR || !UNITY_WEBGL
         Log($"[{appName}] Connecting to MQTT bus...");
 
         var options = new ConnectionOptions
@@ -96,6 +97,7 @@ public class WOSApp : MonoBehaviour
 
         Debug.Log($"Connecting to MQTT on port {wosPort}...");
         client.BeginConnect(ConnectPacketBuilderCallback);
+#endif
     }
 
     private ConnectPacketBuilder ConnectPacketBuilderCallback(MQTTClient client, ConnectPacketBuilder builder)

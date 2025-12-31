@@ -153,7 +153,11 @@ namespace FiveSQD.WebVerse.Handlers.GLTF
         public IEnumerator ImportBinaryAsync(GameObject glbObject, byte[] data, Action<GameObject, AnimationClip[]> onLoaded)
         {
             GLTFast.GltfImport import = new GLTFast.GltfImport();
-            Task loadTask = import.LoadGltfBinary(data);
+            Task loadTask = import.LoadGltfBinary(data, null, new GLTFast.ImportSettings()
+            {
+                GenerateMipMaps = true,
+                NodeNameMethod = GLTFast.NameImportMethod.OriginalUnique
+            });
             yield return new WaitUntil(() => loadTask.IsCompleted);
             if (loadTask.IsCompletedSuccessfully)
             {
