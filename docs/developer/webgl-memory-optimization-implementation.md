@@ -182,7 +182,7 @@ m_PerPlatformDefaultQuality:
 /// <summary>
 /// Optimize textures for WebGL before building.
 /// </summary>
-public static void OptimizeTexturesForWebGL()
+public static void OptimizeWebGLAssets()
 {
     Debug.Log("Optimizing textures for WebGL...");
     
@@ -304,7 +304,7 @@ public static void BuildWebGLOptimized()
     Debug.Log("Starting optimized WebGL build...");
     
     // Pre-build optimizations
-    OptimizeTexturesForWebGL();
+    OptimizeWebGLAssets();
     ConfigureOptimalWebGLSettings();
     
     BuildPlayerOptions options = new BuildPlayerOptions()
