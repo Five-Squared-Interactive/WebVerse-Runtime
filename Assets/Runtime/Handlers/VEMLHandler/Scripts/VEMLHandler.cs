@@ -1415,7 +1415,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             // Filter for light entities and apply shadow settings
             foreach (StraightFour.Entity.BaseEntity entity in allEntities)
             {
-                if (entity is StraightFour.Entity.LightEntity)
+                if (entity is StraightFour.Entity.LightEntity && entity.gameObject != null)
                 {
                     Light lightComponent = entity.gameObject.GetComponent<Light>();
                     if (lightComponent != null)
