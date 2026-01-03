@@ -171,31 +171,41 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         private static Schema.V3_1.vemlMetadata ConvertMetadataV3_0ToV3_1(Schema.V3_0.vemlMetadata inputMetadata)
         {
             System.Xml.Serialization.XmlSerializer v30Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_0.vemlMetadata));
-            System.IO.StringWriter stringWriter = new System.IO.StringWriter();
-            v30Serializer.Serialize(stringWriter, inputMetadata);
-            string xmlString = stringWriter.ToString();
+            string xmlString;
+            using (System.IO.StringWriter stringWriter = new System.IO.StringWriter())
+            {
+                v30Serializer.Serialize(stringWriter, inputMetadata);
+                xmlString = stringWriter.ToString();
+            }
             
             // Replace namespace 3.0 with 3.1
             xmlString = xmlString.Replace("schemas/veml/3.0", "schemas/veml/3.1");
             
             System.Xml.Serialization.XmlSerializer v31Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_1.vemlMetadata));
-            System.IO.StringReader stringReader = new System.IO.StringReader(xmlString);
-            return (Schema.V3_1.vemlMetadata)v31Serializer.Deserialize(stringReader);
+            using (System.IO.StringReader stringReader = new System.IO.StringReader(xmlString))
+            {
+                return (Schema.V3_1.vemlMetadata)v31Serializer.Deserialize(stringReader);
+            }
         }
 
         private static Schema.V3_1.vemlEnvironment ConvertEnvironmentV3_0ToV3_1(Schema.V3_0.vemlEnvironment inputEnvironment)
         {
             System.Xml.Serialization.XmlSerializer v30Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_0.vemlEnvironment));
-            System.IO.StringWriter stringWriter = new System.IO.StringWriter();
-            v30Serializer.Serialize(stringWriter, inputEnvironment);
-            string xmlString = stringWriter.ToString();
+            string xmlString;
+            using (System.IO.StringWriter stringWriter = new System.IO.StringWriter())
+            {
+                v30Serializer.Serialize(stringWriter, inputEnvironment);
+                xmlString = stringWriter.ToString();
+            }
             
             // Replace namespace 3.0 with 3.1
             xmlString = xmlString.Replace("schemas/veml/3.0", "schemas/veml/3.1");
             
             System.Xml.Serialization.XmlSerializer v31Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_1.vemlEnvironment));
-            System.IO.StringReader stringReader = new System.IO.StringReader(xmlString);
-            return (Schema.V3_1.vemlEnvironment)v31Serializer.Deserialize(stringReader);
+            using (System.IO.StringReader stringReader = new System.IO.StringReader(xmlString))
+            {
+                return (Schema.V3_1.vemlEnvironment)v31Serializer.Deserialize(stringReader);
+            }
         }
 
         /// <summary>
