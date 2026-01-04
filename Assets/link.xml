@@ -1,0 +1,34 @@
+<linker>
+  <!-- 
+    Preserve JINT JavaScript engine and dependencies.
+    This fixes: MissingManifestResourceException for Acornima.Properties.SyntaxErrorMessages.resources
+    
+    Using ignoreIfMissing="1" to prevent build errors if assembly isn't found.
+    Using preserve="all" preserves all types, methods, fields, and embedded resources.
+  -->
+  
+  <!-- Acornima - JavaScript parser used by JINT (contains embedded .resx resources) -->
+  <assembly fullname="Acornima" preserve="all" ignoreIfMissing="1">
+    <type fullname="*" preserve="all"/>
+  </assembly>
+  
+  <!-- JINT - JavaScript interpreter -->
+  <assembly fullname="Jint" preserve="all" ignoreIfMissing="1">
+    <type fullname="*" preserve="all"/>
+  </assembly>
+  
+  <!-- Esprima - Legacy JavaScript parser -->
+  <assembly fullname="Esprima" preserve="all" ignoreIfMissing="1">
+    <type fullname="*" preserve="all"/>
+  </assembly>
+  
+  <!-- System.Runtime.CompilerServices.Unsafe - Required dependency -->
+  <assembly fullname="System.Runtime.CompilerServices.Unsafe" preserve="all" ignoreIfMissing="1"/>
+  
+  <!-- Preserve System.Resources namespace to ensure resource loading works -->
+  <assembly fullname="mscorlib" preserve="nothing">
+    <type fullname="System.Resources.*" preserve="all"/>
+  </assembly>
+  
+  <assembly fullname="System.Resources.ResourceManager" preserve="all" ignoreIfMissing="1"/>
+</linker>
