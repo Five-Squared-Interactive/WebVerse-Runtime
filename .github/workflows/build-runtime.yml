@@ -159,7 +159,7 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $logFile = "$env:PROJECT_PATH\Logs\package-resolve.log"
-          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-disable-assembly-updater", "-disable-package-manager", "-disable-accelerator", "-projectPath", "$env:PROJECT_PATH", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
           if (Test-Path $logFile) { Select-String -Path $logFile -Pattern "error CS|error:" | ForEach-Object { Write-Host $_.Line } }
           if ($process.ExitCode -ne 0) { Write-Host "::error::Package resolve failed"; exit $process.ExitCode }
 
