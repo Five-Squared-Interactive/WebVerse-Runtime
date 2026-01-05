@@ -168,7 +168,7 @@ jobs:
         run: |
           $buildStart = Get-Date
           $logFile = "$env:PROJECT_PATH\Logs\build-windows.log"
-          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-disable-assembly-updater", "-disable-package-manager", "-disable-accelerator", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList @("-batchmode", "-nographics", "-quit", "-disable-assembly-updater", "-disable-package-manager", "-disable-accelerator", "-disable-asset-import-worker", "disable-cloud-services", "-burst-disable-compilation", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildWindowsDesktop", "-logFile", $logFile) -Wait -PassThru -NoNewWindow
           Write-Host "Build duration: $((Get-Date) - $buildStart)"
           if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
           if ($process.ExitCode -ne 0) { Write-Host "::error::Build failed"; exit $process.ExitCode }
