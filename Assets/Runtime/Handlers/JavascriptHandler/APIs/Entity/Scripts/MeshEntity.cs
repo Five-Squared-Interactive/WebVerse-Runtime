@@ -30,6 +30,29 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             Vector3 position, Quaternion rotation, string id = null, string onLoaded = null,
             bool checkForUpdateIfCached = true)
         {
+            return Create(parent, meshObject, meshResources, position, rotation, Vector3.one,
+                false, id, onLoaded, checkForUpdateIfCached);
+        }
+
+        /// <summary>
+        /// Create a mesh entity.
+        /// </summary>
+        /// <param name="parent">Parent of the entity to create.</param>
+        /// <param name="meshObject">Path to the mesh object to load for this entity.</param>
+        /// <param name="meshResources">Paths to mesh resources for this entity.</param>
+        /// <param name="position">Position of the entity relative to its parent.</param>
+        /// <param name="rotation">Rotation of the entity relative to its parent.</param>
+        /// <param name="scale">Scale of the entity relative to its parent.</param>
+        /// <param name="isSize">Whether or not the scale parameter is a size.</param>
+        /// <param name="id">ID of the entity. One will be created if not provided.</param>
+        /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
+        /// mesh entity object.</param>
+        /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
+        /// <returns>The mesh entity object.</returns>
+        public static MeshEntity Create(BaseEntity parent, string meshObject, string[] meshResources,
+            Vector3 position, Quaternion rotation, Vector3 scale, bool isSize = false, string id = null,
+            string onLoaded = null, bool checkForUpdateIfCached = true)
+        {
             Guid guid;
             if (string.IsNullOrEmpty(id))
             {
@@ -43,6 +66,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
             UnityEngine.Vector3 pos = new UnityEngine.Vector3(position.x, position.y, position.z);
             UnityEngine.Quaternion rot = new UnityEngine.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+            UnityEngine.Vector3 scl = new UnityEngine.Vector3(scale.x, scale.y, scale.z);
 
             MeshEntity me = new MeshEntity();
 
@@ -58,6 +82,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                     meshEntity.SetParent(pBE);
                     meshEntity.SetPosition(pos, true);
                     meshEntity.SetRotation(rot, true);
+                    if (isSize)
+                    {
+                        meshEntity.SetSize(scl, true);
+                    }
+                    else
+                    {
+                        meshEntity.SetScale(scl, true);
+                    }
 
                     me.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);
                     EntityAPIHelper.AddEntityMapping(me.internalEntity, me);
@@ -83,6 +115,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <param name="meshResources">Paths to mesh resources for this entity.</param>
         /// <param name="position">Position of the entity relative to its parent.</param>
         /// <param name="rotation">Rotation of the entity relative to its parent.</param>
+        /// <param name="scale">Scale of the entity relative to its parent.</param>
+        /// <param name="isSize">Whether or not the scale parameter is a size.</param>
         /// <param name="id">ID of the entity. One will be created if not provided.</param>
         /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
         /// mesh entity object.</param>
@@ -91,8 +125,90 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             Vector3 position, Quaternion rotation, string id = null, string onLoaded = null,
             bool checkForUpdateIfCached = true)
         {
+            QueueCreate(parent, meshObject, meshResources, position, rotation, Vector3.one,
+                false, id, onLoaded, checkForUpdateIfCached);
+        }
+
+        public static void QueueCreate(BaseEntity parent, string meshObject, string[] meshResources,
+            Vector3 position, Quaternion rotation, Vector3 scale, bool isSize = false, string id = null,
+            string onLoaded = null, bool checkForUpdateIfCached = true)
+        {
             EntityAPIHelper.AddMeshEntityCreationJob(new EntityAPIHelper.MeshEntityCreationJob(
-                parent, meshObject, meshResources, position, rotation, id, onLoaded, checkForUpdateIfCached));
+                parent, meshObject, meshResources, position, rotation, scale, isSize, id,
+                onLoaded, checkForUpdateIfCached));
+        }
+
+        /// <summary>
+        /// Create a mesh entity from a JSON string.
+        /// </summary>
+        /// <param name="jsonEntity">JSON string containing the mesh entity configuration.</param>
+        /// <param name="parent">Parent entity for the mesh entity. If null, the entity will be created at the world root.</param>
+        /// <param name="onLoaded">JavaScript callback function to execute when the entity is created. The callback will receive the created mesh entity as a parameter.</param>
+        public static void Create(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, Guid?, StraightFour.Entity.BaseEntity> onComplete =
+                new Action<bool, Guid?, StraightFour.Entity.BaseEntity>((success, entityId, meshEntity) =>
+            {
+                if (!success || meshEntity == null || !(meshEntity is StraightFour.Entity.MeshEntity))
+                {
+                    Logging.LogError("[MeshEntity:Create] Error loading mesh entity from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { EntityAPIHelper.GetPublicEntity(
+                                (StraightFour.Entity.MeshEntity) meshEntity) });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadMeshEntityFromJSON(jsonEntity, pBE, onComplete);
+        }
+
+        public static void CreateCollection(string jsonEntity, BaseEntity parent = null, string onLoaded = null)
+        {
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+
+            Action<bool, List<Guid?>, List<StraightFour.Entity.BaseEntity>> onComplete =
+                new Action<bool, List<Guid?>, List<StraightFour.Entity.BaseEntity>>((success, entityIds, meshEntities) =>
+            {
+                if (!success || meshEntities == null || meshEntities.Count == 0 || !(meshEntities[0] is StraightFour.Entity.MeshEntity))
+                {
+                    Logging.LogError("[MeshEntity:CreateCollection] Error loading mesh entity collection from JSON.");
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { null });
+                    }
+                    return;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(onLoaded))
+                    {
+                        List<APIs.Entity.MeshEntity> publicEntities = new List<APIs.Entity.MeshEntity>();
+                        foreach (var meshEntity in meshEntities)
+                        {
+                            publicEntities.Add(
+                                (APIs.Entity.MeshEntity) EntityAPIHelper.GetPublicEntity(meshEntity));
+                        }
+                        WebVerseRuntime.Instance.javascriptHandler.CallWithParams(
+                            onLoaded, new object[] { publicEntities.ToArray() });
+                    }
+                }
+            });
+
+            WebVerseRuntime.Instance.jsonEntityHandler.LoadMeshEntityCollectionFromJSON(jsonEntity, pBE, onComplete);
         }
 
         /// <summary>

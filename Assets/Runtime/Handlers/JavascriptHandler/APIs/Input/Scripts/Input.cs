@@ -720,5 +720,184 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
             }
             return true;
         }
+
+        /// <summary>
+        /// Whether or not gravity is enabled for desktop input.
+        /// </summary>
+        public static bool gravityEnabled
+        {
+            set
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    WebVerseRuntime.Instance.inputManager.desktopRig.gravityEnabled = value;
+                }
+            }
+
+            get
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    return WebVerseRuntime.Instance.inputManager.desktopRig.gravityEnabled;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Whether or not WASD motion is enabled for desktop input.
+        /// </summary>
+        public static bool wasdMotionEnabled
+        {
+            set
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    WebVerseRuntime.Instance.inputManager.desktopRig.wasdMotionEnabled = value;
+                }
+            }
+
+            get
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    return WebVerseRuntime.Instance.inputManager.desktopRig.wasdMotionEnabled;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Whether or not mouse look is enabled for desktop input.
+        /// </summary>
+        public static bool mouseLookEnabled
+        {
+            set
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    WebVerseRuntime.Instance.inputManager.desktopRig.mouseLookEnabled = value;
+                }
+            }
+
+            get
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    return WebVerseRuntime.Instance.inputManager.desktopRig.mouseLookEnabled;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Whether or not jump is enabled for desktop input.
+        /// </summary>
+        public static bool jumpEnabled
+        {
+            set
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    WebVerseRuntime.Instance.inputManager.desktopRig.jumpEnabled = value;
+                }
+            }
+
+            get
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    return WebVerseRuntime.Instance.inputManager.desktopRig.jumpEnabled;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// The movement speed for desktop input.
+        /// </summary>
+        public static float movementSpeed
+        {
+            set
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    WebVerseRuntime.Instance.inputManager.desktopRig.movementSpeed = value;
+                }
+            }
+
+            get
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    return WebVerseRuntime.Instance.inputManager.desktopRig.movementSpeed;
+                }
+                return 0f;
+            }
+        }
+
+        /// <summary>
+        /// The look speed (mouse sensitivity) for desktop input.
+        /// </summary>
+        public static float lookSpeed
+        {
+            set
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    WebVerseRuntime.Instance.inputManager.desktopRig.mouseSensitivity = value;
+                }
+            }
+
+            get
+            {
+                if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                {
+                    return WebVerseRuntime.Instance.inputManager.desktopRig.mouseSensitivity;
+                }
+                return 0f;
+            }
+        }
+
+        /// <summary>
+        /// Set the avatar entity by tag for desktop input.
+        /// </summary>
+        /// <param name="entityTag">The tag of the entity to use as the avatar.</param>
+        /// <returns>Whether or not the operation was successful.</returns>
+        public static bool SetAvatarEntityByTag(string entityTag)
+        {
+            if (string.IsNullOrEmpty(entityTag))
+            {
+                Logging.LogWarning("[Input->SetAvatarEntityByTag] Invalid entityTag.");
+                return false;
+            }
+
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.SetAvatarEntityByTag(entityTag);
+                return true;
+            }
+
+            Logging.LogWarning("[Input->SetAvatarEntityByTag] Desktop rig not available.");
+            return false;
+        }
+
+        /// <summary>
+        /// Set the rig offset from a string for desktop input.
+        /// </summary>
+        /// <param name="rigOffsetString">The rig offset string (format: "x,y,z").</param>
+        /// <returns>Whether or not the operation was successful.</returns>
+        public static bool SetRigOffset(Vector3 rigOffset)
+        {
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.SetRigOffset(
+                    new UnityEngine.Vector3(rigOffset.x, rigOffset.y, rigOffset.z));
+                return true;
+            }
+
+            Logging.LogWarning("[Input->SetRigOffset] Desktop rig not available.");
+            return false;
+        }
     }
 }
