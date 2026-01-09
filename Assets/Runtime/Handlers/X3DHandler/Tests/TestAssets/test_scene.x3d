@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 3.3//EN" "http://www.web3d.org/specifications/x3d-3.3.dtd">
+<X3D profile="Immersive" version="3.3" xmlns:xsd="http://www.w3.org/2001/XMLSchema-instance">
+  <head>
+    <meta name="title" content="X3D Integration Test Scene"/>
+    <meta name="creator" content="Five Squared Interactive"/>
+    <meta name="created" content="2025-11-25"/>
+    <meta name="description" content="Test scene for X3D-StraightFour integration"/>
+  </head>
+  <Scene>
+    <!-- World Info -->
+    <WorldInfo title="X3D Test World" info='"Test scene for WebVerse X3D integration"'/>
+    
+    <!-- Background/Sky -->
+    <Background DEF="Sky" skyColor="0.2 0.4 0.8" groundColor="0.1 0.3 0.1"/>
+    
+    <!-- Fog -->
+    <Fog color="0.8 0.8 0.9" visibilityRange="500" fogType="LINEAR"/>
+    
+    <!-- Initial Viewpoint -->
+    <Viewpoint DEF="DefaultView" 
+               description="Default View" 
+               position="0 5 20" 
+               orientation="1 0 0 -0.2"
+               fieldOfView="0.785"/>
+    
+    <!-- Navigation Info -->
+    <NavigationInfo type='"WALK" "ANY"' speed="5" avatarSize="0.25 1.6 0.75"/>
+    
+    <!-- Directional Light (Sun) -->
+    <DirectionalLight DEF="Sun" 
+                      color="1 0.95 0.8" 
+                      intensity="1.0" 
+                      direction="-0.5 -1 -0.3" 
+                      ambientIntensity="0.3"/>
+    
+    <!-- Ground Plane -->
+    <Transform DEF="Ground" translation="0 0 0">
+      <Shape>
+        <Appearance>
+          <Material diffuseColor="0.3 0.6 0.2" specularColor="0.1 0.1 0.1" shininess="0.1"/>
+        </Appearance>
+        <Box size="100 0.1 100"/>
+      </Shape>
+    </Transform>
+    
+    <!-- Red Cube -->
+    <Transform DEF="RedCube" translation="-5 1 0">
+      <Shape>
+        <Appearance>
+          <Material diffuseColor="0.8 0.2 0.2" specularColor="1 1 1" shininess="0.8"/>
+        </Appearance>
+        <Box size="2 2 2"/>
+      </Shape>
+    </Transform>
+    
+    <!-- Blue Sphere -->
+    <Transform DEF="BlueSphere" translation="0 1.5 0">
+      <Shape>
+        <Appearance>
+          <Material diffuseColor="0.2 0.2 0.8" emissiveColor="0.05 0.05 0.2" shininess="0.9"/>
+        </Appearance>
+        <Sphere radius="1.5"/>
+      </Shape>
+    </Transform>
+    
+    <!-- Green Cylinder -->
+    <Transform DEF="GreenCylinder" translation="5 1 0">
+      <Shape>
+        <Appearance>
+          <Material diffuseColor="0.2 0.8 0.2" transparency="0.3"/>
+        </Appearance>
+        <Cylinder radius="1" height="2"/>
+      </Shape>
+    </Transform>
+    
+    <!-- Grouped Objects -->
+    <Transform DEF="ObjectGroup" translation="0 0 -10">
+      <Group DEF="TowerGroup">
+        <!-- Base -->
+        <Transform translation="0 0.5 0">
+          <Shape>
+            <Appearance>
+              <Material diffuseColor="0.5 0.5 0.5"/>
+            </Appearance>
+            <Box size="4 1 4"/>
+          </Shape>
+        </Transform>
+        
+        <!-- Middle -->
+        <Transform translation="0 2 0">
+          <Shape>
+            <Appearance>
+              <Material diffuseColor="0.6 0.6 0.6"/>
+            </Appearance>
+            <Box size="3 2 3"/>
+          </Shape>
+        </Transform>
+        
+        <!-- Top -->
+        <Transform translation="0 4 0">
+          <Shape>
+            <Appearance>
+              <Material diffuseColor="0.7 0.7 0.7"/>
+            </Appearance>
+            <Sphere radius="1"/>
+          </Shape>
+        </Transform>
+      </Group>
+    </Transform>
+    
+    <!-- Point Light -->
+    <Transform translation="0 3 5">
+      <PointLight DEF="Lamp" 
+                  color="1 0.9 0.7" 
+                  intensity="0.8" 
+                  radius="20" 
+                  location="0 0 0"/>
+    </Transform>
+    
+    <!-- Custom Geometry - Triangle -->
+    <Transform DEF="CustomTriangle" translation="-10 1 -5" rotation="0 1 0 0.5">
+      <Shape>
+        <Appearance>
+          <Material diffuseColor="0.8 0.5 0.2"/>
+        </Appearance>
+        <IndexedFaceSet coordIndex="0 1 2 -1 0 2 3 -1" solid="false">
+          <Coordinate point="0 0 0, 2 0 0, 2 2 0, 0 2 0"/>
+        </IndexedFaceSet>
+      </Shape>
+    </Transform>
+    
+    <!-- USE Reference Example -->
+    <Transform translation="10 0 -5">
+      <Shape USE="RedCube"/>
+    </Transform>
+    
+  </Scene>
+</X3D>

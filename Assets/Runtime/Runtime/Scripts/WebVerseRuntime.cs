@@ -24,6 +24,8 @@ using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Input.Desktop;
 using Vuplex.WebView;
 using FiveSQD.WebVerse.Handlers.JSONEntity;
+using FiveSQD.WebVerse.Handlers.X3D;
+using FiveSQD.WebVerse.Handlers.OMI;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -125,7 +127,7 @@ namespace FiveSQD.WebVerse.Runtime
         /// <summary>
         /// WebVerse version.
         /// </summary>
-        public static readonly string versionString = "v2.1.4";
+        public static readonly string versionString = "v2.2.0";
 
         /// <summary>
         /// WebVerse codename.
@@ -189,6 +191,18 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The JSON Entity Handler.")]
         public JSONEntityHandler jsonEntityHandler { get; private set; }
+
+        /// <summary>
+        /// The X3D Handler.
+        /// </summary>
+        [Tooltip("The X3D Handler.")]
+        public X3DHandler x3dHandler { get; private set; }
+
+        /// <summary>
+        /// The OMI Handler for loading glTF/GLB worlds with OMI extensions.
+        /// </summary>
+        [Tooltip("The OMI Handler for loading glTF/GLB worlds with OMI extensions.")]
+        public OMIHandler omiHandler { get; private set; }
 
 #if USE_WEBINTERFACE
         /// <summary>
@@ -631,42 +645,102 @@ namespace FiveSQD.WebVerse.Runtime
                 queryParams = url.Substring(url.IndexOf('?') + 1);
             }
 
-            Action<bool> onLoadComplete = ((result) =>
+            if (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv"))
             {
-                if (result == true)
+                x3dHandler.GetX3DTitle(baseURL, (title) =>
                 {
-                    reflectionProbe.enabled = false;
-                    reflectionProbe.enabled = true;
-                    reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
-                    state = RuntimeState.LoadedWorld;
-                }
-                else
-                {
-                    state = RuntimeState.Error;
-                }
+                    state = RuntimeState.LoadingWorld;
+                    currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
+                    StraightFour.StraightFour.LoadWorld(title, queryParams);
+                    WebVerseRuntime.Instance.x3dHandler.LoadX3DDocumentIntoWorld(baseURL, (result) =>
+                    {
+                        if (result == true)
+                        {
+                            reflectionProbe.enabled = false;
+                            reflectionProbe.enabled = true;
+                            reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
+                            state = RuntimeState.LoadedWorld;
+                        }
+                        else
+                        {
+                            state = RuntimeState.Error;
+                        }
 
-                if (onLoaded != null)
-                {
-                    onLoaded.Invoke(StraightFour.StraightFour.ActiveWorld.siteName);
-                }
-            });
-
-            Action<string> onFound = (title) =>
+                        if (onLoaded != null)
+                        {
+                            onLoaded.Invoke(StraightFour.StraightFour.ActiveWorld.siteName);
+                        }
+                    });
+                });
+            }
+            else if (baseURL.EndsWith(".glb") || baseURL.EndsWith(".gltf"))
             {
-                state = RuntimeState.LoadingWorld;
-                currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
-                StraightFour.Utilities.LoggingConfig loggingConfig = new StraightFour.Utilities.LoggingConfig()
+                // Load glTF/GLB as OMI world
+                omiHandler.GetWorldTitle(baseURL, (title) =>
                 {
-                    enableDebug = Logging.GetConfiguration().enableDebug,
-                    enableError = Logging.GetConfiguration().enableError,
-                    enableWarning = Logging.GetConfiguration().enableWarning,
-                    enableDefault = Logging.GetConfiguration().enableDefault
+                    state = RuntimeState.LoadingWorld;
+                    currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
+                    StraightFour.StraightFour.LoadWorld(title, queryParams);
+                    omiHandler.LoadOMIDocumentIntoWorld(baseURL, (result) =>
+                    {
+                        if (result == true)
+                        {
+                            reflectionProbe.enabled = false;
+                            reflectionProbe.enabled = true;
+                            reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
+                            state = RuntimeState.LoadedWorld;
+                        }
+                        else
+                        {
+                            state = RuntimeState.Error;
+                        }
+
+                        if (onLoaded != null)
+                        {
+                            onLoaded.Invoke(StraightFour.StraightFour.ActiveWorld.siteName);
+                        }
+                    });
+                });
+            }
+            else
+            {
+                Action<bool> onLoadComplete = ((result) =>
+                {
+                    if (result == true)
+                    {
+                        reflectionProbe.enabled = false;
+                        reflectionProbe.enabled = true;
+                        reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
+                        state = RuntimeState.LoadedWorld;
+                    }
+                    else
+                    {
+                        state = RuntimeState.Error;
+                    }
+
+                    if (onLoaded != null)
+                    {
+                        onLoaded.Invoke(StraightFour.StraightFour.ActiveWorld.siteName);
+                    }
+                });
+
+                Action<string> onFound = (title) =>
+                {
+                    state = RuntimeState.LoadingWorld;
+                    currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
+                    StraightFour.Utilities.LoggingConfig loggingConfig = new StraightFour.Utilities.LoggingConfig()
+                    {
+                        enableDebug = Logging.GetConfiguration().enableDebug,
+                        enableError = Logging.GetConfiguration().enableError,
+                        enableWarning = Logging.GetConfiguration().enableWarning,
+                        enableDefault = Logging.GetConfiguration().enableDefault
+                    };
+                    StraightFour.StraightFour.LoadWorld(title, queryParams);
+                    vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete);
                 };
-                StraightFour.StraightFour.LoadWorld(title, queryParams);
-                vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete);
-            };
-            
-            vemlHandler.GetWorldName(baseURL, onFound);
+                
+                vemlHandler.GetWorldName(baseURL, onFound);
+            }
         }
 
         /// <summary>
@@ -711,7 +785,14 @@ namespace FiveSQD.WebVerse.Runtime
                 vosSynchronizationManager.Reset();
             }
 #endif
-            Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Unloading World...");
+            Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Resetting OMI Handler...");
+
+            if (omiHandler != null)
+            {
+                omiHandler.Reset();
+            }
+
+            Logging.Log("[WebVerseRuntime->UnloadWorld] OMI Handler reset. Unloading World...");
 
             StraightFour.StraightFour.UnloadWorld();
             state = RuntimeState.Unloaded;
@@ -855,6 +936,25 @@ namespace FiveSQD.WebVerse.Runtime
             jsonEntityHandler = jsonEntityHandlerGO.AddComponent<JSONEntityHandler>();
             jsonEntityHandler.Initialize();
 
+            // Set up X3D Handler.
+            GameObject x3dHandlerGO = new GameObject("X3D");
+            x3dHandlerGO.transform.SetParent(handlersGO.transform);
+            x3dHandler = x3dHandlerGO.AddComponent<X3DHandler>();
+            x3dHandler.runtime = this;
+            x3dHandler.Initialize();
+            // Create and set the StraightFour adapter
+            StraightFourX3DAdapter x3dAdapter = x3dHandlerGO.AddComponent<StraightFourX3DAdapter>();
+            x3dAdapter.Initialize();
+            x3dHandler.SetWorldAdapter(x3dAdapter);
+
+            // Set up OMI Handler for glTF/GLB world loading.
+            GameObject omiHandlerGO = new GameObject("OMI");
+            omiHandlerGO.transform.SetParent(handlersGO.transform);
+            omiHandler = omiHandlerGO.AddComponent<OMIHandler>();
+            omiHandler.runtime = this;
+            omiHandler.timeout = timeout;
+            omiHandler.Initialize();
+
             // Set up VOS Synchronization Manager.
             GameObject vosSynchronizationManagerGO = new GameObject("VOSSynchronizationManager");
             vosSynchronizationManagerGO.transform.SetParent(transform);
@@ -952,6 +1052,8 @@ namespace FiveSQD.WebVerse.Runtime
             javascriptHandler.Terminate();
             imageHandler.Terminate();
             fileHandler.Terminate();
+            x3dHandler.Terminate();
+            omiHandler.Terminate();
             Destroy(fileHandler.transform.parent.gameObject);
 
             // Terminate World Engine.

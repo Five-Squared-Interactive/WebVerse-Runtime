@@ -33,10 +33,15 @@ WebVerse is free and open source, however, it does leverage some paid Unity Asse
 
 ### Setup
 
-1. Clone the repository and navigate to that directory:
+1. Clone the repository with submodules and navigate to that directory:
    ```
-   git clone https://github.com/Five-Squared-Interactive/WebVerse-Runtime.git
+   git clone --recurse-submodules https://github.com/Five-Squared-Interactive/WebVerse-Runtime.git
    cd WebVerse-Runtime
+   ```
+   
+   If you've already cloned the repository without submodules, initialize them with:
+   ```
+   git submodule update --init --recursive
    ```
 
 2. Open the project in Unity. The project does not need to be opened in Safe Mode. You will see multiple errors in the Unity UI until step 3 is performed.

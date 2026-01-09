@@ -28,14 +28,15 @@ jobs:
         projectPath:
           - .
         unityVersion:
-          - 2021.3.26f1
+          - 6000.0.35f1
         testMode:
           - playmode
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           lfs: true
-      - uses: game-ci/unity-test-runner@v2
+          submodules: recursive
+      - uses: game-ci/unity-test-runner@v4
         id: tests
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -45,26 +46,22 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: ${{ matrix.testMode }} Test Results
           coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;generateBadgeReport;assemblyFilters:+my.assembly.*'
-          unityVersion: 2021.3.26f1
-      - uses: actions/cache@v2
+          unityVersion: 6000.0.35f1
+      - uses: actions/cache@v4
         with:
-          projectPath: .
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Test results for ${{ matrix.testMode }}
           path: ${{ steps.tests.outputs.artifactsPath }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Coverage results for ${{ matrix.testMode }}
           path: ${{ steps.tests.outputs.coveragePath }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
   build-webgl:
     needs: unit-tests
     runs-on: ubuntu-latest
@@ -74,33 +71,27 @@ jobs:
         targetPlatform:
           - WebGL
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
-          projectPath: Unity/
-          unityVersion: 2021.3.26f1
-      - uses: actions/cache@v2
+          submodules: recursive
+      - uses: actions/cache@v4
         with:
-          projectPath: Unity/
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
-      - uses: game-ci/unity-builder@v2
+      - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          projectPath: Unity/
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWebGL
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
-          projectPath: Unity/
           name: Lightweight-${{ matrix.targetPlatform }}
           path: build/lightweight/${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
   build-windows-focused-desktop:
     needs: unit-tests
     runs-on: ubuntu-latest
@@ -110,33 +101,27 @@ jobs:
         targetPlatform:
           - StandaloneWindows64
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
-          projectPath: Unity/
-          unityVersion: 2021.3.26f1
-      - uses: actions/cache@v2
+          submodules: recursive
+      - uses: actions/cache@v4
         with:
-          projectPath: Unity/
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
-      - uses: game-ci/unity-builder@v2
+      - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          projectPath: Unity/
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWindowsFocusedMode
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
-          projectPath: Unity/
           name: Focused-${{ matrix.targetPlatform }}
           path: build/focused-desktop/${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
   build-windows-focused-steamvr:
     needs: unit-tests
     runs-on: ubuntu-latest
@@ -146,30 +131,24 @@ jobs:
         targetPlatform:
           - StandaloneWindows64
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
-          projectPath: Unity/
-          unityVersion: 2021.3.26f1
-      - uses: actions/cache@v2
+          submodules: recursive
+      - uses: actions/cache@v4
         with:
-          projectPath: Unity/
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
-          unityVersion: 2021.3.26f1
-      - uses: game-ci/unity-builder@v2
+      - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          projectPath: Unity/
           targetPlatform: ${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1
+          unityVersion: 6000.0.35f1
           buildMethod: FiveSQD.WebVerse.Building.Builder.BuildWindowsFocusedModeSteamVR
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
-          projectPath: Unity/
           name: FocusedSteamVR-${{ matrix.targetPlatform }}
           path: build/focused-steamvr/${{ matrix.targetPlatform }}
-          unityVersion: 2021.3.26f1

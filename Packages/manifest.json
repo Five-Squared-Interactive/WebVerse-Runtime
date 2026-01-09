@@ -1,11 +1,12 @@
 {
   "dependencies": {
+    "com.fivesquared.omi-gltf": "https://github.com/Five-Squared-Interactive/omi-gltf-unity.git",
     "com.unity.ai.navigation": "2.0.9",
     "com.unity.burst": "1.8.25",
     "com.unity.cinemachine": "2.10.4",
-    "com.unity.cloud.draco": "5.0.2",
+    "com.unity.cloud.draco": "5.4.2",
     "com.unity.cloud.draco.webgl-2023": "1.0.0",
-    "com.unity.cloud.gltfast": "6.5.0",
+    "com.unity.cloud.gltfast": "6.15.1",
     "com.unity.collab-proxy": "2.9.3",
     "com.unity.collections": "2.5.1",
     "com.unity.device-simulator.devices": "1.0.0",
