@@ -88,12 +88,37 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <param name="id">ID of the entity. One will be created if not provided.</param>
         /// <param name="tag">Tag of the entity.</param>
         /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
-        /// audio entity object.</param>
+        /// airplane entity object.</param>
         /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
         /// <returns>The ID of the airplane entity object.</returns>
         public static AirplaneEntity Create(BaseEntity parent, string meshObject, string[] meshResources,
             Vector3 position, Quaternion rotation, float mass, string id = null, string tag = null,
             string onLoaded = null, bool checkForUpdateIfCached = true)
+        {
+            return Create(parent, meshObject, meshResources, mass, position, rotation,
+                Vector3.one, false, id, tag, onLoaded, checkForUpdateIfCached);
+        }
+
+        /// <summary>
+        /// Create an airplane entity.
+        /// </summary>
+        /// <param name="parent">Parent of the entity to create.</param>
+        /// <param name="meshObject">Path to the mesh object to load for this entity.</param>
+        /// <param name="meshResources">Paths to mesh resources for this entity.</param>
+        /// <param name="mass">Mass of the airplane entity.</param>
+        /// <param name="position">Position of the entity relative to its parent.</param>
+        /// <param name="rotation">Rotation of the entity relative to its parent.</param>
+        /// <param name="scale">Scale of the entity relative to its parent.</param>
+        /// <param name="isSize">Whether or not the scale parameter is a size.</param>
+        /// <param name="id">ID of the entity. One will be created if not provided.</param>
+        /// <param name="tag">Tag of the entity.</param>
+        /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
+        /// airplane entity object.</param>
+        /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
+        /// <returns>The ID of the airplane entity object.</returns>
+        public static AirplaneEntity Create(BaseEntity parent, string meshObject, string[] meshResources,
+            float mass, Vector3 position, Quaternion rotation, Vector3 scale, bool isSize = false,
+            string id = null, string tag = null, string onLoaded = null, bool checkForUpdateIfCached = true)
         {
             Guid guid;
             if (string.IsNullOrEmpty(id))
@@ -108,6 +133,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
             UnityEngine.Vector3 pos = new UnityEngine.Vector3(position.x, position.y, position.z);
             UnityEngine.Quaternion rot = new UnityEngine.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+            UnityEngine.Vector3 scl = new UnityEngine.Vector3(scale.x, scale.y, scale.z);
 
             AirplaneEntity ae = new AirplaneEntity();
 
@@ -123,6 +149,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                     airplaneEntity.SetParent(pBE);
                     airplaneEntity.SetPosition(pos, true);
                     airplaneEntity.SetRotation(rot, true);
+                    if (isSize)
+                    {
+                        airplaneEntity.SetSize(scl);
+                    }
+                    else
+                    {
+                        airplaneEntity.SetScale(scl);
+                    }
 
                     ae.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);
                     EntityAPIHelper.AddEntityMapping(ae.internalEntity, ae);

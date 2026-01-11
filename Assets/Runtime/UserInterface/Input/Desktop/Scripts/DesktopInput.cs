@@ -339,6 +339,15 @@ namespace FiveSQD.WebVerse.Input.Desktop
                     }
                 }
 
+                // Handle lower input for shift keys
+                if ((key == "leftShift" || key == "rightShift") && jumpEnabled)
+                {
+                    if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                    {
+                        WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLowerInput(true);
+                    }
+                }
+
                 WebVerseRuntime.Instance.inputManager.Key(keyKeyTranslations[key], keyCodeTranslations[key]);
                 WebVerseRuntime.Instance.inputManager.pressedKeys.Add(keyKeyTranslations[key]);
                 WebVerseRuntime.Instance.inputManager.pressedKeyCodes.Add(keyCodeTranslations[key]);
@@ -355,6 +364,15 @@ namespace FiveSQD.WebVerse.Input.Desktop
                     if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
                     {
                         WebVerseRuntime.Instance.inputManager.desktopRig.ApplyJumpInput(false);
+                    }
+                }
+
+                // Handle lower input release for shift keys
+                if ((key == "leftShift" || key == "rightShift") && jumpEnabled)
+                {
+                    if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+                    {
+                        WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLowerInput(false);
                     }
                 }
                 

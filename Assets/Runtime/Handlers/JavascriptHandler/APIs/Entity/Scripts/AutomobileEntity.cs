@@ -122,12 +122,40 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// <param name="id">ID of the entity. One will be created if not provided.</param>
         /// <param name="tag">Tag of the entity.</param>
         /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
-        /// audio entity object.</param>
+        /// automobile entity object.</param>
         /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
         /// <returns>The ID of the automobile entity object.</returns>
         public static AutomobileEntity Create(BaseEntity parent, string meshObject, string[] meshResources,
             Vector3 position, Quaternion rotation, AutomobileEntityWheel[] wheels, float mass, AutomobileType type,
             string id = null, string tag = null, string onLoaded = null, bool checkForUpdateIfCached = true)
+        {
+            return Create(parent, meshObject, meshResources, wheels, mass, type, position,
+                rotation, Vector3.one, false, id, tag, onLoaded, checkForUpdateIfCached);
+        }
+
+        /// <summary>
+        /// Create an automobile entity.
+        /// </summary>
+        /// <param name="parent">Parent of the entity to create.</param>
+        /// <param name="meshObject">Path to the mesh object to load for this entity.</param>
+        /// <param name="meshResources">Paths to mesh resources for this entity.</param>
+        /// <param name="wheels">Wheels for the automobile entity.</param>
+        /// <param name="mass">Mass of the automobile entity.</param>
+        /// <param name="type">Type of automobile entity.</param>
+        /// <param name="position">Position of the entity relative to its parent.</param>
+        /// <param name="rotation">Rotation of the entity relative to its parent.</param>
+        /// <param name="scale">Scale of the entity relative to its parent.</param>
+        /// <param name="isSize">Whether or not the scale parameter is a size.</param>
+        /// <param name="id">ID of the entity. One will be created if not provided.</param>
+        /// <param name="tag">Tag of the entity.</param>
+        /// <param name="onLoaded">Action to perform on load. This takes a single parameter containing the created
+        /// automobile entity object.</param>
+        /// <param name="checkForUpdateIfCached">Whether or not to check for update if in cache.</param>
+        /// <returns>The ID of the automobile entity object.</returns>
+        public static AutomobileEntity Create(BaseEntity parent, string meshObject, string[] meshResources,
+            AutomobileEntityWheel[] wheels, float mass, AutomobileType type, Vector3 position,
+            Quaternion rotation, Vector3 scale, bool isSize = false, string id = null, string tag = null,
+            string onLoaded = null, bool checkForUpdateIfCached = true)
         {
             Guid guid;
             if (string.IsNullOrEmpty(id))
@@ -142,6 +170,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
             UnityEngine.Vector3 pos = new UnityEngine.Vector3(position.x, position.y, position.z);
             UnityEngine.Quaternion rot = new UnityEngine.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+            UnityEngine.Vector3 scl = new UnityEngine.Vector3(scale.x, scale.y, scale.z);
 
             AutomobileEntity ae = new AutomobileEntity();
 
@@ -157,6 +186,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                     automobileEntity.SetParent(pBE);
                     automobileEntity.SetPosition(pos, true);
                     automobileEntity.SetRotation(rot, true);
+                    if (isSize)
+                    {
+                        automobileEntity.SetSize(scl);
+                    }
+                    else
+                    {
+                        automobileEntity.SetScale(scl);
+                    }
 
                     ae.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);
                     EntityAPIHelper.AddEntityMapping(ae.internalEntity, ae);

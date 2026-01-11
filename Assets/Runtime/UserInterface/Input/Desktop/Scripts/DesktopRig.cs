@@ -97,6 +97,11 @@ namespace FiveSQD.WebVerse.Input.Desktop
         private bool currentJumpInput = false;
 
         /// <summary>
+        /// Current lower input for continuous lowering.
+        /// </summary>
+        private bool currentLowerInput = false;
+
+        /// <summary>
         /// Whether gravity is enabled for desktop locomotion.
         /// </summary>
         public bool gravityEnabled
@@ -108,6 +113,20 @@ namespace FiveSQD.WebVerse.Input.Desktop
                 if (!value)
                 {
                     verticalVelocity = 0f; // Reset vertical velocity when gravity is disabled
+                }
+
+                if (avatarEntity != null)
+                {
+                    BaseEntity.EntityPhysicalProperties newProps = new BaseEntity.EntityPhysicalProperties();
+                    newProps.gravitational = value;
+                    if (!value)
+                    {
+                        BaseEntity.EntityMotion motion = new BaseEntity.EntityMotion();
+                        motion.velocity = new Vector3(0f, 0f, 0f);
+                        motion.stationary = true;
+                        avatarEntity.SetMotion(motion);
+                    }
+                    avatarEntity.SetPhysicalProperties(newProps);
                 }
             }
         }
@@ -193,10 +212,16 @@ namespace FiveSQD.WebVerse.Input.Desktop
                     break;
                 }
             }
-            
+
             if (avatarEntity == null)
             {
                 Utilities.Logging.LogWarning($"[DesktopRig->SetAvatarEntityByTag] Could not find character entity with tag: {entityTag}");
+            }
+            else
+            {
+                BaseEntity.EntityPhysicalProperties newProps = new BaseEntity.EntityPhysicalProperties();
+                newProps.gravitational = gravityEnabled;
+                avatarEntity.SetPhysicalProperties(newProps);
             }
         }
 
@@ -301,14 +326,24 @@ namespace FiveSQD.WebVerse.Input.Desktop
                 return;
             }
 
-            // Only allow jumping if the avatar is on the ground
-            if (!avatarEntity.IsOnSurface())
+            if (gravityEnabled)
             {
-                return;
-            }
+                // Only allow jumping if the avatar is on the ground
+                if (!avatarEntity.IsOnSurface())
+                {
+                    return;
+                }
 
-            // Apply jump using the character entity's built-in jump system
-            avatarEntity.Jump(jumpStrength / 10);
+                // Apply jump using the character entity's built-in jump system
+                avatarEntity.Jump(jumpStrength / 10);
+            }
+            else
+            {
+                // For no gravity, manually adjust vertical position
+                UnityEngine.Vector3 currentPosition = avatarEntity.transform.position;
+                currentPosition.y += jumpStrength * Time.deltaTime;
+                avatarEntity.SetPosition(currentPosition, false, true);
+            }
         }
 
         /// <summary>
@@ -319,6 +354,12 @@ namespace FiveSQD.WebVerse.Input.Desktop
         {
             // Store the current jump input for continuous application
             currentJumpInput = isJumping;
+        }
+
+        public void ApplyLowerInput(bool isLowering)
+        {
+            // Store the current lower input for continuous application
+            currentLowerInput = isLowering;
         }
 
         /// <summary>
@@ -367,14 +408,39 @@ namespace FiveSQD.WebVerse.Input.Desktop
                 return;
             }
 
-            // Only allow jumping if the avatar is on the ground
-            if (!avatarEntity.IsOnSurface())
+            if (gravityEnabled)
+            {
+                // Only allow jumping if the avatar is on the ground
+                if (!avatarEntity.IsOnSurface())
+                {
+                    return;
+                }
+
+                // Apply jump using the character entity's built-in jump system
+                avatarEntity.Jump(jumpStrength / 10);
+            }
+            else
+            {
+                // For no gravity, manually adjust vertical position
+                UnityEngine.Vector3 currentPosition = avatarEntity.transform.position;
+                currentPosition.y += jumpStrength * Time.deltaTime;
+                avatarEntity.SetPosition(currentPosition, false, true);
+            }
+        }
+
+        private void ProcessLowering()
+        {
+            if (!jumpEnabled || avatarEntity == null || !currentLowerInput)
             {
                 return;
             }
 
-            // Apply jump using the character entity's built-in jump system
-            avatarEntity.Jump(jumpStrength / 10);
+            if (!gravityEnabled)
+            {
+                UnityEngine.Vector3 currentPosition = avatarEntity.transform.position;
+                currentPosition.y -= jumpStrength * Time.deltaTime;
+                avatarEntity.SetPosition(currentPosition, false, true);
+            }
         }
 
         /// <summary>
@@ -415,6 +481,9 @@ namespace FiveSQD.WebVerse.Input.Desktop
 
             // Process continuous jumping
             ProcessJump();
+
+            // Process continuous lowering
+            ProcessLowering();
 
             // Update rig followers similar to VRRig
             if (followersUpdateCount++ >= cyclesPerRigFollowerUpdate)
