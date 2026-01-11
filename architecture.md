@@ -11,11 +11,11 @@ WebVerse-Runtime is a Unity3D-based runtime system for creating immersive web-ba
 ## Quick Architecture Summary
 
 ```
-External Systems → WebVerse-Runtime → Unity World Engine
-     ↓                    ↓                    ↓
-Content Servers → Handlers (VEML/GLTF/JS) → GameObjects
-User Input → Input Manager → Event System → JavaScript/Unity
-VOS Server → Synchronizers → State Management → Scene Updates
+External Systems → WebVerse-Runtime → StraightFour World Engine → Unity Rendering
+     ↓                    ↓                      ↓                        ↓
+Content Servers → Handlers (VEML/GLTF/JS) → Entities (Mesh/Character/etc.) → GameObjects
+User Input → Input Manager → Event System → StraightFour APIs → Entity Updates
+VOS Server → Synchronizers → World State → StraightFour Sync → Scene Updates
 ```
 
 ## Key Architectural Patterns
@@ -93,6 +93,15 @@ All handlers inherit from **BaseHandler** (`Assets/Runtime/Utilities/Scripts/Bas
 
 6. **X3DHandler** (`Assets/Runtime/Handlers/X3DHandler/`)
    - X3D format support for legacy content
+   - StraightFour adapter for X3D to World Engine integration
+
+7. **OMIHandler** (`Assets/Runtime/Handlers/OMIHandler/`)
+   - Open Metaverse Interoperability (OMI) extensions
+   - Physics body, joints, shapes, and gravity handling
+   - Vehicle wheel and thruster systems
+   - Audio emitter support
+   - Spawn point and seat management
+   - StraightFour adapters for OMI document and node handlers
 
 #### Execution Handlers
 
@@ -153,6 +162,92 @@ All handlers inherit from **BaseHandler** (`Assets/Runtime/Utilities/Scripts/Bas
    - Connection management
    - Message handling
 
+### StraightFour World Engine
+
+**StraightFour** (`Assets/Runtime/StraightFour/`) is the core World Engine that manages all world entities, environments, and gameplay systems. It provides the foundation for creating and managing virtual worlds within WebVerse-Runtime.
+
+**Main Class**: `StraightFour.cs` - Central World Engine orchestrator  
+**World Class**: `World.cs` - Represents individual world instances
+
+#### StraightFour Subsystems
+
+1. **Entity System** (`Assets/Runtime/StraightFour/Entity/`)
+   - **EntityManager**: Core entity creation, management, and lifecycle
+   - **Base Entities**: Foundation classes for all entity types
+   - **Mesh Entities**: 3D model-based entities with rendering and physics
+   - **Character Entities**: Avatar and NPC character controllers
+   - **Automobile Entities**: Vehicle physics and control systems
+   - **Airplane Entities**: Aircraft physics and flight controls
+   - **Light Entities**: Dynamic lighting (point, directional, spot lights)
+   - **Audio Entities**: Spatial audio sources and emitters
+   - **UI Entities**: Canvas, buttons, text, images, input fields, dropdowns, HTML elements
+   - **Container Entities**: Entity grouping and hierarchy management
+   - **Voxel Entities**: Voxel-based terrain and structures
+   - **Water Entities**: Water simulation and rendering
+   - **Terrain Entities**: Heightmap-based terrain systems
+
+2. **Camera System** (`Assets/Runtime/StraightFour/Camera/`)
+   - Camera management and control
+   - View mode switching (first-person, third-person, free-cam)
+   - Camera following and targeting
+   - Viewport and rendering configuration
+
+3. **Environment System** (`Assets/Runtime/StraightFour/Environment/`)
+   - Sky rendering and skybox management
+   - Environmental lighting configuration
+   - Atmosphere and weather effects
+   - Day/night cycle support
+
+4. **World Storage** (`Assets/Runtime/StraightFour/World Storage/`)
+   - World state persistence
+   - Entity data serialization/deserialization
+   - Save/load functionality
+   - World metadata management
+
+5. **Synchronization** (`Assets/Runtime/StraightFour/Synchronization/`)
+   - Real-time world state synchronization
+   - Entity state replication
+   - Network message handling
+   - Conflict resolution for multi-user scenarios
+
+6. **Utilities** (`Assets/Runtime/StraightFour/Utilities/`)
+   - **Logging**: World Engine logging system
+   - **Managers**: Resource and lifecycle managers
+   - **Materials**: Material management and caching
+   - **Tags**: Entity tagging and categorization
+
+#### StraightFour Integration with Handlers
+
+StraightFour works closely with the handler system:
+
+- **VEML Handler → StraightFour**: VEML documents define entities that StraightFour instantiates
+- **GLTF Handler → StraightFour**: Loaded 3D models become StraightFour mesh entities
+- **JavaScript Handler ↔ StraightFour**: JavaScript APIs directly manipulate StraightFour entities
+- **Input Manager → StraightFour**: User input is processed and routed to StraightFour entities
+- **VOS Synchronizer ↔ StraightFour**: Synchronizes StraightFour world state across clients
+
+#### World Lifecycle
+
+```
+1. WebVerseRuntime creates StraightFour GameObject
+2. StraightFour.LoadWorld(title, queryParams) called
+3. World instance created with WorldInfo configuration
+4. Handlers load content and create entities via StraightFour APIs
+5. StraightFour.ActiveWorld provides access to current world
+6. Entities updated via StraightFour entity management
+7. StraightFour.UnloadWorld() for cleanup
+```
+
+#### Key StraightFour Capabilities
+
+- **Entity Lifecycle**: Create, modify, destroy entities with full component support
+- **Physics Integration**: Built-in physics for vehicles, characters, and objects
+- **Spatial Audio**: 3D positional audio with attenuation
+- **UI Systems**: Both world-space and screen-space UI elements
+- **Material Management**: Shared materials with highlight and preview support
+- **Character Controllers**: Ready-to-use first and third-person controllers
+- **Vehicle Physics**: Automobile and aircraft physics via NWH Vehicle Physics integration
+
 ## Data Flow
 
 ### Content Loading Flow
@@ -191,17 +286,19 @@ All handlers inherit from **BaseHandler** (`Assets/Runtime/Utilities/Scripts/Bas
 
 ```
 1. WebVerseRuntime.Initialize()
-2. Create Handlers GameObject
-3. Initialize LocalStorageManager
-4. Initialize FileHandler
-5. Initialize ContentHandlers (VEML, GLTF, Image, JSON, X3D)
-6. Initialize JavaScriptHandler
-7. Setup JavaScript API Helpers
-8. Initialize InputManager
-9. Initialize OutputManager
-10. Initialize HTTPRequestManager
-11. Initialize WebVerseWebView
-12. Runtime Ready
+2. Create StraightFour GameObject (World Engine)
+3. Initialize StraightFour component
+4. Create Handlers GameObject
+5. Initialize LocalStorageManager
+6. Initialize FileHandler
+7. Initialize ContentHandlers (VEML, GLTF, Image, JSON, X3D, OMI)
+8. Initialize JavaScriptHandler
+9. Setup JavaScript API Helpers
+10. Initialize InputManager
+11. Initialize OutputManager
+12. Initialize HTTPRequestManager
+13. Initialize WebVerseWebView
+14. Runtime Ready
 ```
 
 ## Directory Structure
@@ -211,6 +308,29 @@ WebVerse-Runtime/
 ├── Assets/
 │   ├── Runtime/
 │   │   ├── Runtime/Scripts/          # Core runtime (WebVerseRuntime.cs)
+│   │   ├── StraightFour/             # World Engine (core entity & world system)
+│   │   │   ├── StraightFour.cs       # Main World Engine class
+│   │   │   ├── World.cs              # World instance management
+│   │   │   ├── Entity/               # All entity types
+│   │   │   │   ├── Manager/          # Entity management system
+│   │   │   │   ├── Base/             # Base entity classes
+│   │   │   │   ├── Mesh/             # 3D mesh entities
+│   │   │   │   ├── Character/        # Character controllers
+│   │   │   │   ├── Automobile/       # Vehicle physics
+│   │   │   │   ├── Airplane/         # Aircraft physics
+│   │   │   │   ├── Light/            # Light entities
+│   │   │   │   ├── Audio/            # Audio entities
+│   │   │   │   ├── UI/               # UI entity system
+│   │   │   │   ├── Container/        # Entity containers
+│   │   │   │   ├── Voxel/            # Voxel entities
+│   │   │   │   ├── Water/            # Water entities
+│   │   │   │   └── Terrain/          # Terrain entities
+│   │   │   ├── Camera/               # Camera management
+│   │   │   ├── Environment/          # Sky, lighting, atmosphere
+│   │   │   ├── World Storage/        # World persistence
+│   │   │   ├── Synchronization/      # World state sync
+│   │   │   ├── Utilities/            # World Engine utilities
+│   │   │   └── Testing/              # World Engine tests
 │   │   ├── Handlers/                 # All handler implementations
 │   │   │   ├── FileHandler/
 │   │   │   ├── VEMLHandler/
@@ -219,7 +339,8 @@ WebVerse-Runtime/
 │   │   │   ├── JavascriptHandler/
 │   │   │   ├── TimeHandler/
 │   │   │   ├── JSONEntityHandler/
-│   │   │   └── X3DHandler/
+│   │   │   ├── X3DHandler/
+│   │   │   └── OMIHandler/           # OMI extensions with StraightFour adapters
 │   │   ├── LocalStorage/             # Storage management
 │   │   │   ├── LocalStorageManager/
 │   │   │   └── LocalStorageControllers/
@@ -326,11 +447,13 @@ public class CustomHandler : BaseHandler
 WebVerse-Runtime is part of a larger ecosystem:
 
 - **WebVerse**: Top-level NodeJS/Electron application (container)
-- **WebVerse-Runtime**: This Unity runtime (rendering and logic)
-- **WebVerse World Engine**: Core world logic and entity management
+- **WebVerse-Runtime**: This Unity runtime (orchestration, handlers, and I/O)
+- **StraightFour World Engine**: Core world logic and entity management (integrated within Runtime)
 - **VEML**: Virtual Environment Markup Language specification
-- **World APIs**: JavaScript APIs for world interaction
+- **World APIs**: JavaScript APIs for world interaction (exposed via JavaScriptHandler)
 - **VSS**: VOS Synchronization Service for multi-user experiences
+
+**Note**: StraightFour is the internal name for the World Engine component that is integrated directly into WebVerse-Runtime at `Assets/Runtime/StraightFour/`. It provides the entity system, camera management, environment control, and world storage capabilities.
 
 ## Common Use Cases
 
@@ -368,9 +491,11 @@ Location: Tests are co-located with components (e.g., `Assets/Runtime/LocalStora
 ### Integrated Libraries
 - **JINT**: JavaScript interpreter for C# (`Assets/Runtime/3rd-party/JINT/`)
 - **SQLite**: Database for local storage (`Assets/Runtime/3rd-party/SQLite/`)
+- **StraightFour**: World Engine (integrated at `Assets/Runtime/StraightFour/`)
+- **NWH Vehicle Physics**: Vehicle and aircraft physics (commercial asset)
 
-### Git Submodules
-- WebVerse World Engine: Core world logic (separate repository)
+### External Dependencies
+- WebVerse World Engine repository provides additional world logic components
 
 ## Configuration
 
@@ -449,7 +574,22 @@ For detailed information, see:
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Unity World Engine                            │
+│              StraightFour World Engine                           │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │                  Entity System                            │  │
+│  │  (Mesh, Character, Vehicle, Light, Audio, UI, etc.)     │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌───────────────┐  │
+│  │ Camera System   │  │  Environment    │  │ World Storage │  │
+│  └─────────────────┘  └─────────────────┘  └───────────────┘  │
+│                                                                   │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Unity Rendering Engine                        │
 │         (GameObjects, Components, Rendering, Physics)           │
 └─────────────────────────────────────────────────────────────────┘
 ```
