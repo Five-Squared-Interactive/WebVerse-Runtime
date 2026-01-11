@@ -386,13 +386,12 @@ Configuration is primarily done through Unity Inspector on the WebVerseRuntime G
 
 - **Windows**: Native desktop application
 - **WebGL**: Browser-based deployment (with memory and API limitations)
-- **Potential**: macOS, Linux, Mobile (not currently supported)
 
 ## Version Support
 
 - **VEML**: V3.0 (native), V2.4 and V2.3 (automatic conversion)
 - **GLTF**: 2.0 specification
-- **Unity**: 2021.3.26+ with URP
+- **Unity**: 2021.3.26 with URP (tested and recommended version)
 
 ## Additional Resources
 
