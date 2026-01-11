@@ -98,9 +98,9 @@ jobs:
           $packages = @(
             @{ Name = "Digger"; RelPath = "Digger" },
             @{ Name = "Samples"; RelPath = "Samples" },
-            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
-            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
-            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" }
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/3rd-party/URPWater" }
           )
           
           foreach ($pkg in $packages) {
@@ -120,7 +120,7 @@ jobs:
       - name: Setup Vuplex Desktop
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex-Desktop"
           $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
           if (Test-Path $vuplexSource) {
             $targetParent = Split-Path $vuplexTarget -Parent
@@ -129,7 +129,7 @@ jobs:
             if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
             New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
             Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
-            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex.meta"
             if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
             Write-Host "Copied Vuplex Desktop"
           } else { Write-Host "::error::Vuplex Desktop not found"; exit 1 }
@@ -294,9 +294,9 @@ jobs:
           $packages = @(
             @{ Name = "Digger"; RelPath = "Digger" },
             @{ Name = "Samples"; RelPath = "Samples" },
-            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
-            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
-            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" }
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/3rd-party/URPWater" }
           )
           foreach ($pkg in $packages) {
             $sourcePath = Join-Path $assetsPath $pkg.RelPath
@@ -314,7 +314,7 @@ jobs:
       - name: Setup Vuplex WebGL
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex-WebGL"
           $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
           if (Test-Path $vuplexSource) {
             $targetParent = Split-Path $vuplexTarget -Parent
@@ -323,7 +323,7 @@ jobs:
             if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
             New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
             Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
-            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex.meta"
             if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
           } else { Write-Host "::error::Vuplex WebGL not found"; exit 1 }
 
@@ -475,9 +475,9 @@ jobs:
           $packages = @(
             @{ Name = "Digger"; RelPath = "Digger" },
             @{ Name = "Samples"; RelPath = "Samples" },
-            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" },
-            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" },
-            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" }
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/3rd-party/URPWater" }
           )
           foreach ($pkg in $packages) {
             $sourcePath = Join-Path $assetsPath $pkg.RelPath
@@ -495,7 +495,7 @@ jobs:
       - name: Setup Vuplex WebGL
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
-          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-WebGL"
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex-WebGL"
           $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
           if (Test-Path $vuplexSource) {
             $targetParent = Split-Path $vuplexTarget -Parent
@@ -504,7 +504,7 @@ jobs:
             if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
             New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
             Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
-            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta"
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex.meta"
             if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
           } else { Write-Host "::error::Vuplex WebGL not found"; exit 1 }
 
@@ -656,18 +656,18 @@ jobs:
           }
           copy_package "Digger" "Digger"
           copy_package "Samples" "Samples"
-          copy_package "NWH" "Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH"
-          copy_package "Silantro" "Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro"
-          copy_package "URPWater" "Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater"
+          copy_package "NWH" "Runtime/StraightFour/3rd-party/NWH"
+          copy_package "Silantro" "Runtime/StraightFour/3rd-party/Silantro"
+          copy_package "URPWater" "Runtime/StraightFour/3rd-party/URPWater"
           
           # Vuplex Desktop
-          VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex-Desktop"
-          VUPLEX_TARGET="$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex"
+          VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/3rd-party/Vuplex-Desktop"
+          VUPLEX_TARGET="$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex"
           if [ -d "$VUPLEX_SOURCE" ]; then
             mkdir -p "$(dirname "$VUPLEX_TARGET")"
             rm -rf "$VUPLEX_TARGET" "$VUPLEX_TARGET.meta" 2>/dev/null || true
             if command -v ditto &> /dev/null; then ditto "$VUPLEX_SOURCE" "$VUPLEX_TARGET"; else cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"; fi
-            [ -f "$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" ] && cp "$ASSETS_PATH/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" "$VUPLEX_TARGET.meta"
+            [ -f "$ASSETS_PATH/Runtime/StraightFour/3rd-party/Vuplex.meta" ] && cp "$ASSETS_PATH/Runtime/StraightFour/3rd-party/Vuplex.meta" "$VUPLEX_TARGET.meta"
           fi
 
       - name: Setup Unity packages (Embedded)
@@ -750,10 +750,10 @@ jobs:
           rm -rf "$PROJECT_PATH/Builds" "$PROJECT_PATH/Artifacts" || true
           rm -rf "$PROJECT_PATH/Assets/Digger" "$PROJECT_PATH/Assets/Digger.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Samples" "$PROJECT_PATH/Assets/Samples.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/NWH.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Silantro.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/URPWater.meta" || true
-          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/Assets/StraightFour/3rd-party/Vuplex.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/NWH" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/NWH.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex.meta" || true
           rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
 
   # Summary job

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -570,3 +571,4 @@ public class TextureAtlasBuilder : EditorWindow
 
 // Note: BlockTextureMapping, TextureUVEntry, BlockMappingEntry, and BlockAtlasData
 // are defined in ChunkLoader.cs to be available at runtime
+#endif
