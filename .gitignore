@@ -72,3 +72,11 @@ crashlytics-build.properties
 # Editor Config Files
 .editorconfig
 .vsconfig
+.vscode/
+
+/Assets/Digger/
+/Assets/Digger.meta
+/Assets/Samples/
+/Assets/Samples.meta
+/Assets/Runtime/StraightFour/3rd-party/
+/Assets/Runtime/StraightFour/3rd-party.meta

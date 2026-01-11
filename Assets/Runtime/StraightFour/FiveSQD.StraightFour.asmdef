@@ -1,0 +1,27 @@
+{
+    "name": "FiveSQD.StraightFour",
+    "rootNamespace": "fivesqd.straightfour",
+    "references": [
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:b6af883ec2a5d8f4f9ff7b816453f7b7",
+        "GUID:db664ca7e85896a4795e1c41be0bc3b8",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:fe685ec1767f73d42b749ea8045bfe43",
+        "GUID:15fc0a57446b3144c949da3e2b9737a9",
+        "GUID:ee54ccb0344ed264090ebfc168b827b0",
+        "GUID:cd6342e5cfb9a4035838bb5b11cd5ce0",
+        "GUID:c76e28da8ce572043b1fb2da95817e18",
+        "GUID:4333e1ebda3404646a79cf687ca3e9e0",
+        "GUID:b0a6eca0b075c1a488b2694245dfb139"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
