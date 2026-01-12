@@ -30,9 +30,8 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Compressed build...");
             
-            // Set WebGL compression to Gzip
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
-            PlayerSettings.WebGL.decompressionFallback = true;
+            // Configure WebGL build settings
+            ConfigureWebGLBuildSettings(isDebugBuild: false);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -51,6 +50,9 @@ namespace FiveSQD.WebVerse.Building
         public static void BuildWebGLUncompressed()
         {
             Debug.Log("Starting WebGL Uncompressed build...");
+            
+            // Configure WebGL build settings
+            ConfigureWebGLBuildSettings(isDebugBuild: false);
             
             // Set WebGL compression to disabled
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
@@ -117,6 +119,37 @@ namespace FiveSQD.WebVerse.Building
             BuildMacDesktop();
             
             Debug.Log("All builds completed.");
+        }
+
+        /// <summary>
+        /// Configure WebGL-specific build settings.
+        /// </summary>
+        /// <param name="isDebugBuild">Whether this is a debug build.</param>
+        private static void ConfigureWebGLBuildSettings(bool isDebugBuild)
+        {
+            // Set compression to Gzip
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            
+            // Set linker target to Wasm
+            PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;
+            
+            // Enable data caching
+            PlayerSettings.WebGL.dataCaching = true;
+            
+            // Configure exception support based on build type
+            if (isDebugBuild)
+            {
+                // Debug builds: full exception support
+                PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.FullWithStacktrace;
+                Debug.Log("[WebGL Config] Debug build: Using full exception support with stacktrace");
+            }
+            else
+            {
+                // Production builds: explicitly thrown exceptions only
+                PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+                Debug.Log("[WebGL Config] Production build: Using explicitly thrown exceptions only");
+            }
         }
 
         /// <summary>

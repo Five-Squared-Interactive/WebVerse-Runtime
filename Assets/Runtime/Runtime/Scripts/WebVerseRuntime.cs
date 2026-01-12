@@ -26,6 +26,7 @@ using Vuplex.WebView;
 using FiveSQD.WebVerse.Handlers.JSONEntity;
 using FiveSQD.WebVerse.Handlers.X3D;
 using FiveSQD.WebVerse.Handlers.OMI;
+using System.Collections;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -471,6 +472,11 @@ namespace FiveSQD.WebVerse.Runtime
         public ReflectionProbe reflectionProbe;
 
         /// <summary>
+        /// Coroutine for periodic resource cleanup (WebGL only).
+        /// </summary>
+        private Coroutine resourceCleanupCoroutine;
+
+        /// <summary>
         /// Initialize the WebVerse Runtime.
         /// </summary>
         /// <param name="settings">The runtime settings to use.</param>
@@ -551,6 +557,12 @@ namespace FiveSQD.WebVerse.Runtime
                 maxKeyLength, filesDirectory, timeout);
 
             state = RuntimeState.Unloaded;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Start resource cleanup coroutine for WebGL builds
+            resourceCleanupCoroutine = StartCoroutine(ResourceCleanupCoroutine());
+            Logging.Log("[WebVerseRuntime->Initialize] Started resource cleanup coroutine for WebGL.");
+#endif
         }
 
         /// <summary>
@@ -1077,6 +1089,38 @@ namespace FiveSQD.WebVerse.Runtime
                     }
                     console.Terminate();
                 }
+            }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Stop resource cleanup coroutine if running
+            if (resourceCleanupCoroutine != null)
+            {
+                StopCoroutine(resourceCleanupCoroutine);
+                resourceCleanupCoroutine = null;
+                Logging.Log("[WebVerseRuntime->TerminateComponents] Stopped resource cleanup coroutine.");
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Coroutine that periodically cleans up unused resources (WebGL only).
+        /// Runs every 60 seconds to free memory by unloading unused assets and triggering garbage collection.
+        /// </summary>
+        /// <returns>IEnumerator for coroutine.</returns>
+        private IEnumerator ResourceCleanupCoroutine()
+        {
+            while (true)
+            {
+                // Wait 60 seconds before next cleanup
+                yield return new WaitForSeconds(60f);
+
+                // Unload unused assets
+                Resources.UnloadUnusedAssets();
+
+                // Trigger garbage collection
+                System.GC.Collect();
+
+                Logging.Log("[WebVerseRuntime->ResourceCleanupCoroutine] Periodic resource cleanup completed.");
             }
         }
     }
