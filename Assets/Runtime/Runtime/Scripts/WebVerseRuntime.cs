@@ -1117,6 +1117,12 @@ namespace FiveSQD.WebVerse.Runtime
         /// Runs at the configured interval to free memory by unloading unused assets and triggering garbage collection.
         /// </summary>
         /// <returns>IEnumerator for coroutine.</returns>
+        /// <remarks>
+        /// Future improvements could include:
+        /// - Memory pressure checks to skip cleanup when memory is low
+        /// - Adaptive intervals based on actual memory usage patterns
+        /// - Waiting for UnloadUnusedAssets async operation to complete before GC
+        /// </remarks>
         private IEnumerator ResourceCleanupCoroutine()
         {
             while (true)
@@ -1124,7 +1130,8 @@ namespace FiveSQD.WebVerse.Runtime
                 // Wait for the configured cleanup interval
                 yield return new WaitForSeconds(resourceCleanupInterval);
 
-                // Unload unused assets
+                // Unload unused assets (async operation)
+                // Note: This is called synchronously but executes asynchronously internally
                 Resources.UnloadUnusedAssets();
 
                 // Use optimized GC collection mode to reduce performance impact

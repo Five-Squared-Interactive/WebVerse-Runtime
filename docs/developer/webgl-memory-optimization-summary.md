@@ -230,6 +230,10 @@ Potential additional optimizations:
 - Asset bundle management for on-demand loading
 - Memory warning system for critical thresholds
 - Configurable cleanup intervals based on usage patterns
+- Memory pressure-based cleanup (only trigger when needed)
+- Adaptive cleanup intervals based on actual memory usage
+- Async-aware resource cleanup to avoid frame rate hitches
+- Wait for UnloadUnusedAssets to complete before GC
 
 ## References
 
