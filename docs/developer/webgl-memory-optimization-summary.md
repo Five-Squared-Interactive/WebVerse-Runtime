@@ -68,6 +68,8 @@ Added a new quality level specifically optimized for WebGL builds:
 
 This preset is set as the default quality level for WebGL platform (index 6) in `m_PerPlatformDefaultQuality`.
 
+**Important**: The quality preset index (6) corresponds to the 7th quality level in the list (0-based indexing). This includes the presets: Very Low (0), Low (1), Medium (2), High (3), Very High (4), Ultra (5), and WebGL-Optimized (6). If quality levels are reordered or removed, this index must be updated manually in the QualitySettings.asset file to maintain the correct WebGL default.
+
 ### 4. Exception Support Optimization
 
 Updated `Assets/Build/Builder.cs` to configure exception handling based on build type:
@@ -103,17 +105,20 @@ Enhanced WebGL build configuration in `Assets/Build/Builder.cs`:
 
 Added automatic memory cleanup to `Assets/Runtime/Runtime/Scripts/WebVerseRuntime.cs`:
 
-- **Frequency**: Every 60 seconds
+- **Frequency**: Configurable interval (default: 60 seconds)
+  - Set via `resourceCleanupInterval` public field
+  - Set to 0 to disable automatic cleanup
 - **WebGL-Only**: Active only in WebGL builds (not in editor)
 - **Actions**:
   - Calls `Resources.UnloadUnusedAssets()`
     - Removes unreferenced assets from memory
     - Frees texture and mesh memory
-  - Calls `System.GC.Collect()`
-    - Triggers garbage collection
-    - Releases managed memory
+  - Calls `System.GC.Collect(0, GCCollectionMode.Optimized)`
+    - Uses optimized collection mode to reduce performance impact
+    - GC determines if collection is actually needed
+    - Releases managed memory efficiently
 
-The cleanup coroutine starts automatically during runtime initialization and stops during termination.
+The cleanup coroutine starts automatically during runtime initialization (if interval > 0) and stops during termination.
 
 ## Expected Benefits
 
