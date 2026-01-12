@@ -30,7 +30,7 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Compressed build...");
             
-            // Configure WebGL build settings
+            // Configure WebGL build settings (production build)
             ConfigureWebGLBuildSettings(isDebugBuild: false);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
@@ -45,13 +45,34 @@ namespace FiveSQD.WebVerse.Building
         }
 
         /// <summary>
+        /// Build WebGL with Gzip compression (Debug mode).
+        /// </summary>
+        public static void BuildWebGLCompressedDebug()
+        {
+            Debug.Log("Starting WebGL Compressed Debug build...");
+            
+            // Configure WebGL build settings (debug build)
+            ConfigureWebGLBuildSettings(isDebugBuild: true);
+            
+            BuildPlayerOptions options = new BuildPlayerOptions()
+            {
+                locationPathName = WebGLCompressedPath + "-Debug",
+                options = BuildOptions.Development,
+                scenes = new string[] { WebRuntimeScene },
+                target = BuildTarget.WebGL
+            };
+
+            ExecuteBuild(options, "WebGL Compressed Debug");
+        }
+
+        /// <summary>
         /// Build WebGL without compression.
         /// </summary>
         public static void BuildWebGLUncompressed()
         {
             Debug.Log("Starting WebGL Uncompressed build...");
             
-            // Configure WebGL build settings
+            // Configure WebGL build settings (production build)
             ConfigureWebGLBuildSettings(isDebugBuild: false);
             
             // Set WebGL compression to disabled
@@ -67,6 +88,31 @@ namespace FiveSQD.WebVerse.Building
             };
 
             ExecuteBuild(options, "WebGL Uncompressed");
+        }
+
+        /// <summary>
+        /// Build WebGL without compression (Debug mode).
+        /// </summary>
+        public static void BuildWebGLUncompressedDebug()
+        {
+            Debug.Log("Starting WebGL Uncompressed Debug build...");
+            
+            // Configure WebGL build settings (debug build)
+            ConfigureWebGLBuildSettings(isDebugBuild: true);
+            
+            // Set WebGL compression to disabled
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            PlayerSettings.WebGL.decompressionFallback = false;
+            
+            BuildPlayerOptions options = new BuildPlayerOptions()
+            {
+                locationPathName = WebGLUncompressedPath + "-Debug",
+                options = BuildOptions.Development,
+                scenes = new string[] { WebRuntimeScene },
+                target = BuildTarget.WebGL
+            };
+
+            ExecuteBuild(options, "WebGL Uncompressed Debug");
         }
 
         /// <summary>

@@ -1117,7 +1117,10 @@ namespace FiveSQD.WebVerse.Runtime
                 // Unload unused assets
                 Resources.UnloadUnusedAssets();
 
-                // Trigger garbage collection
+                // Explicitly trigger garbage collection
+                // While UnloadUnusedAssets() may trigger GC internally, explicitly calling
+                // GC.Collect() ensures immediate collection of the freed asset memory,
+                // which is important for WebGL memory management
                 System.GC.Collect();
 
                 Logging.Log("[WebVerseRuntime->ResourceCleanupCoroutine] Periodic resource cleanup completed.");
