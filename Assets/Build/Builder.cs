@@ -30,8 +30,8 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Compressed build...");
             
-            // Configure WebGL build settings (production build)
-            ConfigureWebGLBuildSettings(isDebugBuild: false);
+            // Configure WebGL build settings (production build with compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: false, compressionEnabled: true);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -51,8 +51,8 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Compressed Debug build...");
             
-            // Configure WebGL build settings (debug build)
-            ConfigureWebGLBuildSettings(isDebugBuild: true);
+            // Configure WebGL build settings (debug build with compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: true, compressionEnabled: true);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -72,12 +72,8 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Uncompressed build...");
             
-            // Configure WebGL build settings (production build)
-            ConfigureWebGLBuildSettings(isDebugBuild: false);
-            
-            // Set WebGL compression to disabled
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.decompressionFallback = false;
+            // Configure WebGL build settings (production build without compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: false, compressionEnabled: false);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -97,12 +93,8 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Uncompressed Debug build...");
             
-            // Configure WebGL build settings (debug build)
-            ConfigureWebGLBuildSettings(isDebugBuild: true);
-            
-            // Set WebGL compression to disabled
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.decompressionFallback = false;
+            // Configure WebGL build settings (debug build without compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: true, compressionEnabled: false);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -171,11 +163,20 @@ namespace FiveSQD.WebVerse.Building
         /// Configure WebGL-specific build settings.
         /// </summary>
         /// <param name="isDebugBuild">Whether this is a debug build.</param>
-        private static void ConfigureWebGLBuildSettings(bool isDebugBuild)
+        /// <param name="compressionEnabled">Whether to enable Gzip compression.</param>
+        private static void ConfigureWebGLBuildSettings(bool isDebugBuild, bool compressionEnabled)
         {
-            // Set compression to Gzip
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
-            PlayerSettings.WebGL.decompressionFallback = true;
+            // Set compression settings
+            if (compressionEnabled)
+            {
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+                PlayerSettings.WebGL.decompressionFallback = true;
+            }
+            else
+            {
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+                PlayerSettings.WebGL.decompressionFallback = false;
+            }
             
             // Set linker target to Wasm
             PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;

@@ -1129,6 +1129,7 @@ namespace FiveSQD.WebVerse.Runtime
 
                 // Use optimized GC collection mode to reduce performance impact
                 // GCCollectionMode.Optimized allows the GC to determine if collection is needed
+                // based on current memory pressure, avoiding unnecessary collection overhead
                 System.GC.Collect(0, System.GCCollectionMode.Optimized);
 
                 Logging.Log("[WebVerseRuntime->ResourceCleanupCoroutine] Periodic resource cleanup completed.");
