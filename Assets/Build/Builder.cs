@@ -1,158 +1,73 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
-
-#if UNITY_EDITOR
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
-using UnityEngine;
+using System.IO;
 
-namespace FiveSQD.WebVerse.Building
+public class Builder : MonoBehaviour
 {
-    /// <summary>
-    /// Class for automated building.
-    /// </summary>
-    public class Builder
+    public static void PerformBuild()
     {
-        // Build output paths (relative to project root)
-        private const string BuildOutputRoot = "Builds";
-        private const string WebGLCompressedPath = BuildOutputRoot + "/WebGL-Compressed";
-        private const string WebGLUncompressedPath = BuildOutputRoot + "/WebGL-Uncompressed";
-        private const string WindowsDesktopPath = BuildOutputRoot + "/Windows-Desktop";
-        private const string MacDesktopPath = BuildOutputRoot + "/Mac-Desktop";
+        BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
+        buildPlayerOptions.scenes = new[] { "Assets/Scenes/SampleScene.unity" };
+        buildPlayerOptions.locationPathName = "Builds/WebGL";
+        buildPlayerOptions.target = BuildTarget.WebGL;
+        buildPlayerOptions.options = BuildOptions.None;
 
-        // Scene paths
-        private const string WebRuntimeScene = "Assets/Runtime/TopLevel/Scenes/WebRuntime.unity";
-        private const string DesktopRuntimeScene = "Assets/Runtime/TopLevel/Scenes/DesktopRuntime.unity";
-
-        /// <summary>
-        /// Build WebGL with Gzip compression.
-        /// </summary>
-        public static void BuildWebGLCompressed()
+        // Configure WebGL-specific settings before build
+        if (buildPlayerOptions.target == BuildTarget.WebGL)
         {
-            Debug.Log("Starting WebGL Compressed build...");
-            
-            // Set WebGL compression to Gzip
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
-            PlayerSettings.WebGL.decompressionFallback = true;
-            
-            BuildPlayerOptions options = new BuildPlayerOptions()
-            {
-                locationPathName = WebGLCompressedPath,
-                options = BuildOptions.None,
-                scenes = new string[] { WebRuntimeScene },
-                target = BuildTarget.WebGL
-            };
-
-            ExecuteBuild(options, "WebGL Compressed");
+            ConfigureWebGLSettings();
         }
 
-        /// <summary>
-        /// Build WebGL without compression.
-        /// </summary>
-        public static void BuildWebGLUncompressed()
-        {
-            Debug.Log("Starting WebGL Uncompressed build...");
-            
-            // Set WebGL compression to disabled
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.decompressionFallback = false;
-            
-            BuildPlayerOptions options = new BuildPlayerOptions()
-            {
-                locationPathName = WebGLUncompressedPath,
-                options = BuildOptions.None,
-                scenes = new string[] { WebRuntimeScene },
-                target = BuildTarget.WebGL
-            };
+        BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+        BuildSummary summary = report.summary;
 
-            ExecuteBuild(options, "WebGL Uncompressed");
+        if (summary.result == BuildResult.Succeeded)
+        {
+            Debug.Log("Build succeeded: " + summary.totalSize + " bytes");
         }
 
-        /// <summary>
-        /// Build for Windows Desktop (64-bit).
-        /// </summary>
-        public static void BuildWindowsDesktop()
+        if (summary.result == BuildResult.Failed)
         {
-            Debug.Log("Starting Windows Desktop build...");
-            
-            BuildPlayerOptions options = new BuildPlayerOptions()
-            {
-                locationPathName = WindowsDesktopPath + "/WebVerse.exe",
-                options = BuildOptions.None,
-                scenes = new string[] { DesktopRuntimeScene },
-                target = BuildTarget.StandaloneWindows64
-            };
-
-            ExecuteBuild(options, "Windows Desktop");
-        }
-
-        /// <summary>
-        /// Build for Mac Desktop.
-        /// </summary>
-        public static void BuildMacDesktop()
-        {
-            Debug.Log("Starting Mac Desktop build...");
-            
-            BuildPlayerOptions options = new BuildPlayerOptions()
-            {
-                locationPathName = MacDesktopPath + "/WebVerse.app",
-                options = BuildOptions.None,
-                scenes = new string[] { DesktopRuntimeScene },
-                target = BuildTarget.StandaloneOSX
-            };
-
-            ExecuteBuild(options, "Mac Desktop");
-        }
-
-        /// <summary>
-        /// Build all targets for CI pipeline.
-        /// Called with: -executeMethod FiveSQD.WebVerse.Building.Builder.BuildAll
-        /// </summary>
-        public static void BuildAll()
-        {
-            Debug.Log("Starting all builds...");
-            
-            BuildWebGLCompressed();
-            BuildWebGLUncompressed();
-            BuildWindowsDesktop();
-            BuildMacDesktop();
-            
-            Debug.Log("All builds completed.");
-        }
-
-        /// <summary>
-        /// Execute a build and log the result.
-        /// </summary>
-        /// <param name="options">Build options.</param>
-        /// <param name="buildName">Name of the build for logging.</param>
-        private static void ExecuteBuild(BuildPlayerOptions options, string buildName)
-        {
-            BuildReport report = BuildPipeline.BuildPlayer(options);
-            BuildSummary summary = report.summary;
-
-            switch (summary.result)
-            {
-                case BuildResult.Succeeded:
-                    Debug.Log($"[{buildName}] Build succeeded: {summary.totalSize} bytes written to {options.locationPathName}");
-                    break;
-                case BuildResult.Failed:
-                    Debug.LogError($"[{buildName}] Build failed with {summary.totalErrors} errors.");
-                    // Exit with error code for CI
-                    EditorApplication.Exit(1);
-                    break;
-                case BuildResult.Cancelled:
-                    Debug.LogWarning($"[{buildName}] Build was cancelled.");
-                    EditorApplication.Exit(1);
-                    break;
-                case BuildResult.Unknown:
-                    Debug.LogError($"[{buildName}] Build result unknown.");
-                    EditorApplication.Exit(1);
-                    break;
-                default:
-                    Debug.LogError($"[{buildName}] Unidentified build result.");
-                    EditorApplication.Exit(1);
-                    break;
-            }
+            Debug.Log("Build failed");
         }
     }
+
+    private static void ConfigureWebGLSettings()
+    {
+        // Set WebGL memory configuration for better performance
+        PlayerSettings.WebGL.memorySize = 64; // 64 MB initial
+        
+        // Configure compression and optimization
+        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+        PlayerSettings.WebGL.decompressionFallback = true;
+        PlayerSettings.WebGL.dataCaching = true;
+        PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;
+        
+        // Set exception handling based on development build
+        if (EditorUserBuildSettings.development)
+        {
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.FullWithoutStacktrace;
+        }
+        else
+        {
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+        }
+
+        Debug.Log("WebGL settings configured for optimized memory usage");
+    }
+
+    public static void BuildWebGL()
+    {
+        // Set build target to WebGL
+        EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
+        
+        // Configure WebGL-specific settings
+        ConfigureWebGLSettings();
+        
+        // Perform the build
+        PerformBuild();
+    }
 }
-#endif
