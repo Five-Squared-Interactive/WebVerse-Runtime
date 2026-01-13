@@ -863,7 +863,7 @@ PlayerSettings:
   webGLMemoryLinearGrowthStep: 32
   webGLMemoryGeometricGrowthStep: 0.15
   webGLMemoryGeometricGrowthCap: 128
-  webGLEnableWebGPU: 0
+  webGLEnableWebGPU: 1
   webGLPowerPreference: 2
   webGLWebAssemblyTable: 0
   webGLWebAssemblyBigInt: 0

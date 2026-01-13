@@ -32,6 +32,11 @@ Updated WebGL memory settings in `ProjectSettings/ProjectSettings.asset`:
   - Allows larger growth increments when needed
   - Balances between allocation frequency and overhead
 
+- **WebGPU Enabled**: 1 (enabled)
+  - Enables WebGPU support for modern browsers
+  - Provides access to next-generation graphics API
+  - Offers improved performance on compatible hardware
+
 ### 2. Streaming Mipmaps
 
 Enabled streaming mipmaps across all quality levels in `ProjectSettings/QualitySettings.asset`:
@@ -243,6 +248,9 @@ Potential additional optimizations:
 - [Texture Streaming](https://docs.unity3d.com/Manual/TextureStreaming.html)
 
 ## Changelog
+
+### 2026-01-13
+- Enabled WebGPU support for modern browsers
 
 ### 2026-01-12
 - Initial implementation of high-priority WebGL memory optimizations
