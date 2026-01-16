@@ -259,6 +259,21 @@ namespace FiveSQD.StraightFour.Entity
             return false;
         }
 
+        public bool UnfocusPanel()
+        {
+#if VUPLEX_INCLUDED && UNITY_WEBGL && !UNITY_EDITOR
+            if (canvasWebViewPrefab == null || canvasWebViewPrefab.WebView == null)
+            {
+                LogSystem.LogError("[HTMLEntity->UnfocusPanel] Invalid HTML entity.");
+                return false;
+            }
+
+            WebGLWebView webGLWebView = canvasWebViewPrefab.WebView as WebGLWebView;
+            webGLWebView.FocusUnity();
+#endif
+            return true;
+        }
+
         /// <summary>
         /// Set up the messaging API.
         /// </summary>

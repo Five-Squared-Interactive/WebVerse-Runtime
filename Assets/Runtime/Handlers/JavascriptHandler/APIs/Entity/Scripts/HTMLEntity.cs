@@ -325,5 +325,29 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
         }
+
+        public bool UnfocusPanel()
+        {
+            if (IsValid() == false)
+            {
+                Logging.LogError("[HTMLEntity:UnfocusPanel] Unknown entity.");
+                return false;
+            }
+
+            if (internalEntity is StraightFour.Entity.HTMLEntity)
+            {
+                return ((StraightFour.Entity.HTMLEntity) internalEntity).UnfocusPanel();
+            }
+            
+            else if (internalEntity is StraightFour.Entity.HTMLUIElementEntity)
+            {
+                return ((StraightFour.Entity.HTMLUIElementEntity) internalEntity).UnfocusPanel();
+            }
+            else
+            {
+                Logging.LogError("[HTMLEntity:UnfocusPanel] Invalid internal entity.");
+                return false;
+            }
+        }
     }
 }
