@@ -26,6 +26,7 @@ using Vuplex.WebView;
 using FiveSQD.WebVerse.Handlers.JSONEntity;
 using FiveSQD.WebVerse.Handlers.X3D;
 using FiveSQD.WebVerse.Handlers.OMI;
+using System.Collections;
 
 namespace FiveSQD.WebVerse.Runtime
 {
@@ -471,6 +472,18 @@ namespace FiveSQD.WebVerse.Runtime
         public ReflectionProbe reflectionProbe;
 
         /// <summary>
+        /// Interval (in seconds) for periodic resource cleanup in WebGL builds.
+        /// Default is 60 seconds. Set to 0 to disable automatic cleanup.
+        /// </summary>
+        [Tooltip("Interval (in seconds) for periodic resource cleanup in WebGL builds.")]
+        public float resourceCleanupInterval = 60f;
+
+        /// <summary>
+        /// Coroutine for periodic resource cleanup (WebGL only).
+        /// </summary>
+        private Coroutine resourceCleanupCoroutine;
+
+        /// <summary>
         /// Initialize the WebVerse Runtime.
         /// </summary>
         /// <param name="settings">The runtime settings to use.</param>
@@ -551,6 +564,15 @@ namespace FiveSQD.WebVerse.Runtime
                 maxKeyLength, filesDirectory, timeout);
 
             state = RuntimeState.Unloaded;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Start resource cleanup coroutine for WebGL builds if interval is greater than 0
+            if (resourceCleanupInterval > 0)
+            {
+                resourceCleanupCoroutine = StartCoroutine(ResourceCleanupCoroutine());
+                Logging.Log($"[WebVerseRuntime->Initialize] Started resource cleanup coroutine for WebGL (interval: {resourceCleanupInterval}s).");
+            }
+#endif
         }
 
         /// <summary>
@@ -1077,6 +1099,47 @@ namespace FiveSQD.WebVerse.Runtime
                     }
                     console.Terminate();
                 }
+            }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Stop resource cleanup coroutine if running
+            if (resourceCleanupCoroutine != null)
+            {
+                StopCoroutine(resourceCleanupCoroutine);
+                resourceCleanupCoroutine = null;
+                Logging.Log("[WebVerseRuntime->TerminateComponents] Stopped resource cleanup coroutine.");
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Coroutine that periodically cleans up unused resources (WebGL only).
+        /// Runs at the configured interval to free memory by unloading unused assets and triggering garbage collection.
+        /// </summary>
+        /// <returns>IEnumerator for coroutine.</returns>
+        /// <remarks>
+        /// Future improvements could include:
+        /// - Memory pressure checks to skip cleanup when memory is low
+        /// - Adaptive intervals based on actual memory usage patterns
+        /// - Waiting for UnloadUnusedAssets async operation to complete before GC
+        /// </remarks>
+        private IEnumerator ResourceCleanupCoroutine()
+        {
+            while (true)
+            {
+                // Wait for the configured cleanup interval
+                yield return new WaitForSeconds(resourceCleanupInterval);
+
+                // Unload unused assets (async operation)
+                // Note: This is called synchronously but executes asynchronously internally
+                Resources.UnloadUnusedAssets();
+
+                // Use optimized GC collection mode to reduce performance impact
+                // GCCollectionMode.Optimized allows the GC to determine if collection is needed
+                // based on current memory pressure, avoiding unnecessary collection overhead
+                System.GC.Collect(0, System.GCCollectionMode.Optimized);
+
+                Logging.Log("[WebVerseRuntime->ResourceCleanupCoroutine] Periodic resource cleanup completed.");
             }
         }
     }

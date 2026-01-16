@@ -270,18 +270,14 @@ namespace FiveSQD.StraightFour.Entity
             return true;
         }
 
+        /// <summary>
+        /// Unfocus the HTML panel.
+        /// </summary>
+        /// <returns>Whether or not the operation was successful.</returns>
         public bool UnfocusPanel()
         {
 #if VUPLEX_INCLUDED && UNITY_WEBGL && !UNITY_EDITOR
-            if (webViewPrefab == null || webViewPrefab.WebView == null)
-            {
-                LogSystem.LogError("[HTMLEntity->UnfocusPanel] Invalid HTML entity.");
-                return false;
-            }
-
-            WebGLWebView webGLWebView = webViewPrefab.WebView as WebGLWebView;
-
-            webGLWebView.FocusUnity();
+            WebGLWebView.FocusUnity();
 #endif
             return true;
         }

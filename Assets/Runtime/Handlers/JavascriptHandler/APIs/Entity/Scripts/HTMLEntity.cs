@@ -326,6 +326,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             }
         }
 
+        /// <summary>
+        /// Unfocus the HTML panel.
+        /// </summary>
+        /// <returns>Whether or not the operation was successful.</returns>
         public bool UnfocusPanel()
         {
             if (IsValid() == false)

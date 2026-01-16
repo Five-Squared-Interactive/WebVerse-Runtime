@@ -30,9 +30,8 @@ namespace FiveSQD.WebVerse.Building
         {
             Debug.Log("Starting WebGL Compressed build...");
             
-            // Set WebGL compression to Gzip
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
-            PlayerSettings.WebGL.decompressionFallback = true;
+            // Configure WebGL build settings (production build with compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: false, compressionEnabled: true);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -46,15 +45,35 @@ namespace FiveSQD.WebVerse.Building
         }
 
         /// <summary>
+        /// Build WebGL with Gzip compression (Debug mode).
+        /// </summary>
+        public static void BuildWebGLCompressedDebug()
+        {
+            Debug.Log("Starting WebGL Compressed Debug build...");
+            
+            // Configure WebGL build settings (debug build with compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: true, compressionEnabled: true);
+            
+            BuildPlayerOptions options = new BuildPlayerOptions()
+            {
+                locationPathName = WebGLCompressedPath + "-Debug",
+                options = BuildOptions.Development,
+                scenes = new string[] { WebRuntimeScene },
+                target = BuildTarget.WebGL
+            };
+
+            ExecuteBuild(options, "WebGL Compressed Debug");
+        }
+
+        /// <summary>
         /// Build WebGL without compression.
         /// </summary>
         public static void BuildWebGLUncompressed()
         {
             Debug.Log("Starting WebGL Uncompressed build...");
             
-            // Set WebGL compression to disabled
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.decompressionFallback = false;
+            // Configure WebGL build settings (production build without compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: false, compressionEnabled: false);
             
             BuildPlayerOptions options = new BuildPlayerOptions()
             {
@@ -65,6 +84,27 @@ namespace FiveSQD.WebVerse.Building
             };
 
             ExecuteBuild(options, "WebGL Uncompressed");
+        }
+
+        /// <summary>
+        /// Build WebGL without compression (Debug mode).
+        /// </summary>
+        public static void BuildWebGLUncompressedDebug()
+        {
+            Debug.Log("Starting WebGL Uncompressed Debug build...");
+            
+            // Configure WebGL build settings (debug build without compression)
+            ConfigureWebGLBuildSettings(isDebugBuild: true, compressionEnabled: false);
+            
+            BuildPlayerOptions options = new BuildPlayerOptions()
+            {
+                locationPathName = WebGLUncompressedPath + "-Debug",
+                options = BuildOptions.Development,
+                scenes = new string[] { WebRuntimeScene },
+                target = BuildTarget.WebGL
+            };
+
+            ExecuteBuild(options, "WebGL Uncompressed Debug");
         }
 
         /// <summary>
@@ -117,6 +157,46 @@ namespace FiveSQD.WebVerse.Building
             BuildMacDesktop();
             
             Debug.Log("All builds completed.");
+        }
+
+        /// <summary>
+        /// Configure WebGL-specific build settings.
+        /// </summary>
+        /// <param name="isDebugBuild">Whether this is a debug build.</param>
+        /// <param name="compressionEnabled">Whether to enable Gzip compression.</param>
+        private static void ConfigureWebGLBuildSettings(bool isDebugBuild, bool compressionEnabled)
+        {
+            // Set compression settings
+            if (compressionEnabled)
+            {
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+                PlayerSettings.WebGL.decompressionFallback = true;
+            }
+            else
+            {
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+                PlayerSettings.WebGL.decompressionFallback = false;
+            }
+            
+            // Set linker target to Wasm
+            PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;
+            
+            // Enable data caching
+            PlayerSettings.WebGL.dataCaching = true;
+            
+            // Configure exception support based on build type
+            if (isDebugBuild)
+            {
+                // Debug builds: full exception support
+                PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.FullWithStacktrace;
+                Debug.Log("[WebGL Config] Debug build: Using full exception support with stacktrace");
+            }
+            else
+            {
+                // Production builds: explicitly thrown exceptions only
+                PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+                Debug.Log("[WebGL Config] Production build: Using explicitly thrown exceptions only");
+            }
         }
 
         /// <summary>
