@@ -356,6 +356,25 @@ namespace FiveSQD.WebVerse.Input.Desktop
             currentJumpInput = isJumping;
         }
 
+        /// <summary>
+        /// Apply lower input.
+        /// </summary>
+        public void ApplyLower()
+        {
+            if (!jumpEnabled || avatarEntity == null)
+            {
+                return;
+            }
+
+            if (!gravityEnabled)
+            {
+                // For no gravity, manually adjust vertical position downward
+                UnityEngine.Vector3 currentPosition = avatarEntity.transform.position;
+                currentPosition.y -= jumpStrength * Time.deltaTime;
+                avatarEntity.SetPosition(currentPosition, false, true);
+            }
+        }
+
         public void ApplyLowerInput(bool isLowering)
         {
             // Store the current lower input for continuous application

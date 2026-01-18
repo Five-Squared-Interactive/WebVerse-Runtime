@@ -71,9 +71,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         {
             if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
             {
-                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLowerInput(true);
-                // Reset after a brief moment to simulate a single lower action
-                // This mimics the Jump behavior which is a one-time action
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLower();
             }
         }
 
