@@ -46,13 +46,35 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         /// <summary>
         /// Set the current movement value programmatically.
         /// </summary>
-        /// <param name="amount">A Vector3 representing the desired movement direction and magnitude.
-        /// The x and z components are used for horizontal movement, y component is ignored.</param>
-        public static void SetMovement(Vector3 amount)
+        /// <param name="amount">A Vector2 representing the desired movement direction and magnitude.</param>
+        public static void SetMovement(Vector2 amount)
         {
-            // Use x and z components for horizontal movement (Vector2)
-            UnityEngine.Vector2 moveValue = new UnityEngine.Vector2(amount.x, amount.z);
+            UnityEngine.Vector2 moveValue = new UnityEngine.Vector2(amount.x, amount.y);
             WebVerseRuntime.Instance.inputManager.moveValue = moveValue;
+        }
+
+        /// <summary>
+        /// Trigger a jump action.
+        /// </summary>
+        public static void Jump()
+        {
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyJump();
+            }
+        }
+
+        /// <summary>
+        /// Trigger a lower action.
+        /// </summary>
+        public static void Lower()
+        {
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLowerInput(true);
+                // Reset after a brief moment to simulate a single lower action
+                // This mimics the Jump behavior which is a one-time action
+            }
         }
 
         /// <summary>
