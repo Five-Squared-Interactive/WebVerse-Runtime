@@ -658,6 +658,45 @@ var touchCount = Input.getTouchCount();
 var touch = Input.getTouch(0); // First touch
 ```
 
+### Movement Control
+
+The Input API provides methods to query and programmatically set movement values:
+
+```javascript
+// Get current movement value (returns Vector2 with x, y components)
+var moveValue = Input.GetMoveValue();
+Logging.Log("Current movement: " + moveValue.x + ", " + moveValue.y);
+
+// Get current look value (returns Vector2 with x, y components)
+var lookValue = Input.GetLookValue();
+
+// Programmatically set movement (accepts Vector3, uses x and z for horizontal movement)
+var movement = new Vector3(1.0, 0.0, 0.5); // Move forward-right
+Input.SetMovement(movement);
+```
+
+**SetMovement Usage Example:**
+```javascript
+// Automated movement script
+function autoMove() {
+    // Move forward
+    var forwardMovement = new Vector3(0.0, 0.0, 1.0);
+    Input.SetMovement(forwardMovement);
+}
+
+// Circle movement pattern
+var angle = 0;
+function circleMovement() {
+    angle += 0.05;
+    var x = Math.cos(angle);
+    var z = Math.sin(angle);
+    Input.SetMovement(new Vector3(x, 0, z));
+}
+
+// Stop movement
+Input.SetMovement(new Vector3(0, 0, 0));
+```
+
 **Example Usage:**
 ```javascript
 // Handle player movement
