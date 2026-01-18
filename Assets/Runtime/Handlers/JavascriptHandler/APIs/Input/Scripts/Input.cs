@@ -50,12 +50,6 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         /// The x and z components are used for horizontal movement, y component is ignored.</param>
         public static void SetMovement(Vector3 amount)
         {
-            if (amount == null)
-            {
-                Logging.LogWarning("[Input->SetMovement] Invalid amount parameter (null).");
-                return;
-            }
-
             // Use x and z components for horizontal movement (Vector2)
             UnityEngine.Vector2 moveValue = new UnityEngine.Vector2(amount.x, amount.z);
             WebVerseRuntime.Instance.inputManager.moveValue = moveValue;
