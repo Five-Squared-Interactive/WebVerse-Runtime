@@ -369,6 +369,7 @@ namespace FiveSQD.WebVerse.Input.Desktop
             if (!gravityEnabled)
             {
                 // For no gravity, manually adjust vertical position downward
+                // Consistent with ApplyJump's no-gravity behavior
                 UnityEngine.Vector3 currentPosition = avatarEntity.transform.position;
                 currentPosition.y -= jumpStrength * Time.deltaTime;
                 avatarEntity.SetPosition(currentPosition, false, true);
