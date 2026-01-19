@@ -44,6 +44,38 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         }
 
         /// <summary>
+        /// Set the current movement value programmatically.
+        /// </summary>
+        /// <param name="amount">A Vector2 representing the desired movement direction and magnitude.</param>
+        public static void SetMovement(Vector2 amount)
+        {
+            UnityEngine.Vector2 moveValue = new UnityEngine.Vector2(amount.x, amount.y);
+            WebVerseRuntime.Instance.inputManager.moveValue = moveValue;
+        }
+
+        /// <summary>
+        /// Trigger a jump action.
+        /// </summary>
+        public static void Jump()
+        {
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyJump();
+            }
+        }
+
+        /// <summary>
+        /// Trigger a lower action.
+        /// </summary>
+        public static void Lower()
+        {
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLower();
+            }
+        }
+
+        /// <summary>
         /// Get the current look value.
         /// </summary>
         /// <returns>A Vector2 representation of the current look value.</returns>

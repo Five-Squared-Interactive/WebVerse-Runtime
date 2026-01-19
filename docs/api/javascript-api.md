@@ -656,6 +656,12 @@ var inputString = Input.getInputString(); // Text input
 // Touch state (mobile)
 var touchCount = Input.getTouchCount();
 var touch = Input.getTouch(0); // First touch
+
+// Movement control
+var moveValue = Input.GetMoveValue(); // Get current movement (Vector2)
+Input.SetMovement(new Vector2(1.0, 0.0)); // Set movement programmatically
+Input.Jump(); // Trigger jump
+Input.Lower(); // Trigger lower/descend
 ```
 
 **Example Usage:**
