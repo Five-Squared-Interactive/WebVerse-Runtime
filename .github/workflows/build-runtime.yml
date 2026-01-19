@@ -21,6 +21,14 @@ on:
         description: 'Build WebGL Uncompressed'
         type: boolean
         default: true
+      build_ios:
+        description: 'Build iOS'
+        type: boolean
+        default: true
+      build_android:
+        description: 'Build Android'
+        type: boolean
+        default: true
 
 env:
   UNITY_VERSION: "6000.0.58f2"
@@ -756,9 +764,517 @@ jobs:
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex.meta" || true
           rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
 
+  # iOS build (runs on Mac runner)
+  build-ios:
+    needs: [prepare, build-mac]
+    runs-on: [self-hosted, macOS, unity]
+    timeout-minutes: 720
+    if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_ios == 'true') && (needs.build-mac.result == 'success' || needs.build-mac.result == 'skipped') }}
+    env:
+      BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      PROJECT_PATH: ${{ github.workspace }}
+      UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2-arm64/Unity.app/Contents/MacOS/Unity' }}
+      UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Assets' }}
+      UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Packages' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: Restore Library cache
+        run: |
+          CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
+          LIBRARY_PATH="$PROJECT_PATH/Library"
+          if [ -d "$CACHE_LOCATION" ]; then
+            rm -rf "$LIBRARY_PATH" 2>/dev/null || true
+            cp -R "$CACHE_LOCATION" "$LIBRARY_PATH"
+            echo "Library cache restored"
+          fi
+
+      - name: Setup Unity packages (Assets)
+        run: |
+          ASSETS_PATH="$UNITY_ASSETS_PATH"
+          copy_package() {
+            local name="$1"; local rel_path="$2"
+            local source_path="$ASSETS_PATH/$rel_path"
+            local target_path="$PROJECT_PATH/Assets/$rel_path"
+            if [ -d "$source_path" ]; then
+              mkdir -p "$(dirname "$target_path")"
+              rm -rf "$target_path" 2>/dev/null || true
+              if command -v ditto &> /dev/null; then ditto "$source_path" "$target_path"; else cp -R "$source_path" "$target_path"; fi
+              [ -f "$source_path.meta" ] && cp "$source_path.meta" "$target_path.meta"
+              echo "Copied $name"
+            fi
+          }
+          copy_package "Digger" "Digger"
+          copy_package "Samples" "Samples"
+          copy_package "NWH" "Runtime/StraightFour/3rd-party/NWH"
+          copy_package "Silantro" "Runtime/StraightFour/3rd-party/Silantro"
+          copy_package "URPWater" "Runtime/StraightFour/3rd-party/URPWater"
+          
+          # Vuplex iOS
+          VUPLEX_SOURCE="$ASSETS_PATH/Runtime/StraightFour/3rd-party/Vuplex-iOS"
+          VUPLEX_TARGET="$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex"
+          if [ -d "$VUPLEX_SOURCE" ]; then
+            mkdir -p "$(dirname "$VUPLEX_TARGET")"
+            rm -rf "$VUPLEX_TARGET" "$VUPLEX_TARGET.meta" 2>/dev/null || true
+            if command -v ditto &> /dev/null; then ditto "$VUPLEX_SOURCE" "$VUPLEX_TARGET"; else cp -R "$VUPLEX_SOURCE" "$VUPLEX_TARGET"; fi
+            [ -f "$ASSETS_PATH/Runtime/StraightFour/3rd-party/Vuplex.meta" ] && cp "$ASSETS_PATH/Runtime/StraightFour/3rd-party/Vuplex.meta" "$VUPLEX_TARGET.meta"
+          fi
+
+      - name: Setup Unity packages (Embedded)
+        run: |
+          PACKAGES_PATH="$UNITY_PACKAGES_PATH"
+          for pkg in "com.occasoftware.super-simple-skybox" "com.tivadar.best.http" "com.tivadar.best.mqtt" "com.tivadar.best.websockets"; do
+            source_path="$PACKAGES_PATH/$pkg"
+            target_path="$PROJECT_PATH/Packages/$pkg"
+            if [ -d "$source_path" ]; then
+              rm -rf "$target_path" 2>/dev/null || true
+              if command -v ditto &> /dev/null; then ditto "$source_path" "$target_path"; else cp -R "$source_path" "$target_path"; fi
+            fi
+          done
+
+      - name: Create Logs directory
+        run: mkdir -p "$PROJECT_PATH/Logs"
+
+      - name: Build iOS (Xcode Project)
+        run: |
+          set +e
+          "$UNITY_PATH" -batchmode -nographics -quit -projectPath "$PROJECT_PATH" -executeMethod FiveSQD.WebVerse.Building.Builder.BuildiOS -logFile "$PROJECT_PATH/Logs/build-ios.log"
+          EXIT_CODE=$?
+          set -e
+          echo "Unity exit code: $EXIT_CODE"
+          if [ -f "$PROJECT_PATH/Logs/build-ios.log" ]; then
+            echo "=== Last 100 lines of build log ==="
+            tail -100 "$PROJECT_PATH/Logs/build-ios.log"
+          fi
+          if [ -f "$PROJECT_PATH/Logs/build-ios.log" ]; then
+            if grep -q "Exiting batchmode successfully" "$PROJECT_PATH/Logs/build-ios.log"; then
+              echo "Build completed successfully (found success message in log)"
+              EXIT_CODE=0
+            fi
+          fi
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Unity build failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+
+      - name: Install Apple Certificate
+        id: install-cert
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$IOS_CERTIFICATE_BASE64" ]; then
+            echo "No iOS certificate provided, skipping certificate install"
+            echo "IOS_SIGNING_AVAILABLE=false" >> $GITHUB_ENV
+            exit 0
+          fi
+          
+          # Create temporary keychain
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          
+          # Import certificate
+          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security import "$CERTIFICATE_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "IOS_SIGNING_AVAILABLE=true" >> $GITHUB_ENV
+          echo "Certificate installed successfully"
+
+      - name: Install Provisioning Profile
+        if: env.IOS_SIGNING_AVAILABLE == 'true'
+        env:
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          if [ -z "$IOS_PROVISIONING_PROFILE_BASE64" ]; then
+            echo "No provisioning profile provided, skipping"
+            exit 0
+          fi
+          
+          PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PP_PATH"
+          
+          # Extract UUID from provisioning profile
+          PP_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /dev/stdin <<< $(security cms -D -i "$PP_PATH"))
+          
+          # Install provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PP_UUID.mobileprovision"
+          
+          echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
+          echo "Provisioning profile installed: $PP_UUID"
+
+      - name: Build Xcode Project
+        if: env.IOS_SIGNING_AVAILABLE == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd "$PROJECT_PATH/Builds/iOS"
+          
+          # Build archive
+          xcodebuild -project Unity-iPhone.xcodeproj \
+            -scheme Unity-iPhone \
+            -configuration Release \
+            -archivePath "$PROJECT_PATH/Builds/iOS/WebVerse.xcarchive" \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PP_UUID" \
+            archive
+          
+          # Create export options plist
+          cat > "$PROJECT_PATH/Builds/iOS/ExportOptions.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+          
+          # Export IPA
+          xcodebuild -exportArchive \
+            -archivePath "$PROJECT_PATH/Builds/iOS/WebVerse.xcarchive" \
+            -exportPath "$PROJECT_PATH/Builds/iOS/Export" \
+            -exportOptionsPlist "$PROJECT_PATH/Builds/iOS/ExportOptions.plist"
+          
+          echo "IPA exported successfully"
+
+      - name: Create archive
+        run: |
+          mkdir -p "$PROJECT_PATH/Artifacts"
+          if [ -d "$PROJECT_PATH/Builds/iOS" ]; then
+            cd "$PROJECT_PATH/Builds/iOS"
+            find . -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
+            find . -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
+            
+            # If IPA exists, archive that; otherwise archive the Xcode project
+            if [ -d "$PROJECT_PATH/Builds/iOS/Export" ] && [ -f "$PROJECT_PATH/Builds/iOS/Export"/*.ipa ]; then
+              cp "$PROJECT_PATH/Builds/iOS/Export"/*.ipa "$PROJECT_PATH/Artifacts/iOS-$BUILD_ID.ipa"
+            else
+              zip -r "$PROJECT_PATH/Artifacts/iOS-XcodeProject-$BUILD_ID.zip" .
+            fi
+          fi
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_REGION: us-east-1
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          S3_PATH="s3://$S3_BUCKET/builds/$BUILD_ID"
+          for artifact in $PROJECT_PATH/Artifacts/*; do
+            [ -f "$artifact" ] && aws s3 cp "$artifact" "$S3_PATH/$(basename "$artifact")" --region $AWS_REGION
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ needs.prepare.outputs.build_id }}
+          path: ${{ github.workspace }}/Artifacts/*
+          retention-days: 30
+
+      - name: Save Library cache
+        if: success()
+        run: |
+          CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
+          [ -d "$PROJECT_PATH/Library" ] && rsync -a --delete "$PROJECT_PATH/Library/" "$CACHE_LOCATION/"
+
+      - name: Cleanup Keychain
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf "$PROJECT_PATH/Builds" "$PROJECT_PATH/Artifacts" || true
+          rm -rf "$PROJECT_PATH/Assets/Digger" "$PROJECT_PATH/Assets/Digger.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Samples" "$PROJECT_PATH/Assets/Samples.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/NWH" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/NWH.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater.meta" || true
+          rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex.meta" || true
+          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
+
+  # Android build (runs on Windows runner)
+  build-android:
+    needs: [prepare, build-webgl-uncompressed]
+    runs-on: [self-hosted, Windows, unity]
+    timeout-minutes: 720
+    if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_android == 'true') && (needs.build-webgl-uncompressed.result == 'success' || needs.build-webgl-uncompressed.result == 'skipped') }}
+    env:
+      BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+      PROJECT_PATH: ${{ github.workspace }}
+      UNITY_PATH: ${{ vars.UNITY_WINDOWS_PATH || 'C:\Program Files\Unity\Hub\Editor\6000.0.58f2\Editor\Unity.exe' }}
+      UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Assets' }}
+      UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_WINDOWS_PATH || 'C:\UnityAssets\WebVerse\Packages' }}
+      LOCALAPPDATA: ${{ github.workspace }}\.unity-cache\LocalAppData
+      APPDATA: ${{ github.workspace }}\.unity-cache\AppData
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: Restore Library cache
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          if (Test-Path $cacheLocation) {
+            if (Test-Path $libraryPath) { Remove-Item -Recurse -Force $libraryPath }
+            Copy-Item -Path $cacheLocation -Destination $libraryPath -Recurse -Force
+            Write-Host "Library cache restored"
+          }
+
+      - name: Setup Unity cache directories
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheDir = "${{ github.workspace }}\.unity-cache"
+          New-Item -ItemType Directory -Path "$cacheDir\LocalAppData\Unity\Caches" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$cacheDir\AppData\Unity" -Force | Out-Null
+
+      - name: Setup Unity packages (Assets)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $assetsPath = "$env:UNITY_ASSETS_PATH"
+          $packages = @(
+            @{ Name = "Digger"; RelPath = "Digger" },
+            @{ Name = "Samples"; RelPath = "Samples" },
+            @{ Name = "NWH"; RelPath = "Runtime/StraightFour/3rd-party/NWH" },
+            @{ Name = "Silantro"; RelPath = "Runtime/StraightFour/3rd-party/Silantro" },
+            @{ Name = "URPWater"; RelPath = "Runtime/StraightFour/3rd-party/URPWater" }
+          )
+          foreach ($pkg in $packages) {
+            $sourcePath = Join-Path $assetsPath $pkg.RelPath
+            $targetPath = Join-Path "$env:PROJECT_PATH\Assets" $pkg.RelPath
+            if (Test-Path $sourcePath) {
+              $targetParent = Split-Path $targetPath -Parent
+              if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+              if (Test-Path "$sourcePath.meta") { Copy-Item -Path "$sourcePath.meta" -Destination "$targetPath.meta" -Force }
+            }
+          }
+
+      - name: Setup Vuplex Android
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $vuplexSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex-Android"
+          $vuplexTarget = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex"
+          if (Test-Path $vuplexSource) {
+            $targetParent = Split-Path $vuplexTarget -Parent
+            if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
+            if (Test-Path $vuplexTarget) { Remove-Item -Recurse -Force $vuplexTarget }
+            if (Test-Path "$vuplexTarget.meta") { Remove-Item -Force "$vuplexTarget.meta" }
+            New-Item -ItemType Directory -Path $vuplexTarget -Force | Out-Null
+            Copy-Item -Path "$vuplexSource\*" -Destination $vuplexTarget -Recurse -Force
+            $metaSource = Join-Path "$env:UNITY_ASSETS_PATH" "Runtime/StraightFour/3rd-party/Vuplex.meta"
+            if (Test-Path $metaSource) { Copy-Item -Path $metaSource -Destination "$vuplexTarget.meta" -Force }
+            Write-Host "Copied Vuplex Android"
+          } else { Write-Host "::error::Vuplex Android not found"; exit 1 }
+
+      - name: Setup Unity packages (Embedded)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $packagesPath = "$env:UNITY_PACKAGES_PATH"
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          foreach ($pkg in $embeddedPackages) {
+            $sourcePath = Join-Path $packagesPath $pkg
+            $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
+            if (Test-Path $sourcePath) {
+              if (Test-Path $targetPath) { Remove-Item -Recurse -Force $targetPath }
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+            }
+          }
+
+      - name: Create Logs directory
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
+
+      - name: Setup Android Keystore
+        shell: powershell -ExecutionPolicy Bypass {0}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:ANDROID_KEYSTORE_BASE64)) {
+            Write-Host "No Android keystore provided, builds will be unsigned"
+            exit 0
+          }
+          
+          $keystorePath = "$env:PROJECT_PATH\keystore.keystore"
+          [System.IO.File]::WriteAllBytes($keystorePath, [System.Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+          Write-Host "Keystore written to: $keystorePath"
+          echo "ANDROID_KEYSTORE_PATH=$keystorePath" >> $env:GITHUB_ENV
+
+      - name: Build Android APK
+        shell: powershell -ExecutionPolicy Bypass {0}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $buildStart = Get-Date
+          $logFile = "$env:PROJECT_PATH\Logs\build-android-apk.log"
+          
+          # Build arguments
+          $args = @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAPK", "-logFile", $logFile)
+          
+          # Add keystore arguments if available
+          if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
+            $args += @("-keystorePath", $env:ANDROID_KEYSTORE_PATH)
+            if ($env:ANDROID_KEYSTORE_PASSWORD) { $args += @("-keystorePass", $env:ANDROID_KEYSTORE_PASSWORD) }
+            if ($env:ANDROID_KEY_ALIAS) { $args += @("-keyaliasName", $env:ANDROID_KEY_ALIAS) }
+            if ($env:ANDROID_KEY_PASSWORD) { $args += @("-keyaliasPass", $env:ANDROID_KEY_PASSWORD) }
+          }
+          
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList $args -Wait -PassThru -NoNewWindow
+          Write-Host "Build duration: $((Get-Date) - $buildStart)"
+          if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
+          if ($process.ExitCode -ne 0) { Write-Host "::error::APK Build failed"; exit $process.ExitCode }
+
+      - name: Build Android AAB
+        shell: powershell -ExecutionPolicy Bypass {0}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $buildStart = Get-Date
+          $logFile = "$env:PROJECT_PATH\Logs\build-android-aab.log"
+          
+          # Build arguments
+          $args = @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAAB", "-logFile", $logFile)
+          
+          # Add keystore arguments if available
+          if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
+            $args += @("-keystorePath", $env:ANDROID_KEYSTORE_PATH)
+            if ($env:ANDROID_KEYSTORE_PASSWORD) { $args += @("-keystorePass", $env:ANDROID_KEYSTORE_PASSWORD) }
+            if ($env:ANDROID_KEY_ALIAS) { $args += @("-keyaliasName", $env:ANDROID_KEY_ALIAS) }
+            if ($env:ANDROID_KEY_PASSWORD) { $args += @("-keyaliasPass", $env:ANDROID_KEY_PASSWORD) }
+          }
+          
+          $process = Start-Process -FilePath $env:UNITY_PATH -ArgumentList $args -Wait -PassThru -NoNewWindow
+          Write-Host "Build duration: $((Get-Date) - $buildStart)"
+          if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
+          if ($process.ExitCode -ne 0) { Write-Host "::error::AAB Build failed"; exit $process.ExitCode }
+
+      - name: Create archives
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $artifactsDir = "$env:PROJECT_PATH\Artifacts"
+          New-Item -ItemType Directory -Path $artifactsDir -Force | Out-Null
+          $excludeFolders = @("*_BackUpThisFolder_ButDontShipItWithYourGame", "*_BurstDebugInformation_DoNotShip")
+          
+          if (Test-Path "$env:PROJECT_PATH\Builds\Android") {
+            foreach ($pattern in $excludeFolders) {
+              Get-ChildItem "$env:PROJECT_PATH\Builds\Android" -Directory -Filter $pattern -Recurse | ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
+            }
+            
+            # Copy APK if exists
+            $apkFile = Get-ChildItem "$env:PROJECT_PATH\Builds\Android\*.apk" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($apkFile) {
+              Copy-Item $apkFile.FullName "$artifactsDir\Android-$env:BUILD_ID.apk"
+            }
+            
+            # Copy AAB if exists
+            $aabFile = Get-ChildItem "$env:PROJECT_PATH\Builds\Android\*.aab" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($aabFile) {
+              Copy-Item $aabFile.FullName "$artifactsDir\Android-$env:BUILD_ID.aab"
+            }
+          }
+
+      - name: Upload to S3
+        shell: powershell -ExecutionPolicy Bypass {0}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          $awsCli = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
+          if (-not (Test-Path $awsCli)) {
+            $awsCli = (Get-Command aws -ErrorAction SilentlyContinue).Source
+            if (-not $awsCli) { Write-Host "::error::AWS CLI not found"; exit 1 }
+          }
+          $s3Path = "s3://$env:S3_BUCKET/builds/$env:BUILD_ID"
+          Get-ChildItem "$env:PROJECT_PATH\Artifacts\*" | ForEach-Object {
+            & $awsCli s3 cp $_.FullName "$s3Path/$($_.Name)" --region $env:AWS_REGION
+            Write-Host "https://$env:S3_BUCKET.s3.$env:AWS_REGION.amazonaws.com/builds/$env:BUILD_ID/$($_.Name)"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ needs.prepare.outputs.build_id }}
+          path: ${{ github.workspace }}/Artifacts/*
+          retention-days: 30
+
+      - name: Save Library cache
+        if: success()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $cacheLocation = "C:\UnityLibraryCache\WebVerse-Runtime"
+          $libraryPath = "$env:PROJECT_PATH\Library"
+          if (Test-Path $libraryPath) {
+            if (Test-Path $cacheLocation) { Remove-Item -Recurse -Force $cacheLocation }
+            Copy-Item -Path $libraryPath -Destination $cacheLocation -Recurse -Force
+          }
+
+      - name: Cleanup
+        if: always()
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          Remove-Item -Path "$env:PROJECT_PATH\Builds" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Artifacts" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "${{ github.workspace }}\.unity-cache" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\keystore.keystore" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Digger.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Samples.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\NWH.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Silantro.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\URPWater.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Assets\Runtime\StraightFour\Assets\StraightFour\3rd-party\Vuplex.meta" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.occasoftware.super-simple-skybox" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+
   # Summary job
   summary:
-    needs: [prepare, build-windows-desktop, build-webgl-compressed, build-webgl-uncompressed, build-mac]
+    needs: [prepare, build-windows-desktop, build-webgl-compressed, build-webgl-uncompressed, build-mac, build-ios, build-android]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -774,9 +1290,14 @@ jobs:
           echo "| WebGL Compressed | ${{ needs.build-webgl-compressed.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| WebGL Uncompressed | ${{ needs.build-webgl-uncompressed.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Mac Desktop | ${{ needs.build-mac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| iOS | ${{ needs.build-ios.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Android | ${{ needs.build-android.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### S3 URLs" >> $GITHUB_STEP_SUMMARY
           echo "- Windows: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Windows-Desktop-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
           echo "- Mac: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Mac-Desktop-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
           echo "- WebGL Compressed: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Compressed-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
           echo "- WebGL Uncompressed: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/WebGL-Uncompressed-${{ needs.prepare.outputs.build_id }}.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- iOS: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/iOS-${{ needs.prepare.outputs.build_id }}.ipa\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Android APK: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Android-${{ needs.prepare.outputs.build_id }}.apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Android AAB: \`https://${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com/builds/${{ needs.prepare.outputs.build_id }}/Android-${{ needs.prepare.outputs.build_id }}.aab\`" >> $GITHUB_STEP_SUMMARY
