@@ -626,7 +626,7 @@ jobs:
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
       PROJECT_PATH: ${{ github.workspace }}
-      UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2-arm64/Unity.app/Contents/MacOS/Unity' }}
+      UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2/Unity.app/Contents/MacOS/Unity' }}
       UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Assets' }}
       UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Packages' }}
 
@@ -773,7 +773,7 @@ jobs:
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
       PROJECT_PATH: ${{ github.workspace }}
-      UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2-arm64/Unity.app/Contents/MacOS/Unity' }}
+      UNITY_PATH: ${{ vars.UNITY_MAC_PATH || '/Applications/Unity/Hub/Editor/6000.0.58f2/Unity.app/Contents/MacOS/Unity' }}
       UNITY_ASSETS_PATH: ${{ vars.UNITY_ASSETS_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Assets' }}
       UNITY_PACKAGES_PATH: ${{ vars.UNITY_PACKAGES_MAC_PATH || '/Users/Shared/UnityAssets/WebVerse/Packages' }}
 
