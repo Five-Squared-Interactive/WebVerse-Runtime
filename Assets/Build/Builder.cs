@@ -161,28 +161,7 @@ namespace FiveSQD.WebVerse.Building
             ConfigureAndroidBuildSettings();
             
             // Parse command line arguments for keystore
-            string[] args = System.Environment.GetCommandLineArgs();
-            for (int i = 0; i < args.Length; i++)
-            {
-                if (args[i] == "-keystorePath" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keystoreName = args[i + 1];
-                    Debug.Log($"[Android APK] Using keystore: {args[i + 1]}");
-                }
-                else if (args[i] == "-keystorePass" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keystorePass = args[i + 1];
-                }
-                else if (args[i] == "-keyaliasName" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keyaliasName = args[i + 1];
-                    Debug.Log($"[Android APK] Using key alias: {args[i + 1]}");
-                }
-                else if (args[i] == "-keyaliasPass" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keyaliasPass = args[i + 1];
-                }
-            }
+            ParseAndroidKeystoreArguments("Android APK");
             
             // Set build to APK format
             EditorUserBuildSettings.buildAppBundle = false;
@@ -212,28 +191,7 @@ namespace FiveSQD.WebVerse.Building
             ConfigureAndroidBuildSettings();
             
             // Parse command line arguments for keystore
-            string[] args = System.Environment.GetCommandLineArgs();
-            for (int i = 0; i < args.Length; i++)
-            {
-                if (args[i] == "-keystorePath" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keystoreName = args[i + 1];
-                    Debug.Log($"[Android AAB] Using keystore: {args[i + 1]}");
-                }
-                else if (args[i] == "-keystorePass" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keystorePass = args[i + 1];
-                }
-                else if (args[i] == "-keyaliasName" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keyaliasName = args[i + 1];
-                    Debug.Log($"[Android AAB] Using key alias: {args[i + 1]}");
-                }
-                else if (args[i] == "-keyaliasPass" && i + 1 < args.Length)
-                {
-                    PlayerSettings.Android.keyaliasPass = args[i + 1];
-                }
-            }
+            ParseAndroidKeystoreArguments("Android AAB");
             
             // Set build to AAB format
             EditorUserBuildSettings.buildAppBundle = true;
@@ -324,10 +282,40 @@ namespace FiveSQD.WebVerse.Building
             // Set target SDK to Device SDK (for physical devices)
             PlayerSettings.iOS.sdkVersion = iOSSdkVersion.DeviceSDK;
             
-            // Enable automatic signing (can be overridden in Xcode)
+            // Disable automatic signing (to be configured in Xcode)
             PlayerSettings.iOS.appleEnableAutomaticSigning = false;
             
             Debug.Log("[iOS Config] Configured build settings: IL2CPP backend, iOS 13.0+, Device SDK");
+        }
+
+        /// <summary>
+        /// Parse Android keystore arguments from command line.
+        /// </summary>
+        /// <param name="buildType">The type of build (for logging purposes).</param>
+        private static void ParseAndroidKeystoreArguments(string buildType)
+        {
+            string[] args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "-keystorePath" && i + 1 < args.Length)
+                {
+                    PlayerSettings.Android.keystoreName = args[i + 1];
+                    Debug.Log($"[{buildType}] Using keystore: {args[i + 1]}");
+                }
+                else if (args[i] == "-keystorePass" && i + 1 < args.Length)
+                {
+                    PlayerSettings.Android.keystorePass = args[i + 1];
+                }
+                else if (args[i] == "-keyaliasName" && i + 1 < args.Length)
+                {
+                    PlayerSettings.Android.keyaliasName = args[i + 1];
+                    Debug.Log($"[{buildType}] Using key alias: {args[i + 1]}");
+                }
+                else if (args[i] == "-keyaliasPass" && i + 1 < args.Length)
+                {
+                    PlayerSettings.Android.keyaliasPass = args[i + 1];
+                }
+            }
         }
 
         /// <summary>
