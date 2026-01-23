@@ -175,6 +175,8 @@ namespace FiveSQD.WebVerse.Building
             };
 
             ExecuteBuild(options, "Android APK");
+
+            EditorApplication.Exit(0);
         }
 
         /// <summary>
