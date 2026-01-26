@@ -261,9 +261,6 @@ namespace FiveSQD.WebVerse.Building
             // Set minimum API level (Android 7.0 / API level 24)
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
             
-            // Set scripting backend to IL2CPP for better performance
-            PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
-            
             // Target ARM64 architecture (required by Google Play Store)
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             
