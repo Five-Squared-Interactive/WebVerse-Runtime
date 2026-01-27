@@ -1160,6 +1160,7 @@ jobs:
           Write-Host "Build duration: $((Get-Date) - $buildStart)"
           if (Test-Path $logFile) { Get-Content $logFile -Tail 500 }
           if ($process.ExitCode -ne 0) { Write-Host "::error::APK Build failed"; exit $process.ExitCode }
+      - name: Build Android AAB
         shell: powershell -ExecutionPolicy Bypass {0}
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
