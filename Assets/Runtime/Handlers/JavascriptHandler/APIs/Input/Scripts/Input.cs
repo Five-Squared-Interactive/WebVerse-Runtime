@@ -51,6 +51,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         {
             UnityEngine.Vector2 moveValue = new UnityEngine.Vector2(amount.x, amount.y);
             WebVerseRuntime.Instance.inputManager.moveValue = moveValue;
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyMovement(moveValue);
+            }
         }
 
         /// <summary>
@@ -83,6 +87,20 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         {
             UnityEngine.Vector2 lookValue = WebVerseRuntime.Instance.inputManager.lookValue;
             return new Vector2(lookValue.x, lookValue.y);
+        }
+
+        /// <summary>
+        /// Set the current look value programmatically.
+        /// </summary>
+        /// <param name="amount">A Vector2 representing the desired look direction.</param>
+        public static void SetLook(Vector2 amount)
+        {
+            UnityEngine.Vector2 lookValue = new UnityEngine.Vector2(amount.x, amount.y);
+            WebVerseRuntime.Instance.inputManager.lookValue = lookValue;
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.ApplyLook(lookValue);
+            }
         }
 
         /// <summary>
