@@ -1024,7 +1024,7 @@ jobs:
   build-android:
     needs: [prepare, build-webgl-uncompressed]
     runs-on: [self-hosted, Windows, unity]
-    timeout-minutes: 720
+    timeout-minutes: 1440
     if: ${{ always() && (github.event_name == 'push' || github.event.inputs.build_android == 'true') && (needs.build-webgl-uncompressed.result == 'success' || needs.build-webgl-uncompressed.result == 'skipped') }}
     env:
       BUILD_ID: ${{ needs.prepare.outputs.build_id }}
