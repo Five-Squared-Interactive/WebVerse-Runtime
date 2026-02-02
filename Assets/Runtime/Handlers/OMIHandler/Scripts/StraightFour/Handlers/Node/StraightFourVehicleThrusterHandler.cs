@@ -10,6 +10,7 @@ using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
 using OMI.Extensions.Vehicle;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 {
@@ -71,9 +72,101 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             // Create entity for the thruster with correct parent
             GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
 
+            // Attach thruster to parent vehicle entity using adapter pattern (Task 2R.7)
+            AttachThrusterToVehicleEntity(targetObject, data.thruster, nodeIndex, context);
+
             Logging.Log($"[StraightFour] Created vehicle thruster on {targetObject.name} (maxForce={thrusterSettings.maxForce}N)");
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Logs thruster attachment to parent vehicle entity.
+        /// Thrusters work via OMIVehicleThrusterBehavior which applies forces directly to the parent Rigidbody.
+        /// No configuration needed - the behavior handles everything through Unity's physics system.
+        /// </summary>
+        private void AttachThrusterToVehicleEntity(GameObject thrusterObject, int thrusterIndex, int nodeIndex, OMIImportContext context)
+        {
+            // Find parent vehicle entity for logging purposes
+            BaseEntity parentEntity = null;
+            if (context.CustomData != null && context.CustomData.TryGetValue("SF_NodeParentIndices", out var parentMapObj))
+            {
+                var parentMap = parentMapObj as Dictionary<int, int>;
+                if (parentMap != null && parentMap.TryGetValue(nodeIndex, out var parentNodeIndex))
+                {
+                    parentEntity = GetEntityForNode(context, parentNodeIndex);
+                }
+            }
+
+            if (parentEntity == null)
+            {
+                Logging.LogWarning("[StraightFourVehicleThrusterHandler] No parent vehicle entity found for thruster");
+                return;
+            }
+
+            // Get the raw glTF JSON to extract thruster configuration for logging
+            if (!context.CustomData.TryGetValue("SF_GltfJson", out var jsonObj))
+            {
+                Logging.LogWarning("[StraightFourVehicleThrusterHandler] No glTF JSON found in context");
+                return;
+            }
+
+            var root = jsonObj as JObject;
+            if (root == null)
+            {
+                return;
+            }
+
+            // Get document-level thruster definitions
+            var extensions = root["extensions"] as JObject;
+            var vehicleExt = extensions?["OMI_vehicle"] as JObject;
+            var thrusters = vehicleExt?["thrusters"] as JArray;
+
+            if (thrusters == null || thrusterIndex < 0 || thrusterIndex >= thrusters.Count)
+            {
+                Logging.LogWarning($"[StraightFourVehicleThrusterHandler] Invalid thruster index {thrusterIndex}");
+                return;
+            }
+
+            var omiThruster = thrusters[thrusterIndex] as JObject;
+            if (omiThruster == null)
+            {
+                return;
+            }
+
+            // Extract thruster properties for logging
+            float maxThrust = omiThruster["maxThrust"]?.Value<float>() ?? 1000f;
+            Vector3 thrustDirection = thrusterObject.transform.forward;
+
+            // Determine thruster type based on direction
+            string thrusterType = "lateral";
+            float verticalComponent = Vector3.Dot(thrustDirection.normalized, Vector3.up);
+            float forwardComponent = Vector3.Dot(thrustDirection.normalized, thrusterObject.transform.forward);
+
+            if (Mathf.Abs(verticalComponent) > 0.7f)
+            {
+                thrusterType = "vertical";
+            }
+            else if (Mathf.Abs(forwardComponent) > 0.7f)
+            {
+                thrusterType = "forward";
+            }
+
+            // Log thruster attachment
+            if (parentEntity is AirplaneEntity)
+            {
+                Logging.Log($"[StraightFourVehicleThrusterHandler] Attached {thrusterType} thruster to AirplaneEntity: " +
+                           $"maxThrust={maxThrust}N, direction={thrustDirection}");
+            }
+            else if (parentEntity is AutomobileEntity)
+            {
+                Logging.Log($"[StraightFourVehicleThrusterHandler] Attached {thrusterType} thruster to AutomobileEntity: " +
+                           $"maxThrust={maxThrust}N, direction={thrustDirection}");
+            }
+            else
+            {
+                Logging.LogWarning($"[StraightFourVehicleThrusterHandler] Parent entity is not a vehicle type: {parentEntity.GetType().Name}");
+            }
         }
     }
 

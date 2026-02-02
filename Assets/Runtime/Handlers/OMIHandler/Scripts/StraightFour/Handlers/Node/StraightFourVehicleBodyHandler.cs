@@ -10,6 +10,7 @@ using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
 using OMI.Extensions.Vehicle;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 {
@@ -52,12 +53,197 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                     parentEntity = GetEntityForNode(context, parentNodeIndex);
                 }
             }
+
             // Create entity for the vehicle with correct parent
-            GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
+            BaseEntity entity = GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
+
+            // Configure vehicle physics using adapter pattern (Task 2R.7)
+            if (entity != null)
+            {
+                ConfigureVehiclePhysicsFromOMI(entity, nodeIndex, context);
+            }
 
             Logging.Log($"[StraightFour] Created vehicle body on {targetObject.name}");
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Configures vehicle entity by setting Rigidbody properties directly from OMI data.
+        /// No configuration structs or methods - uses existing entity/Unity APIs directly.
+        /// </summary>
+        private void ConfigureVehiclePhysicsFromOMI(BaseEntity entity, int nodeIndex, OMIImportContext context)
+        {
+            // Get the raw glTF JSON to extract OMI extension data
+            if (!context.CustomData.TryGetValue("SF_GltfJson", out var jsonObj))
+            {
+                Logging.LogWarning("[StraightFourVehicleBodyHandler] No glTF JSON found in context");
+                return;
+            }
+
+            var root = jsonObj as JObject;
+            if (root == null)
+            {
+                return;
+            }
+
+            // Navigate to the node's OMI_vehicle_body extension
+            var nodes = root["nodes"] as JArray;
+            if (nodes == null || nodeIndex < 0 || nodeIndex >= nodes.Count)
+            {
+                return;
+            }
+
+            var node = nodes[nodeIndex] as JObject;
+            var extensions = node?["extensions"] as JObject;
+            var omiVehicleBody = extensions?["OMI_vehicle_body"] as JObject;
+
+            if (omiVehicleBody == null)
+            {
+                Logging.LogWarning($"[StraightFourVehicleBodyHandler] No OMI_vehicle_body extension found for node {nodeIndex}");
+                return;
+            }
+
+            // Set properties directly based on entity type
+            if (entity is AutomobileEntity automobile)
+            {
+                ConfigureAutomobile(automobile, omiVehicleBody);
+            }
+            else if (entity is AirplaneEntity airplane)
+            {
+                ConfigureAirplane(airplane, omiVehicleBody);
+            }
+            else
+            {
+                Logging.LogWarning($"[StraightFourVehicleBodyHandler] Entity is not a vehicle type: {entity.GetType().Name}");
+            }
+        }
+
+        /// <summary>
+        /// Configure automobile by setting Rigidbody properties directly.
+        /// </summary>
+        private void ConfigureAutomobile(AutomobileEntity automobile, JObject omiVehicleBody)
+        {
+            var rbody = automobile.rbody;
+            if (rbody == null)
+            {
+                Logging.LogWarning("[StraightFourVehicleBodyHandler] Automobile has no Rigidbody");
+                return;
+            }
+
+            // Check if OMI_physics_body already configured this Rigidbody
+            var physicsBodyConfigured = automobile.gameObject.GetComponent<OMIPhysicsBodyConfigured>();
+            if (physicsBodyConfigured != null)
+            {
+                Logging.LogWarning("[StraightFourVehicleBodyHandler] Node has both OMI_physics_body and OMI_vehicle_body. " +
+                                   "Physics body configuration takes precedence for Rigidbody properties (mass, centerOfMass, etc.). " +
+                                   "Vehicle handler will only configure damping properties.");
+            }
+
+            // OMI field: linearDampeners → Unity property: linearDamping
+            bool linearDampeners = omiVehicleBody["linearDampeners"]?.Value<bool>() ?? true;
+            if (linearDampeners)
+            {
+                rbody.linearDamping = 0.5f;
+            }
+
+            // OMI field: angularDampeners → Unity property: angularDamping
+            bool angularDampeners = omiVehicleBody["angularDampeners"]?.Value<bool>() ?? true;
+            if (angularDampeners)
+            {
+                rbody.angularDamping = 0.5f;
+            }
+
+            // OMI field: centerOfMass → Unity property: centerOfMass
+            // Only set if physics body handler hasn't already configured it
+            if (physicsBodyConfigured == null)
+            {
+                var centerOfMassArray = omiVehicleBody["centerOfMass"] as JArray;
+                if (centerOfMassArray != null && centerOfMassArray.Count >= 3)
+                {
+                    Vector3 centerOfMass = new Vector3(
+                        centerOfMassArray[0]?.Value<float>() ?? 0f,
+                        centerOfMassArray[1]?.Value<float>() ?? 0f,
+                        centerOfMassArray[2]?.Value<float>() ?? 0f
+                    );
+                    if (centerOfMass != Vector3.zero)
+                    {
+                        rbody.centerOfMass = centerOfMass;
+                    }
+                }
+            }
+
+            float maxSpeed = omiVehicleBody["maxSpeed"]?.Value<float>() ?? 50f;
+            bool useThrottle = omiVehicleBody["useThrottle"]?.Value<bool>() ?? true;
+
+            Logging.Log($"[StraightFourVehicleBodyHandler] Configured automobile: " +
+                       $"maxSpeed={maxSpeed}m/s, useThrottle={useThrottle}, " +
+                       $"linearDamping={rbody.linearDamping}, angularDamping={rbody.angularDamping}");
+        }
+
+        /// <summary>
+        /// Configure airplane by setting Rigidbody and throttle properties directly.
+        /// </summary>
+        private void ConfigureAirplane(AirplaneEntity airplane, JObject omiVehicleBody)
+        {
+            var rbody = airplane.rbody;
+            if (rbody == null)
+            {
+                Logging.LogWarning("[StraightFourVehicleBodyHandler] Airplane has no Rigidbody");
+                return;
+            }
+
+            // Check if OMI_physics_body already configured this Rigidbody
+            var physicsBodyConfigured = airplane.gameObject.GetComponent<OMIPhysicsBodyConfigured>();
+            if (physicsBodyConfigured != null)
+            {
+                Logging.LogWarning("[StraightFourVehicleBodyHandler] Node has both OMI_physics_body and OMI_vehicle_body. " +
+                                   "Physics body configuration takes precedence for Rigidbody properties (mass, centerOfMass, etc.). " +
+                                   "Vehicle handler will only configure damping properties.");
+            }
+
+            // OMI field: linearDampeners → Unity property: linearDamping
+            bool linearDampeners = omiVehicleBody["linearDampeners"]?.Value<bool>() ?? true;
+            if (linearDampeners)
+            {
+                rbody.linearDamping = Mathf.Max(rbody.linearDamping, 1f);
+            }
+
+            // OMI field: angularDampeners → Unity property: angularDamping
+            bool angularDampeners = omiVehicleBody["angularDampeners"]?.Value<bool>() ?? true;
+            if (angularDampeners)
+            {
+                rbody.angularDamping = Mathf.Max(rbody.angularDamping, 2f);
+            }
+
+            // OMI field: centerOfMass → Unity property: centerOfMass
+            // Only set if physics body handler hasn't already configured it
+            if (physicsBodyConfigured == null)
+            {
+                var centerOfMassArray = omiVehicleBody["centerOfMass"] as JArray;
+                if (centerOfMassArray != null && centerOfMassArray.Count >= 3)
+                {
+                    Vector3 centerOfMass = new Vector3(
+                        centerOfMassArray[0]?.Value<float>() ?? 0f,
+                        centerOfMassArray[1]?.Value<float>() ?? 0f,
+                        centerOfMassArray[2]?.Value<float>() ?? 0f
+                    );
+                    if (centerOfMass != Vector3.zero)
+                    {
+                        rbody.centerOfMass = centerOfMass;
+                    }
+                }
+            }
+
+            // OMI field: useThrottle → AirplaneEntity property: throttle
+            bool useThrottle = omiVehicleBody["useThrottle"]?.Value<bool>() ?? true;
+            airplane.throttle = useThrottle ? 0f : 1f;
+
+            float maxSpeed = omiVehicleBody["maxSpeed"]?.Value<float>() ?? 50f;
+
+            Logging.Log($"[StraightFourVehicleBodyHandler] Configured airplane: " +
+                       $"maxSpeed={maxSpeed}m/s, throttle={airplane.throttle}, " +
+                       $"linearDamping={rbody.linearDamping}, angularDamping={rbody.angularDamping}");
         }
     }
 

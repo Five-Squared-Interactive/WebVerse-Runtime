@@ -103,6 +103,81 @@ namespace FiveSQD.StraightFour.Entity
         }
 
         /// <summary>
+        /// Spatial blend (0 = 2D, 1 = 3D).
+        /// </summary>
+        public float spatialBlend
+        {
+            get
+            {
+                return audioSourceObject.spatialBlend;
+            }
+            set
+            {
+                audioSourceObject.spatialBlend = value;
+            }
+        }
+
+        /// <summary>
+        /// Minimum distance for 3D audio attenuation.
+        /// </summary>
+        public float minDistance
+        {
+            get
+            {
+                return audioSourceObject.minDistance;
+            }
+            set
+            {
+                audioSourceObject.minDistance = value;
+            }
+        }
+
+        /// <summary>
+        /// Maximum distance for 3D audio attenuation.
+        /// </summary>
+        public float maxDistance
+        {
+            get
+            {
+                return audioSourceObject.maxDistance;
+            }
+            set
+            {
+                audioSourceObject.maxDistance = value;
+            }
+        }
+
+        /// <summary>
+        /// Audio rolloff mode for distance attenuation.
+        /// </summary>
+        public AudioRolloffMode rolloffMode
+        {
+            get
+            {
+                return audioSourceObject.rolloffMode;
+            }
+            set
+            {
+                audioSourceObject.rolloffMode = value;
+            }
+        }
+
+        /// <summary>
+        /// Doppler effect level (0 = none, 1 = full).
+        /// </summary>
+        public float dopplerLevel
+        {
+            get
+            {
+                return audioSourceObject.dopplerLevel;
+            }
+            set
+            {
+                audioSourceObject.dopplerLevel = value;
+            }
+        }
+
+        /// <summary>
         /// The audio source object.
         /// </summary>
         private AudioSource audioSourceObject;

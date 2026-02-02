@@ -85,6 +85,16 @@ namespace FiveSQD.StraightFour.Entity
         public float minUpdateTime = 0.05f;
 
         /// <summary>
+        /// Links attached to this entity.
+        /// </summary>
+        private List<LinkData> links = new List<LinkData>();
+
+        /// <summary>
+        /// Seats attached to this entity.
+        /// </summary>
+        private List<SeatData> seats = new List<SeatData>();
+
+        /// <summary>
         /// Interaction state of the entity.
         /// </summary>
         protected InteractionState interactionState;
@@ -857,6 +867,42 @@ namespace FiveSQD.StraightFour.Entity
                 }
             }
             return filteredAnimations.ToArray();
+        }
+
+        /// <summary>
+        /// Add a link to this entity.
+        /// </summary>
+        /// <param name="linkData">Link data to add.</param>
+        public void AddLink(LinkData linkData)
+        {
+            links.Add(linkData);
+        }
+
+        /// <summary>
+        /// Add a seat to this entity.
+        /// </summary>
+        /// <param name="seatData">Seat data to add.</param>
+        public void AddSeat(SeatData seatData)
+        {
+            seats.Add(seatData);
+        }
+
+        /// <summary>
+        /// Get all links attached to this entity.
+        /// </summary>
+        /// <returns>Array of links.</returns>
+        public LinkData[] GetLinks()
+        {
+            return links.ToArray();
+        }
+
+        /// <summary>
+        /// Get all seats attached to this entity.
+        /// </summary>
+        /// <returns>Array of seats.</returns>
+        public SeatData[] GetSeats()
+        {
+            return seats.ToArray();
         }
 
         /// <summary>
