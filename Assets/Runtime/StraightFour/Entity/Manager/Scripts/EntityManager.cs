@@ -382,6 +382,32 @@ namespace FiveSQD.StraightFour.Entity
         }
 
         /// <summary>
+        /// Registers an existing entity component into the EntityManager.
+        /// Use this when an entity component has already been added to a GameObject (e.g., from glTF import)
+        /// and needs to be tracked in the entity manager's dictionary for JavaScript API access and world save/load.
+        /// </summary>
+        /// <param name="entity">The entity to register.</param>
+        /// <param name="id">The ID to register the entity under.</param>
+        public void RegisterEntity(BaseEntity entity, Guid id)
+        {
+            if (entity == null)
+            {
+                LogSystem.LogError("[EntityManager->RegisterEntity] Cannot register null entity.");
+                return;
+            }
+
+            if (entities.ContainsKey(id))
+            {
+                LogSystem.LogWarning($"[EntityManager->RegisterEntity] Entity with ID {id} already exists. Overwriting.");
+                entities[id] = entity;
+            }
+            else
+            {
+                entities.Add(id, entity);
+            }
+        }
+
+        /// <summary>
         /// Load a canvas entity.
         /// </summary>
         /// <param name="parentEntity">Parent entity to give the canvas entity.</param>

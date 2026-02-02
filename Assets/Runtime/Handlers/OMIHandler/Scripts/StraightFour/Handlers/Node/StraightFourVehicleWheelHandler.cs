@@ -4,11 +4,16 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FiveSQD.StraightFour.Entity;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
 using OMI.Extensions.Vehicle;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
+#if NWH_VEHICLE_PHYSICS
+using NWH.WheelController3D;
+#endif
 
 namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 {
@@ -54,9 +59,117 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
             var wheelBehavior = targetObject.AddComponent<OMIVehicleWheelBehavior>();
             wheelBehavior.Initialize(wheelSettings, wheelCollider);
 
+            // Configure wheel on parent vehicle entity using adapter pattern (Task 2R.7)
+            AttachWheelToVehicleEntity(targetObject, data.wheel, nodeIndex, context);
+
             Logging.Log($"[StraightFour] Created vehicle wheel on {targetObject.name}");
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Attaches wheel to parent vehicle entity by directly manipulating entity properties.
+        /// No configuration structs - uses existing entity lists and Unity APIs directly.
+        /// </summary>
+        private void AttachWheelToVehicleEntity(GameObject wheelObject, int wheelIndex, int nodeIndex, OMIImportContext context)
+        {
+            // Find parent vehicle entity
+            BaseEntity parentEntity = null;
+            if (context.CustomData != null && context.CustomData.TryGetValue("SF_NodeParentIndices", out var parentMapObj))
+            {
+                var parentMap = parentMapObj as Dictionary<int, int>;
+                if (parentMap != null && parentMap.TryGetValue(nodeIndex, out var parentNodeIndex))
+                {
+                    parentEntity = GetEntityForNode(context, parentNodeIndex);
+                }
+            }
+
+            if (!(parentEntity is AutomobileEntity automobile))
+            {
+                Logging.LogWarning($"[StraightFourVehicleWheelHandler] Parent entity is not an AutomobileEntity: {parentEntity?.GetType().Name ?? "null"}");
+                return;
+            }
+
+            // Get the raw glTF JSON to extract wheel configuration
+            if (!context.CustomData.TryGetValue("SF_GltfJson", out var jsonObj))
+            {
+                Logging.LogWarning("[StraightFourVehicleWheelHandler] No glTF JSON found in context");
+                return;
+            }
+
+            var root = jsonObj as JObject;
+            if (root == null)
+            {
+                return;
+            }
+
+            // Get document-level wheel definitions
+            var extensions = root["extensions"] as JObject;
+            var vehicleExt = extensions?["OMI_vehicle"] as JObject;
+            var wheels = vehicleExt?["wheels"] as JArray;
+
+            if (wheels == null || wheelIndex < 0 || wheelIndex >= wheels.Count)
+            {
+                Logging.LogWarning($"[StraightFourVehicleWheelHandler] Invalid wheel index {wheelIndex}");
+                return;
+            }
+
+            var omiWheel = wheels[wheelIndex] as JObject;
+            if (omiWheel == null)
+            {
+                return;
+            }
+
+            // Initialize wheel lists if needed
+            if (automobile.wheels == null)
+            {
+                automobile.wheels = new List<GameObject>();
+            }
+
+#if NWH_VEHICLE_PHYSICS
+            if (automobile.wheelControllers == null)
+            {
+                automobile.wheelControllers = new List<WheelController>();
+            }
+#endif
+
+            // Add wheel to tracking list
+            automobile.wheels.Add(wheelObject);
+
+#if NWH_VEHICLE_PHYSICS
+            // Configure WheelController from OMI parameters
+            WheelController wc = wheelObject.GetComponent<WheelController>();
+            if (wc == null)
+            {
+                wc = wheelObject.AddComponent<WheelController>();
+            }
+
+            // Set properties directly from OMI data
+            wc.Radius = omiWheel["radius"]?.Value<float>() ?? 0.35f;
+            wc.SpringMaxLength = omiWheel["suspensionTravel"]?.Value<float>() ?? 0.2f;
+
+            // Optional properties
+            float springStiffness = omiWheel["springStiffness"]?.Value<float>() ?? 0f;
+            if (springStiffness > 0)
+            {
+                wc.SpringMaxForce = springStiffness;
+            }
+
+            float damping = omiWheel["damping"]?.Value<float>() ?? 0f;
+            if (damping > 0)
+            {
+                wc.DamperBumpForce = damping;
+                wc.DamperReboundForce = damping;
+            }
+
+            // Add to wheel controller list
+            automobile.wheelControllers.Add(wc);
+
+            Logging.Log($"[StraightFourVehicleWheelHandler] Attached wheel: {wheelObject.name}, " +
+                       $"radius={wc.Radius}m, suspensionTravel={wc.SpringMaxLength}m");
+#else
+            Logging.Log($"[StraightFourVehicleWheelHandler] Attached wheel: {wheelObject.name} (NWH Vehicle Physics not available)");
+#endif
         }
 
         private void ConfigureWheelCollider(WheelCollider wheel, OMIVehicleWheelSettings settings)

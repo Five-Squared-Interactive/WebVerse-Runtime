@@ -10,6 +10,7 @@ using FiveSQD.WebVerse.Handlers.OMI.StraightFour;
 using OMI;
 using OMI.Extensions.Audio;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 {
@@ -62,11 +63,100 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                 }
             }
             // Create entity for the audio source with correct parent
-            GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
+            BaseEntity entity = GetOrCreateEntity(context, nodeIndex, targetObject, parentEntity);
+
+            // Configure audio entity using adapter pattern (Task 2R.7)
+            if (entity != null)
+            {
+                ConfigureAudioFromOMI(entity, data.emitter, context);
+            }
 
             Logging.Log($"[StraightFour] Created audio emitter: {emitter.name ?? "unnamed"}, type={emitter.type}");
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Configures audio entity by setting properties directly from OMI data.
+        /// No configuration structs or methods - uses entity APIs directly.
+        /// </summary>
+        private void ConfigureAudioFromOMI(BaseEntity entity, int emitterIndex, OMIImportContext context)
+        {
+            if (!(entity is AudioEntity audioEntity))
+            {
+                Logging.LogWarning($"[StraightFourAudioEmitterHandler] Entity is not an AudioEntity: {entity.GetType().Name}");
+                return;
+            }
+
+            // Get the raw glTF JSON to extract KHR_audio_emitter extension data
+            if (!context.CustomData.TryGetValue("SF_GltfJson", out var jsonObj))
+            {
+                Logging.LogWarning("[StraightFourAudioEmitterHandler] No glTF JSON found in context");
+                return;
+            }
+
+            var root = jsonObj as JObject;
+            if (root == null)
+            {
+                return;
+            }
+
+            // Get document-level emitter definitions
+            var extensions = root["extensions"] as JObject;
+            var audioExt = extensions?["KHR_audio"] as JObject;
+            var emitters = audioExt?["emitters"] as JArray;
+
+            if (emitters == null || emitterIndex < 0 || emitterIndex >= emitters.Count)
+            {
+                Logging.LogWarning($"[StraightFourAudioEmitterHandler] Invalid emitter index {emitterIndex}");
+                return;
+            }
+
+            var khrAudioEmitter = emitters[emitterIndex] as JObject;
+            if (khrAudioEmitter == null)
+            {
+                return;
+            }
+
+            // Set properties directly on the audio entity
+            // KHR field: gain → AudioEntity property: volume
+            audioEntity.volume = khrAudioEmitter["gain"]?.Value<float>() ?? 1.0f;
+
+            // Pitch property
+            audioEntity.pitch = khrAudioEmitter["pitch"]?.Value<float>() ?? 1.0f;
+
+            // Loop property
+            audioEntity.loop = khrAudioEmitter["loop"]?.Value<bool>() ?? false;
+
+            // KHR field: refDistance → AudioEntity property: minDistance
+            audioEntity.minDistance = khrAudioEmitter["refDistance"]?.Value<float>() ?? 1.0f;
+
+            // Max distance for attenuation
+            audioEntity.maxDistance = khrAudioEmitter["maxDistance"]?.Value<float>() ?? 500f;
+
+            // Fully 3D spatial audio
+            audioEntity.spatialBlend = 1.0f;
+
+            // Enable doppler effect
+            audioEntity.dopplerLevel = khrAudioEmitter["dopplerLevel"]?.Value<float>() ?? 1.0f;
+
+            // Rolloff factor determines rolloff mode
+            float rolloffFactor = khrAudioEmitter["rolloffFactor"]?.Value<float>() ?? 1.0f;
+            if (rolloffFactor <= 0.01f)
+            {
+                audioEntity.rolloffMode = AudioRolloffMode.Custom; // No attenuation
+            }
+            else if (rolloffFactor > 1.5f)
+            {
+                audioEntity.rolloffMode = AudioRolloffMode.Linear; // Fast falloff
+            }
+            else
+            {
+                audioEntity.rolloffMode = AudioRolloffMode.Logarithmic; // Realistic falloff
+            }
+
+            Logging.Log($"[StraightFourAudioEmitterHandler] Configured AudioEntity: volume={audioEntity.volume}, " +
+                       $"loop={audioEntity.loop}, minDistance={audioEntity.minDistance}, maxDistance={audioEntity.maxDistance}");
         }
     }
 

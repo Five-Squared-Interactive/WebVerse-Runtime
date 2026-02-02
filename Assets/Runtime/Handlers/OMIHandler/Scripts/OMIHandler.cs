@@ -498,15 +498,18 @@ namespace FiveSQD.WebVerse.Handlers.OMI
             {
                 Logging.LogWarning("[OMIHandler] Could not parse glTF JSON for OMI extensions, continuing without extensions");
             }
-            
+
             // Create OMI import context with our properly-configured glTFast import
             OMIImportContext context = new OMIImportContext(gltfImport, extensionManager, omiSettings);
             context.RootObject = rootObject;
             context.BuildNodeMapping(rootObject);
 
-            // Build and store node parent mapping for handler use
+            // Store glTF JSON in context for extension detection (used by StraightFour OMIExtensionDetector)
             if (jsonRoot != null)
             {
+                context.CustomData["SF_GltfJson"] = jsonRoot;
+
+                // Build and store node parent mapping for handler use
                 var parentMap = FiveSQD.WebVerse.Handlers.OMI.StraightFour.StraightFourOMIAdapter.BuildNodeParentMapping(jsonRoot);
                 context.CustomData["SF_NodeParentIndices"] = parentMap;
             }

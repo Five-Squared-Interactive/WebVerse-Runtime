@@ -76,14 +76,20 @@ namespace FiveSQD.StraightFour.Entity
 
         public void StartEngine()
         {
-            fixedController.m_startAltitude = transform.position.y;
-            fixedController.StartHotAircraft();
-            fixedController.TurnOnEngines();
+            if (fixedController != null)
+            {
+                fixedController.m_startAltitude = transform.position.y;
+                fixedController.StartHotAircraft();
+                fixedController.TurnOnEngines();
+            }
         }
 
         public void StopEngine()
         {
-            fixedController.TurnOffEngines();
+            if (fixedController != null)
+            {
+                fixedController.TurnOffEngines();
+            }
         }
 
         /// <summary>
@@ -402,9 +408,13 @@ namespace FiveSQD.StraightFour.Entity
             SetColliders(mcs.ToArray());
 
             fixedController = gameObject.GetComponent<FixedController>();
+            if (fixedController == null)
+            {
+                fixedController = gameObject.AddComponent<FixedController>();
+            }
+            fixedController.isControllable = true;
 
             meshNeedsSetup = true;
-            fixedController.isControllable = true;
             MakeHidden();
             SetUpHighlightVolume();
         }
@@ -421,9 +431,12 @@ namespace FiveSQD.StraightFour.Entity
         protected override void Update()
         {
             base.Update();
-            
-            fixedController.SendCustomAircraftInputs(pitch, roll, yaw, throttle, 1, 50);
-            
+
+            if (fixedController != null)
+            {
+                fixedController.SendCustomAircraftInputs(pitch, roll, yaw, throttle, 1, 50);
+            }
+
             if (meshNeedsSetup)
             {
                 cyclesWaitedForMeshSetup++;

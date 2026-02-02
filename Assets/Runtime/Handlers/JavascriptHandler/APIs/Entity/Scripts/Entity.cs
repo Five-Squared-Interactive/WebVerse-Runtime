@@ -28,9 +28,17 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
             {
                 return null;
             }
+            else if (result is AirplaneEntity)
+            {
+                return (AirplaneEntity) result;
+            }
             else if (result is AudioEntity)
             {
                 return (AudioEntity) result;
+            }
+            else if (result is AutomobileEntity)
+            {
+                return (AutomobileEntity) result;
             }
             else if (result is ButtonEntity)
             {

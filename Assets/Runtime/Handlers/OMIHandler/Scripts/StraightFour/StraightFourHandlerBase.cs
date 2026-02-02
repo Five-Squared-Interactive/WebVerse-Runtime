@@ -77,6 +77,7 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
 
         /// <summary>
         /// Creates a StraightFour entity from a GameObject if one doesn't exist.
+        /// Uses StraightFourEntityFactory to create the appropriate entity type based on OMI extensions.
         /// </summary>
         /// <param name="context">Import context.</param>
         /// <param name="nodeIndex">glTF node index.</param>
@@ -86,7 +87,7 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
         protected BaseEntity GetOrCreateEntity(OMIImportContext context, int nodeIndex, GameObject gameObject, BaseEntity parent = null)
         {
             Logging.Log($"[StraightFour] GetOrCreateEntity called for node {nodeIndex}: {gameObject?.name}");
-            
+
             // Check if entity already exists
             var existing = GetEntityForNode(context, nodeIndex);
             if (existing != null)
@@ -101,65 +102,15 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                 return null;
             }
 
-            BaseEntity entity = null;
-            System.Guid entityId = System.Guid.NewGuid();
-
-            // Check if this object has a mesh
-            var meshFilter = gameObject.GetComponent<MeshFilter>();
-            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
-
-            if (meshFilter != null && meshRenderer != null && meshFilter.sharedMesh != null)
-            {
-                // Check if MeshEntity already exists
-                var existingMeshEntity = gameObject.GetComponent<MeshEntity>();
-                if (existingMeshEntity != null)
-                {
-                    entity = existingMeshEntity;
-                }
-                else
-                {
-                    var meshEntity = gameObject.AddComponent<MeshEntity>();
-                    if (parent != null)
-                    {
-                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = {parent.name}, parent GameObject = {parent.gameObject.name}");
-                    }
-                    else
-                    {
-                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = null");
-                    }
-                    meshEntity.SetParent(parent);
-                    meshEntity.Initialize(entityId);
-                    entity = meshEntity;
-                }
-            }
-            else
-            {
-                // Check if ContainerEntity already exists
-                var existingContainer = gameObject.GetComponent<ContainerEntity>();
-                if (existingContainer != null)
-                {
-                    entity = existingContainer;
-                }
-                else
-                {
-                    var containerEntity = gameObject.AddComponent<ContainerEntity>();
-                    if (parent != null)
-                    {
-                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = {parent.name}, parent GameObject = {parent.gameObject.name}");
-                    }
-                    else
-                    {
-                        Debug.Log($"[StraightFourHandlerBase] SetParent for {gameObject.name}: parent entity = null");
-                    }
-                    containerEntity.SetParent(parent);
-                    containerEntity.Initialize(entityId);
-                    entity = containerEntity;
-                }
-            }
+            // USE FACTORY to create appropriate entity type
+            BaseEntity entity = StraightFourEntityFactory.CreateEntityFromNode(
+                gameObject,
+                nodeIndex,
+                context,
+                parent);
 
             if (entity != null)
             {
-                entity.entityTag = entityId.ToString();
                 RegisterEntity(context, nodeIndex, entity);
                 Logging.Log($"[StraightFour] Created and registered {entity.GetType().Name} for node {nodeIndex}: {gameObject.name}");
 

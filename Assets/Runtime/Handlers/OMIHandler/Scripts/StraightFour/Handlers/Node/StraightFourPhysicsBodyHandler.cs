@@ -323,7 +323,23 @@ namespace FiveSQD.WebVerse.Handlers.OMI.StraightFour.Handlers
                 var gravityComponent = targetObject.AddComponent<OMIGravityModifier>();
                 gravityComponent.gravityFactor = motion.GravityFactor;
             }
+
+            // Add marker to indicate physics body handler configured this Rigidbody
+            // This prevents conflicts with other handlers (e.g., OMI_vehicle_body)
+            if (targetObject.GetComponent<OMIPhysicsBodyConfigured>() == null)
+            {
+                targetObject.AddComponent<OMIPhysicsBodyConfigured>();
+            }
         }
+    }
+
+    /// <summary>
+    /// Marker component indicating that OMI_physics_body handler configured this Rigidbody.
+    /// Used to prevent configuration conflicts with other handlers like OMI_vehicle_body.
+    /// </summary>
+    public class OMIPhysicsBodyConfigured : MonoBehaviour
+    {
+        // Marker component - no implementation needed
     }
 
     /// <summary>

@@ -96,12 +96,28 @@ All handlers inherit from **BaseHandler** (`Assets/Runtime/Utilities/Scripts/Bas
    - StraightFour adapter for X3D to World Engine integration
 
 7. **OMIHandler** (`Assets/Runtime/Handlers/OMIHandler/`)
-   - Open Metaverse Interoperability (OMI) extensions
-   - Physics body, joints, shapes, and gravity handling
-   - Vehicle wheel and thruster systems
-   - Audio emitter support
-   - Spawn point and seat management
-   - StraightFour adapters for OMI document and node handlers
+   - Open Metaverse Interoperability (OMI) glTF extensions processing
+   - **True Integration Architecture**: OMI handlers create and configure StraightFour entities directly (no configuration layer)
+   - **Factory Pattern**: StraightFourEntityFactory analyzes OMI extensions and creates appropriate entity types
+   - **Priority-Based Execution**: Handlers execute in priority order (50-100) ensuring correct setup sequence
+   - **Entity Registration**: Automatic registration with EntityManager for JavaScript API access
+   - **Supported OMI Extensions**:
+     - `OMI_physics_body`: Rigidbody physics configuration (mass, center of mass, drag, gravity)
+     - `OMI_physics_joint`: Physics constraints (fixed, hinge, spring joints)
+     - `OMI_physics_shape`: Collision shapes (box, sphere, capsule, convex hull, trimesh)
+     - `OMI_physics_gravity`: Gravity modifiers and gravity volumes
+     - `OMI_vehicle_body`: Vehicle physics (automobiles and aircraft)
+     - `OMI_vehicle_wheel`: Automobile wheel configuration
+     - `OMI_vehicle_thruster`: Aircraft thruster systems
+     - `KHR_audio_emitter` / `OMI_audio_emitter`: Spatial audio sources
+     - `OMI_spawn_point`: Player spawn locations with metadata
+     - `OMI_seat`: Character seating with IK positioning
+     - `OMI_link`: Hyperlinks and navigation
+     - `OMI_personality`: Character personality traits
+   - **Entity Type Detection**: Automatic determination of entity type (Automobile/Airplane/Character/Audio/Mesh) based on extension combinations
+   - **Handler Architecture**: Document-level (priority 95-100) and node-level (priority 50-90) handlers with clean separation
+   - **Safety Mechanism**: GetOrCreateEntity prevents duplicate entity creation when multiple handlers process same node
+   - **JavaScript Integration**: Entities automatically receive JavaScript wrappers for API access
 
 #### Execution Handlers
 
@@ -222,9 +238,105 @@ StraightFour works closely with the handler system:
 
 - **VEML Handler → StraightFour**: VEML documents define entities that StraightFour instantiates
 - **GLTF Handler → StraightFour**: Loaded 3D models become StraightFour mesh entities
+- **OMI Handler → StraightFour**: OMI extensions create specialized entities (vehicles, audio, physics) via factory pattern
 - **JavaScript Handler ↔ StraightFour**: JavaScript APIs directly manipulate StraightFour entities
 - **Input Manager → StraightFour**: User input is processed and routed to StraightFour entities
 - **VOS Synchronizer ↔ StraightFour**: Synchronizes StraightFour world state across clients
+
+#### OMI-StraightFour Integration Architecture
+
+The OMI handler system uses a **true integration pattern** where OMI extensions directly create and configure StraightFour entities without intermediate configuration objects:
+
+**Entity Creation Flow:**
+```
+1. glTFast loads glTF file with OMI extensions
+2. glTFast creates Unity GameObjects for each node
+3. OMI Handlers execute in priority order (document-level 95-100, node-level 50-90)
+4. First handler to process node → StraightFourEntityFactory.CreateEntityFromNode()
+5. Factory analyzes OMI extensions → determines entity type (Automobile/Airplane/Audio/etc.)
+6. Factory creates appropriate StraightFour entity (adds entity component to GameObject)
+7. Factory registers entity with EntityManager (GUID-based tracking)
+8. Factory creates JavaScript wrapper (enables API access)
+9. Subsequent handlers → GetOrCreateEntity() returns existing entity (safety mechanism)
+10. Handlers configure entity properties directly from OMI JSON data
+```
+
+**Key Components:**
+
+- **StraightFourEntityFactory** (`Assets/Runtime/Handlers/OMIHandler/Scripts/StraightFour/StraightFourEntityFactory.cs`)
+  - Central factory for creating entities from glTF nodes
+  - Analyzes extension combinations to determine entity type
+  - Supports: Container, Mesh, Automobile, Airplane, Character, Audio entities
+  - Returns null for nodes without entity-creating extensions
+
+- **StraightFourHandlerBase** (`Assets/Runtime/Handlers/OMIHandler/Scripts/StraightFour/StraightFourHandlerBase.cs`)
+  - Base class for all OMI-StraightFour handlers
+  - Provides GetOrCreateEntity() safety mechanism
+  - Manages node-to-entity mapping (prevents duplicate entities)
+  - Provides helper methods for entity creation and registration
+
+- **OMIExtensionDetector** (`Assets/Runtime/Handlers/OMIHandler/Scripts/StraightFour/OMIExtensionDetector.cs`)
+  - Utility for checking which OMI extensions are present on nodes
+  - Supports recursive child node searches
+  - Optimized for performance (O(1) extension checks)
+
+- **EntityManager.RegisterEntity()** Integration
+  - All OMI-created entities registered with EntityManager
+  - Enables GUID-based entity lookup
+  - Required for JavaScript API access (Entity.Get() methods)
+  - Required for world save/load functionality
+  - Required for VOS multiplayer synchronization
+
+**Entity Type Determination:**
+
+The factory uses extension priority to determine entity type:
+1. **Vehicle Body** (`OMI_vehicle_body`) → Aircraft detection (vertical thrusters or no wheels) → Airplane vs. Automobile
+2. **Personality** (`OMI_personality`) or CharacterController → Character
+3. **Audio Emitter** (`KHR_audio_emitter` or `OMI_audio_emitter`) → Audio
+4. **Mesh** (has mesh data) → Mesh
+5. **Default** (empty node) → Container
+
+**Handler Priority System:**
+
+Document-level handlers (setup, validation):
+- `StraightFourGltfDocumentHandler`: Priority 100 (stores glTF JSON in context)
+
+Node-level handlers (entity configuration):
+- `StraightFourPhysicsBodyHandler`: Priority 90 (physics first)
+- `StraightFourPhysicsShapeNodeHandler`: Priority 85
+- `StraightFourPhysicsJointHandler`: Priority 80
+- `StraightFourPhysicsGravityNodeHandler`: Priority 70
+- `StraightFourVehicleBodyHandler`: Priority 60 (vehicles after physics)
+- `StraightFourVehicleWheelHandler`: Priority 55
+- `StraightFourVehicleThrusterHandler`: Priority 55
+- `StraightFourAudioSourceHandler`: Priority 60
+- `StraightFourSeatHandler`: Priority 50
+- `StraightFourLinkHandler`: Priority 50
+- `StraightFourSpawnPointHandler`: Priority 50 (metadata, no entity creation)
+
+Higher priority = executes first. Physics handlers run before vehicle handlers to ensure Rigidbody exists before vehicle configuration.
+
+**Configuration Pattern:**
+
+Handlers configure entities by setting properties directly from OMI JSON:
+```csharp
+// Example: Vehicle handler configures Rigidbody from OMI data
+var omiVehicleBody = GetOMIExtensionData(nodeIndex, "OMI_vehicle_body");
+rbody.linearDamping = omiVehicleBody["linearDampeners"]?.Value<bool>() ?? true ? 0.5f : 0f;
+rbody.angularDamping = omiVehicleBody["angularDampeners"]?.Value<bool>() ?? true ? 0.5f : 0f;
+```
+
+No configuration structs, no ConfigureFromOMI methods - direct property assignment from JSON to Unity components.
+
+**Benefits of True Integration:**
+
+- ✅ Single source of truth (OMI extensions define entity behavior)
+- ✅ No duplicate data structures (configuration objects eliminated)
+- ✅ Cleaner separation (OMI knowledge stays in handlers, StraightFour entities remain agnostic)
+- ✅ Easier maintenance (changes to OMI specs only affect handlers)
+- ✅ Better performance (no configuration object allocation, direct property access)
+
+For detailed OMI integration information, see `docs/OMI-Integration-Guide.md`.
 
 #### World Lifecycle
 
