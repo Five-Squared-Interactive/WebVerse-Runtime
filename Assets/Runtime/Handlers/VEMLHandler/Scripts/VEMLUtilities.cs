@@ -12,6 +12,10 @@ namespace FiveSQD.WebVerse.Handlers.VEML
     {
         public static readonly string xmlHeadingTag = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
 
+        public static readonly string VEML3_1FullTag = "<veml xmlns=\"http://www.fivesqd.com/schemas/veml/3.1\"" +
+            " xsi:schemaLocation=\"http://www.fivesqd.com/schemas/veml/3.1 schema.xsd\"" +
+            " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">";
+
         public static readonly string VEML3_0FullTag = "<veml xmlns=\"http://www.fivesqd.com/schemas/veml/3.0\"" +
             " xsi:schemaLocation=\"http://www.fivesqd.com/schemas/veml/3.0 schema.xsd\"" +
             " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">";
@@ -51,6 +55,11 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         public static readonly string VEML1_0FullTag = "<veml xmlns=\"http://www.fivesqd.com/schemas/veml/1.0\"" +
             " xsi:schemaLocation=\"http://www.fivesqd.com/schemas/veml/1.0 schema.xsd\"" +
             " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">";
+
+        public static string FullyNotateVEML3_1(string inputVEML)
+        {
+            return FullyNotateVEML(inputVEML, VEML3_1FullTag);
+        }
 
         public static string FullyNotateVEML3_0(string inputVEML)
         {
@@ -102,6 +111,17 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             return FullyNotateVEML(inputVEML, VEML1_0FullTag);
         }
 
+        public static bool IsPreVEML3_1(string rawVEML)
+        {
+            // Check if the document contains v3.0 namespace
+            if (rawVEML.Contains("schemas/veml/3.0"))
+            {
+                return true;
+            }
+
+            return IsPreVEML3_0(rawVEML);
+        }
+
         public static bool IsPreVEML3_0(string rawVEML)
         {
             string[] preVEMLEntities = new string[] { "airplaneentity", "automobileentity",
@@ -121,6 +141,71 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Convert the schema instance from version 3.0 to version 3.1.
+        /// </summary>
+        /// <param name="inputVEML">Input VEML instance.</param>
+        /// <returns>Version 3.1 schema for the input VEML instance.</returns>
+        public static Schema.V3_1.veml ConvertFromV3_0(Schema.V3_0.veml inputVEML)
+        {
+            // Serialize V3.0 and deserialize as V3.1
+            // Since the only difference is the added optional shadows field,
+            // we can do a simple property-by-property copy of the root structure
+            Schema.V3_1.veml outputVEML = new Schema.V3_1.veml();
+            
+            if (inputVEML.metadata != null)
+            {
+                outputVEML.metadata = ConvertMetadataV3_0ToV3_1(inputVEML.metadata);
+            }
+
+            if (inputVEML.environment != null)
+            {
+                outputVEML.environment = ConvertEnvironmentV3_0ToV3_1(inputVEML.environment);
+            }
+
+            return outputVEML;
+        }
+
+        private static Schema.V3_1.vemlMetadata ConvertMetadataV3_0ToV3_1(Schema.V3_0.vemlMetadata inputMetadata)
+        {
+            System.Xml.Serialization.XmlSerializer v30Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_0.vemlMetadata));
+            string xmlString;
+            using (System.IO.StringWriter stringWriter = new System.IO.StringWriter())
+            {
+                v30Serializer.Serialize(stringWriter, inputMetadata);
+                xmlString = stringWriter.ToString();
+            }
+            
+            // Replace namespace 3.0 with 3.1
+            xmlString = xmlString.Replace("schemas/veml/3.0", "schemas/veml/3.1");
+            
+            System.Xml.Serialization.XmlSerializer v31Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_1.vemlMetadata));
+            using (System.IO.StringReader stringReader = new System.IO.StringReader(xmlString))
+            {
+                return (Schema.V3_1.vemlMetadata)v31Serializer.Deserialize(stringReader);
+            }
+        }
+
+        private static Schema.V3_1.vemlEnvironment ConvertEnvironmentV3_0ToV3_1(Schema.V3_0.vemlEnvironment inputEnvironment)
+        {
+            System.Xml.Serialization.XmlSerializer v30Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_0.vemlEnvironment));
+            string xmlString;
+            using (System.IO.StringWriter stringWriter = new System.IO.StringWriter())
+            {
+                v30Serializer.Serialize(stringWriter, inputEnvironment);
+                xmlString = stringWriter.ToString();
+            }
+            
+            // Replace namespace 3.0 with 3.1
+            xmlString = xmlString.Replace("schemas/veml/3.0", "schemas/veml/3.1");
+            
+            System.Xml.Serialization.XmlSerializer v31Serializer = new System.Xml.Serialization.XmlSerializer(typeof(Schema.V3_1.vemlEnvironment));
+            using (System.IO.StringReader stringReader = new System.IO.StringReader(xmlString))
+            {
+                return (Schema.V3_1.vemlEnvironment)v31Serializer.Deserialize(stringReader);
+            }
         }
 
         /// <summary>

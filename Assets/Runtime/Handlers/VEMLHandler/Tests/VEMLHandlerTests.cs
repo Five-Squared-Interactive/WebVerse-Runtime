@@ -9,6 +9,7 @@ using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.LocalStorage;
 using System.IO;
 using System;
+using ShadowsEnum = FiveSQD.WebVerse.Handlers.VEML.Schema.V3_1.effectssettingsShadows;
 
 /// <summary>
 /// Unit tests for the VEML Handler.
@@ -180,5 +181,74 @@ public class VEMLHandlerTests
         
         // Assert - termination completed without exceptions
         Assert.Pass("Termination completed successfully");
+    }
+
+    [Test]
+    public void VEMLHandler_V3_1_Schema_WithShadowsField_ParsesCorrectly()
+    {
+        // Arrange - Create a valid VEML 3.1 file with shadows field
+        string vemlContent = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<veml xmlns=""http://www.fivesqd.com/schemas/veml/3.1"" version=""3.1"">
+    <metadata>
+        <title>V3.1 Test Scene with Shadows</title>
+    </metadata>
+    <environment>
+        <effects-settings shadows=""on"">
+            <lite-fog fogenabled=""false"" />
+        </effects-settings>
+        <entity id=""testLight"" type=""light"">
+            <transform>
+                <position x=""0"" y=""5"" z=""0""/>
+            </transform>
+        </entity>
+    </environment>
+</veml>";
+        
+        string testVEMLPath = Path.Combine(vemlHandler.runtime.fileHandler.fileDirectory, "v3_1-test.veml");
+        Directory.CreateDirectory(Path.GetDirectoryName(testVEMLPath));
+        File.WriteAllText(testVEMLPath, vemlContent);
+
+        // Act - Load the VEML file
+        var vemlDoc = vemlHandler.LoadVEML(testVEMLPath);
+
+        // Assert - Verify the document was loaded correctly
+        Assert.IsNotNull(vemlDoc);
+        Assert.IsNotNull(vemlDoc.metadata);
+        Assert.AreEqual("V3.1 Test Scene with Shadows", vemlDoc.metadata.title);
+        Assert.IsNotNull(vemlDoc.environment);
+        Assert.IsNotNull(vemlDoc.environment.effects);
+        Assert.IsTrue(vemlDoc.environment.effects.shadowsSpecified);
+        Assert.AreEqual(ShadowsEnum.on, vemlDoc.environment.effects.shadows);
+    }
+
+    [Test]
+    public void VEMLHandler_V3_0_Schema_UpgradesToV3_1_Successfully()
+    {
+        // Arrange - Create a VEML 3.0 file
+        string vemlContent = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<veml xmlns=""http://www.fivesqd.com/schemas/veml/3.0"" version=""3.0"">
+    <metadata>
+        <title>V3.0 Test Scene</title>
+    </metadata>
+    <environment>
+        <entity id=""testCube"" type=""cube"">
+            <transform>
+                <position x=""0"" y=""0"" z=""0""/>
+            </transform>
+        </entity>
+    </environment>
+</veml>";
+        
+        string testVEMLPath = Path.Combine(vemlHandler.runtime.fileHandler.fileDirectory, "v3_0-upgrade-test.veml");
+        Directory.CreateDirectory(Path.GetDirectoryName(testVEMLPath));
+        File.WriteAllText(testVEMLPath, vemlContent);
+
+        // Act - Load the VEML file (should upgrade to V3.1)
+        var vemlDoc = vemlHandler.LoadVEML(testVEMLPath);
+
+        // Assert - Verify the document was loaded and upgraded correctly
+        Assert.IsNotNull(vemlDoc);
+        Assert.IsNotNull(vemlDoc.metadata);
+        Assert.AreEqual("V3.0 Test Scene", vemlDoc.metadata.title);
     }
 }
