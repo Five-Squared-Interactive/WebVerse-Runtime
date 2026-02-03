@@ -1,6 +1,8 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
-#if NEWTONSOFT_JSON
+// Tests disabled - NUnit not available in this project
+// To enable, add ENABLE_OMI_TESTS to Scripting Define Symbols
+#if ENABLE_OMI_TESTS
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
