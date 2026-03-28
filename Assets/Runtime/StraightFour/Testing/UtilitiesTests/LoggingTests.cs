@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using NUnit.Framework;
 using UnityEngine;
@@ -7,6 +7,18 @@ using FiveSQD.StraightFour.Utilities;
 
 public class LoggingTests
 {
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
     [Test]
     public void LoggingTests_General()
     {

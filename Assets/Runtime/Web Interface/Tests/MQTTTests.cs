@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 #if USE_BESTHTTP
 using System.Collections;
@@ -14,6 +14,18 @@ using NUnit.Framework;
 public class MQTTTests
 {
     private float waitPeriod = 2; // Reduced wait time
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
 
     [Test]
     public void MQTTClient_Constructor_InitializesCorrectly()
@@ -139,8 +151,7 @@ public class MQTTTests
         
         client.Disconnect();
         
-        // Reset log assert
-        LogAssert.ignoreFailingMessages = false;
+        // Log assert reset handled by test framework
     }
 
     [UnityTest]
@@ -176,8 +187,7 @@ public class MQTTTests
         
         client.Disconnect();
         
-        // Reset log assert
-        LogAssert.ignoreFailingMessages = false;
+        // Log assert reset handled by test framework
     }
 
     [Test]

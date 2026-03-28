@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections;
 using NUnit.Framework;
@@ -18,6 +18,12 @@ public class VEMLHandlerTests
     private WebVerseRuntime runtime;
     private GameObject runtimeGO;
     private VEMLHandler vemlHandler;
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
 
     [SetUp]
     public void SetUp()

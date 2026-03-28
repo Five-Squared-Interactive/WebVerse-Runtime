@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using NUnit.Framework;
 using FiveSQD.WebVerse.Utilities;
@@ -23,6 +23,10 @@ public class UtilitiesTests
     [Test]
     public void Logging_Log_WithDifferentTypes_DoesNotThrow()
     {
+        // Expect the warning and error log messages that Unity would otherwise treat as test failures
+        LogAssert.Expect(LogType.Warning, "Warning message");
+        LogAssert.Expect(LogType.Error, "Error message");
+
         // Test logging with different message types
         Assert.DoesNotThrow(() =>
         {

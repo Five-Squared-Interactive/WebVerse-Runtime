@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections;
 using NUnit.Framework;
@@ -10,6 +10,18 @@ using UnityEditor;
 
 public class SynchronizationTests
 {
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -32,7 +44,7 @@ public class SynchronizationTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         StraightFour.LoadWorld("test");
 

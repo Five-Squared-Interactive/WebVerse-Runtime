@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -155,6 +155,14 @@ namespace FiveSQD.StraightFour
         private static StraightFour instance;
 
         /// <summary>
+        /// Clear the static instance reference. Call before destroying StraightFour.
+        /// </summary>
+        public static void ClearInstance()
+        {
+            instance = null;
+        }
+
+        /// <summary>
         /// The current world in the world engine.
         /// </summary>
         private World.World currentWorld = null;
@@ -262,6 +270,11 @@ namespace FiveSQD.StraightFour
         /// <returns>The value of the Query Parameter, or null.</returns>
         public string GetParam(string key)
         {
+            if (key == null || queryParams == null)
+            {
+                return null;
+            }
+
             if (queryParams.ContainsKey(key))
             {
                 return queryParams[key];

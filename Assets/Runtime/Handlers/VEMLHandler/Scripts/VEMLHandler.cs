@@ -1,6 +1,8 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Handlers.File;
+using FiveSQD.WebVerse.Handlers.Voice;
+using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 using System;
@@ -742,6 +744,12 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     Logging.LogWarning("[VEMLHandler->ProcessMetadata] Error processing synchronizers.");
                     return false;
                 }
+
+                if (ProcessVoice(vemlDocument, baseURI) == false)
+                {
+                    Logging.LogWarning("[VEMLHandler->ProcessMetadata] Error processing voice configuration.");
+                    return false;
+                }
             }
             return true;
         }
@@ -972,15 +980,15 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     {
                         if (vemlDocument.metadata.controlflags.leftvrpointer.ToLower().Replace("\"", "") == "none")
                         {
-                            WebVerseRuntime.Instance.vrRig.leftPointerMode = Input.SteamVR.VRRig.PointerMode.None;
+                            WebVerseRuntime.Instance.vrRig.leftPointerMode = VRRig.PointerMode.None;
                         }
                         else if (vemlDocument.metadata.controlflags.leftvrpointer.ToLower().Replace("\"", "") == "teleport")
                         {
-                            WebVerseRuntime.Instance.vrRig.leftPointerMode = Input.SteamVR.VRRig.PointerMode.Teleport;
+                            WebVerseRuntime.Instance.vrRig.leftPointerMode = VRRig.PointerMode.Teleport;
                         }
                         else if (vemlDocument.metadata.controlflags.leftvrpointer.ToLower().Replace("\"", "") == "ui")
                         {
-                            WebVerseRuntime.Instance.vrRig.leftPointerMode = Input.SteamVR.VRRig.PointerMode.UI;
+                            WebVerseRuntime.Instance.vrRig.leftPointerMode = VRRig.PointerMode.UI;
                         }
                         else
                         {
@@ -992,15 +1000,15 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     {
                         if (vemlDocument.metadata.controlflags.rightvrpointer.ToLower().Replace("\"", "") == "none")
                         {
-                            WebVerseRuntime.Instance.vrRig.rightPointerMode = Input.SteamVR.VRRig.PointerMode.None;
+                            WebVerseRuntime.Instance.vrRig.rightPointerMode = VRRig.PointerMode.None;
                         }
                         else if (vemlDocument.metadata.controlflags.rightvrpointer.ToLower().Replace("\"", "") == "teleport")
                         {
-                            WebVerseRuntime.Instance.vrRig.rightPointerMode = Input.SteamVR.VRRig.PointerMode.Teleport;
+                            WebVerseRuntime.Instance.vrRig.rightPointerMode = VRRig.PointerMode.Teleport;
                         }
                         else if (vemlDocument.metadata.controlflags.rightvrpointer.ToLower().Replace("\"", "") == "ui")
                         {
-                            WebVerseRuntime.Instance.vrRig.rightPointerMode = Input.SteamVR.VRRig.PointerMode.UI;
+                            WebVerseRuntime.Instance.vrRig.rightPointerMode = VRRig.PointerMode.UI;
                         }
                         else
                         {
@@ -1020,15 +1028,15 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     {
                         if (vemlDocument.metadata.controlflags.turnlocomotion.ToLower().Replace("\"", "") == "none")
                         {
-                            WebVerseRuntime.Instance.vrRig.turnLocomotionMode = Input.SteamVR.VRRig.TurnLocomotionMode.None;
+                            WebVerseRuntime.Instance.vrRig.turnLocomotionMode = VRRig.TurnLocomotionMode.None;
                         }
                         else if (vemlDocument.metadata.controlflags.turnlocomotion.ToLower().Replace("\"", "") == "smooth")
                         {
-                            WebVerseRuntime.Instance.vrRig.turnLocomotionMode = Input.SteamVR.VRRig.TurnLocomotionMode.Smooth;
+                            WebVerseRuntime.Instance.vrRig.turnLocomotionMode = VRRig.TurnLocomotionMode.Smooth;
                         }
                         else if (vemlDocument.metadata.controlflags.turnlocomotion.ToLower().Replace("\"", "") == "snap")
                         {
-                            WebVerseRuntime.Instance.vrRig.turnLocomotionMode = Input.SteamVR.VRRig.TurnLocomotionMode.Snap;
+                            WebVerseRuntime.Instance.vrRig.turnLocomotionMode = VRRig.TurnLocomotionMode.Snap;
                         }
                         else
                         {
@@ -1176,6 +1184,52 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                                 + synchronizationservice.type);
                             break;
                     }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Process VEML document metadata voice configuration.
+        /// </summary>
+        /// <param name="vemlDocument">The VEML document.</param>
+        /// <param name="baseURI">Base URI of the VEML document.</param>
+        /// <returns>Whether or not the operation succeeded.</returns>
+        private bool ProcessVoice(Schema.V3_0.veml vemlDocument, string baseURI)
+        {
+            // Set up voice if configured.
+            if (vemlDocument.metadata.voice != null)
+            {
+                try
+                {
+                    VoiceConfig config = VoiceConfig.FromVEML(vemlDocument.metadata.voice);
+                    if (config != null)
+                    {
+                        if (WebVerseRuntime.Instance.voiceHandler != null)
+                        {
+                            WebVerseRuntime.Instance.voiceHandler.Initialize(config);
+                            Logging.Log($"[VEMLHandler->ProcessVoice] Voice initialized with endpoint: {config.Endpoint}");
+                        }
+                        else
+                        {
+                            Logging.LogWarning("[VEMLHandler->ProcessVoice] VoiceHandler not available in runtime.");
+                        }
+                    }
+                    else
+                    {
+                        Logging.LogWarning("[VEMLHandler->ProcessVoice] Failed to parse voice configuration from VEML.");
+                    }
+                }
+                catch (VoiceException ex)
+                {
+                    Logging.LogWarning($"[VEMLHandler->ProcessVoice] Voice configuration error: {ex.Message}");
+                    // Don't fail the world load for voice configuration errors (graceful degradation)
+                }
+                catch (System.Exception ex)
+                {
+                    Logging.LogWarning($"[VEMLHandler->ProcessVoice] Unexpected error processing voice: {ex.Message}");
+                    // Don't fail the world load for voice errors (graceful degradation)
                 }
             }
 

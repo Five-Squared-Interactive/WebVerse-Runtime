@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -132,6 +132,8 @@ namespace FiveSQD.StraightFour.Entity
         /// <returns>Whether or not the setting was successful.</returns>
         public override bool SetHighlight(bool highlight)
         {
+            if (highlightCube == null)
+                return false;
             highlightCube.SetActive(highlight);
 
             return true;

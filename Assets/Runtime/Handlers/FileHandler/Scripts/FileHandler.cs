@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.IO;
 using FiveSQD.WebVerse.Utilities;
@@ -160,6 +160,80 @@ namespace FiveSQD.WebVerse.Handlers.File
         private void CreateDirectoryStructure(string fileName)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(fileName));
+        }
+
+        /// <summary>
+        /// Clear the cache.
+        /// </summary>
+        /// <param name="seconds">Seconds to look back (files deeper than this will be deleted). -1 for all.</param>
+        public void ClearCache(float seconds)
+        {
+            if (!Directory.Exists(fileDirectory))
+            {
+                Logging.LogWarning("[FileHandler->ClearCache] File directory does not exist.");
+                return;
+            }
+
+            string[] files = Directory.GetFiles(fileDirectory, "*", System.IO.SearchOption.AllDirectories);
+            int deletedCount = 0;
+            foreach (string file in files)
+            {
+                if (seconds < 0)
+                {
+                    try
+                    {
+                        System.IO.File.Delete(file);
+                        deletedCount++;
+                    }
+                    catch (System.Exception e)
+                    {
+                        Logging.LogError("[FileHandler->ClearCache] Error deleting file: " + file + ". " + e.Message);
+                    }
+                }
+                else
+                {
+                    System.DateTime lastWriteTime = System.IO.File.GetLastWriteTime(file);
+                    if ((System.DateTime.Now - lastWriteTime).TotalSeconds < seconds)
+                    {
+                        try
+                        {
+                            System.IO.File.Delete(file);
+                            deletedCount++;
+                        }
+                        catch (System.Exception e)
+                        {
+                            Logging.LogError("[FileHandler->ClearCache] Error deleting file: " + file + ". " + e.Message);
+                        }
+                    }
+                }
+            }
+            Logging.Log("[FileHandler->ClearCache] Cleared " + deletedCount + " files from " + fileDirectory + ".");
+
+            // Clean up empty subdirectories (deepest first).
+            CleanupEmptyDirectories(fileDirectory);
+        }
+
+        /// <summary>
+        /// Recursively delete empty subdirectories.
+        /// </summary>
+        /// <param name="directory">Directory to clean up.</param>
+        private void CleanupEmptyDirectories(string directory)
+        {
+            foreach (string subDir in Directory.GetDirectories(directory))
+            {
+                CleanupEmptyDirectories(subDir);
+                try
+                {
+                    if (Directory.GetFiles(subDir).Length == 0 && Directory.GetDirectories(subDir).Length == 0)
+                    {
+                        Directory.Delete(subDir);
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Logging.LogError("[FileHandler->CleanupEmptyDirectories] Error deleting directory: " + subDir + ". " + e.Message);
+                }
+            }
         }
     }
 }

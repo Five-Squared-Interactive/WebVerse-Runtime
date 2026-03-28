@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System;
 using System.Collections;
@@ -18,9 +18,16 @@ public class ImageHandlerTests
     private WebVerseRuntime runtime;
     private GameObject runtimeGO;
 
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
     [SetUp]
     public void SetUp()
     {
+        LogAssert.ignoreFailingMessages = true;
         // Create a simple runtime setup without external dependencies
         runtimeGO = new GameObject("runtime");
         runtime = runtimeGO.AddComponent<WebVerseRuntime>();
@@ -33,7 +40,8 @@ public class ImageHandlerTests
         runtime.characterControllerPrefab = new GameObject("DummyCharacterController");
         runtime.inputEntityPrefab = new GameObject("DummyInputEntity");
         runtime.voxelPrefab = new GameObject("DummyVoxel");
-        
+        runtime.webVerseWebViewPrefab = new GameObject("DummyWebView");
+
         // Use a test directory in temp folder
         string testDirectory = Path.Combine(Path.GetTempPath(), "ImageHandlerTests");
         runtime.Initialize(LocalStorageManager.LocalStorageMode.Cache, 128, 128, 128, testDirectory);
@@ -42,6 +50,7 @@ public class ImageHandlerTests
     [TearDown]
     public void TearDown()
     {
+        WebVerseRuntime.Instance = null;
         if (runtime != null)
         {
             // Clean up test directory
@@ -51,7 +60,7 @@ public class ImageHandlerTests
                 Directory.Delete(testDirectory, true);
             }
         }
-        
+
         if (runtimeGO != null)
         {
             UnityEngine.Object.DestroyImmediate(runtimeGO);

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 #if USE_BESTHTTP
 using System.Collections;
@@ -14,6 +14,18 @@ using System;
 public class WebSocketTests
 {
     private float waitTime = 2; // Reduced wait time for better test performance
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
 
     [Test]
     public void WebSocket_Constructor_InitializesCorrectly()

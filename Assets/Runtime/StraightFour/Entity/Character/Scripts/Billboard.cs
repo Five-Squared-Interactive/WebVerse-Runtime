@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using UnityEngine;
 
@@ -38,6 +38,15 @@ namespace FiveSQD.StraightFour.Entity
 
         void Update()
         {
+            UpdateFacing();
+        }
+
+        /// <summary>
+        /// Update the billboard facing direction. Called automatically by Update(),
+        /// but can also be called manually for testing or immediate updates.
+        /// </summary>
+        public void UpdateFacing()
+        {
             // Ensure we have a valid camera to face
             if (targetCamera == null)
             {
@@ -46,7 +55,7 @@ namespace FiveSQD.StraightFour.Entity
                 {
                     targetCamera = FindObjectOfType<UnityEngine.Camera>();
                 }
-                
+
                 if (targetCamera == null)
                 {
                     return; // No camera found, can't billboard
@@ -68,7 +77,7 @@ namespace FiveSQD.StraightFour.Entity
             {
                 // Calculate the rotation to face the camera
                 Quaternion targetRotation = Quaternion.LookRotation(Quaternion.Euler(0, 180, 0) * direction);
-                
+
                 // Apply the rotation
                 transform.rotation = targetRotation;
             }

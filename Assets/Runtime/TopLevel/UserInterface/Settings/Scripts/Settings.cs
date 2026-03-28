@@ -1,9 +1,11 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
+using System.Collections.Generic;
 
 namespace FiveSQD.WebVerse.Interface.Settings
 {
@@ -51,6 +53,11 @@ namespace FiveSQD.WebVerse.Interface.Settings
         /// World load timeout input.
         /// </summary>
         public TMP_InputField worldLoadTimeoutInput;
+
+        /// <summary>
+        /// Clear cache dropdown (created dynamically).
+        /// </summary>
+        public TMP_Dropdown clearCacheDropdown;
 
         /// <summary>
         /// Initialize settings menu.
@@ -191,6 +198,38 @@ namespace FiveSQD.WebVerse.Interface.Settings
                 uint worldLoadTimeoutVal = uint.Parse(worldLoadTimeout);
                 nativeSettings.SetWorldLoadTimeout(worldLoadTimeoutVal);
             }
+        }
+
+        /// <summary>
+        /// Called when clear cache button is pressed.
+        /// </summary>
+        public void OnClearCache()
+        {
+            if (clearCacheDropdown == null)
+            {
+                Logging.LogError("[Settings->OnClearCache] Clear Cache Dropdown not set.");
+                return;
+            }
+
+            string timeWindow = "all";
+            switch (clearCacheDropdown.value)
+            {
+                case 0:
+                    timeWindow = "5m";
+                    break;
+                case 1:
+                    timeWindow = "1h";
+                    break;
+                case 2:
+                    timeWindow = "24h";
+                    break;
+                case 3:
+                    timeWindow = "all";
+                    break;
+            }
+
+            WebVerseRuntime.Instance.ClearCache(timeWindow);
+            Logging.Log("[Settings->OnClearCache] Cache cleared for: " + timeWindow);
         }
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections;
 using NUnit.Framework;
@@ -13,6 +13,18 @@ using FiveSQD.StraightFour.Entity.Terrain;
 
 public class EntityManagerTests
 {
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -31,10 +43,10 @@ public class EntityManagerTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.characterControllerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/StraightFour/Entity/Character/Prefabs/UserAvatar.prefab");
-        we.voxelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/StraightFour/Entity/Voxel/Prefabs/Voxel.prefab");
-        we.inputEntityPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/StraightFour/Entity/UI/UIElement/Input/Prefabs/InputEntity.prefab");
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.characterControllerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Runtime/StraightFour/Entity/Character/Prefabs/UserAvatar.prefab");
+        we.voxelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Runtime/StraightFour/Entity/Voxel/Prefabs/Voxel.prefab");
+        we.inputEntityPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Runtime/StraightFour/Entity/UI/UIElement/Input/Prefabs/InputEntity.prefab");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         StraightFour.LoadWorld("test");
 
@@ -66,15 +78,15 @@ public class EntityManagerTests
         {
             new TerrainEntityLayer()
             {
-                diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/StraightFour/Testing/TestResources/1.png")
+                diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Runtime/StraightFour/Testing/TestResources/1.png")
             },
             new TerrainEntityLayer()
             {
-                diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/StraightFour/Testing/TestResources/2.png")
+                diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Runtime/StraightFour/Testing/TestResources/2.png")
             },
             new TerrainEntityLayer()
             {
-                diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/StraightFour/Testing/TestResources/3.png")
+                diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Runtime/StraightFour/Testing/TestResources/3.png")
             }
         };
         float[,] layerMask = { { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f },
@@ -96,6 +108,7 @@ public class EntityManagerTests
 
 #if TEST_HYBRID_TERRAIN
         // Load Hybrid Terrain Entity.
+        layerMasks.Clear();
         layerMasks.Add(0, layerMask);
         layerMasks.Add(1, layerMask);
         layerMasks.Add(2, layerMask);

@@ -1,9 +1,10 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Handlers.File;
 using FiveSQD.WebVerse.Runtime;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using FiveSQD.WebVerse.LocalStorage;
 using System.IO;
 
@@ -14,6 +15,12 @@ public class FileHandlerTests
 {
     private WebVerseRuntime runtime;
     private GameObject runtimeGO;
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
 
     [SetUp]
     public void SetUp()

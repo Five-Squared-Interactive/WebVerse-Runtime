@@ -1,0 +1,17 @@
+{
+    "name": "FiveSQD.WebVerse.WorldSync",
+    "rootNamespace": "FiveSQD.WebVerse.WorldSync",
+    "references": [
+        "FiveSQD.WebVerse.Utilities",
+        "FiveSQD.WebVerse.WebInterface"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

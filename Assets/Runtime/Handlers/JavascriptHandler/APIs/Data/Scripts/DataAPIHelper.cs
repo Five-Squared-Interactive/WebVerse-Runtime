@@ -23,6 +23,15 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Data
             javascriptQueue = new Queue<Tuple<string, object[]>>();
         }
 
+        /// <summary>
+        /// Terminate the Data API Helper, clearing instance and queue.
+        /// </summary>
+        public void Terminate()
+        {
+            javascriptQueue?.Clear();
+            instance = null;
+        }
+
         public static void QueueJavascript(string functionName, object[] parameters)
         {
             instance.javascriptQueue.Enqueue(new Tuple<string, object[]>(functionName, parameters));

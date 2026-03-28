@@ -1,6 +1,5 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
-using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Input.Desktop;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
@@ -151,6 +150,27 @@ namespace FiveSQD.WebVerse.Input
             get
             {
                 return leftGripPressValue || rightGripPressValue;
+            }
+        }
+
+        /// <summary>
+        /// The left pinch value (hand tracking).
+        /// </summary>
+        public bool leftPinchValue;
+
+        /// <summary>
+        /// The right pinch value (hand tracking).
+        /// </summary>
+        public bool rightPinchValue;
+
+        /// <summary>
+        /// The pinch value (hand tracking).
+        /// </summary>
+        public bool pinchValue
+        {
+            get
+            {
+                return leftPinchValue || rightPinchValue;
             }
         }
 
@@ -491,6 +511,36 @@ namespace FiveSQD.WebVerse.Input
         private List<string> endGripPressFunctions;
 
         /// <summary>
+        /// Left Pinch functions (hand tracking).
+        /// </summary>
+        private List<string> leftPinchFunctions;
+
+        /// <summary>
+        /// End Left Pinch functions (hand tracking).
+        /// </summary>
+        private List<string> endLeftPinchFunctions;
+
+        /// <summary>
+        /// Right Pinch functions (hand tracking).
+        /// </summary>
+        private List<string> rightPinchFunctions;
+
+        /// <summary>
+        /// End Right Pinch functions (hand tracking).
+        /// </summary>
+        private List<string> endRightPinchFunctions;
+
+        /// <summary>
+        /// Pinch functions (hand tracking).
+        /// </summary>
+        private List<string> pinchFunctions;
+
+        /// <summary>
+        /// End Pinch functions (hand tracking).
+        /// </summary>
+        private List<string> endPinchFunctions;
+
+        /// <summary>
         /// Left TouchPad Touch functions.
         /// </summary>
         private List<string> leftTouchPadTouchFunctions;
@@ -779,6 +829,12 @@ namespace FiveSQD.WebVerse.Input
             endRightGripPressFunctions = new List<string>();
             gripPressFunctions = new List<string>();
             endGripPressFunctions = new List<string>();
+            leftPinchFunctions = new List<string>();
+            endLeftPinchFunctions = new List<string>();
+            rightPinchFunctions = new List<string>();
+            endRightPinchFunctions = new List<string>();
+            pinchFunctions = new List<string>();
+            endPinchFunctions = new List<string>();
             leftTouchPadTouchFunctions = new List<string>();
             endLeftTouchPadTouchFunctions = new List<string>();
             leftTouchPadValueChangeFunctions = new List<string>();
@@ -2435,6 +2491,90 @@ namespace FiveSQD.WebVerse.Input
             if (inputEnabled)
             {
                 foreach (string function in endGripPressFunctions)
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.Run(function);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Perform a left pinch (hand tracking).
+        /// </summary>
+        public void LeftPinch()
+        {
+            if (inputEnabled)
+            {
+                foreach (string function in leftPinchFunctions)
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.Run(function);
+                }
+            }
+        }
+
+        /// <summary>
+        /// End a left pinch (hand tracking).
+        /// </summary>
+        public void EndLeftPinch()
+        {
+            if (inputEnabled)
+            {
+                foreach (string function in endLeftPinchFunctions)
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.Run(function);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Perform a right pinch (hand tracking).
+        /// </summary>
+        public void RightPinch()
+        {
+            if (inputEnabled)
+            {
+                foreach (string function in rightPinchFunctions)
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.Run(function);
+                }
+            }
+        }
+
+        /// <summary>
+        /// End a right pinch (hand tracking).
+        /// </summary>
+        public void EndRightPinch()
+        {
+            if (inputEnabled)
+            {
+                foreach (string function in endRightPinchFunctions)
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.Run(function);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Perform a pinch (hand tracking).
+        /// </summary>
+        public void Pinch()
+        {
+            if (inputEnabled)
+            {
+                foreach (string function in pinchFunctions)
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.Run(function);
+                }
+            }
+        }
+
+        /// <summary>
+        /// End a pinch (hand tracking).
+        /// </summary>
+        public void EndPinch()
+        {
+            if (inputEnabled)
+            {
+                foreach (string function in endPinchFunctions)
                 {
                     WebVerseRuntime.Instance.javascriptHandler.Run(function);
                 }

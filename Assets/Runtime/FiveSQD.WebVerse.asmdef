@@ -29,7 +29,8 @@
         "Esprima.dll",
         "Newtonsoft.Json.dll",
         "Mono.Data.Sqlite.dll",
-        "Acornima.dll"
+        "Acornima.dll",
+        "Concentus.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],

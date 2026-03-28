@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using UnityEngine;
 using FiveSQD.WebVerse.Utilities;
@@ -20,12 +20,13 @@ using FiveSQD.WebVerse.Handlers.Javascript.APIs.Data;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.WebView;
 using FiveSQD.WebVerse.Output;
-using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Input.Desktop;
 using Vuplex.WebView;
 using FiveSQD.WebVerse.Handlers.JSONEntity;
 using FiveSQD.WebVerse.Handlers.X3D;
 using FiveSQD.WebVerse.Handlers.OMI;
+using FiveSQD.WebVerse.Handlers.Voice;
+using FiveSQD.WebVerse.Automation;
 using System.Collections;
 
 namespace FiveSQD.WebVerse.Runtime
@@ -241,6 +242,23 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The WebVerse WebView.")]
         public WebVerseWebView webverseWebView { get; private set; }
+
+        /// <summary>
+        /// The Automation Server for external test automation.
+        /// </summary>
+        [Tooltip("The Automation Server for external test automation.")]
+        public AutomationServer automationServer { get; private set; }
+
+        /// <summary>
+        /// The Voice Handler for spatial voice chat.
+        /// </summary>
+        [Tooltip("The Voice Handler for spatial voice chat.")]
+        public Handlers.Voice.VoiceHandler voiceHandler { get; private set; }
+
+        /// <summary>
+        /// Port for the automation server. 0 or negative means disabled.
+        /// </summary>
+        private int automationPort = 0;
 
         /// <summary>
         /// The Console.
@@ -540,7 +558,8 @@ namespace FiveSQD.WebVerse.Runtime
         /// <param name="loggingConfiguration">Logging configuration to use. If not provided, uses default configuration.</param>
         public void Initialize(LocalStorageManager.LocalStorageMode storageMode,
             int maxEntries, int maxEntryLength, int maxKeyLength, string filesDirectory,
-            float timeout = 120, LoggingConfiguration? loggingConfiguration = null)
+            float timeout = 120, LoggingConfiguration? loggingConfiguration = null,
+            int automationPort = 0)
         {
             if (Instance != null)
             {
@@ -559,6 +578,8 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 Logging.SetConfiguration(LoggingConfiguration.CreateDefault());
             }
+
+            this.automationPort = automationPort;
 
             InitializeComponents(storageMode, maxEntries, maxEntryLength,
                 maxKeyLength, filesDirectory, timeout);
@@ -587,6 +608,10 @@ namespace FiveSQD.WebVerse.Runtime
             }
 
             TerminateComponents();
+
+            // Clear static instance to allow garbage collection
+            Instance = null;
+            Logging.Log("[WebVerseRuntime->Terminate] Instance cleared.");
         }
 
         /// <summary>
@@ -814,12 +839,34 @@ namespace FiveSQD.WebVerse.Runtime
                 omiHandler.Reset();
             }
 
-            Logging.Log("[WebVerseRuntime->UnloadWorld] OMI Handler reset. Unloading World...");
+            Logging.Log("[WebVerseRuntime->UnloadWorld] OMI Handler reset. Resetting GLTF Handler...");
+
+            if (gltfHandler != null)
+            {
+                gltfHandler.Reset();
+            }
+
+            Logging.Log("[WebVerseRuntime->UnloadWorld] GLTF Handler reset. Resetting Voice Handler...");
+
+            if (voiceHandler != null && voiceHandler.Config != null)
+            {
+                voiceHandler.Terminate();
+                // Recreate the voice handler for the next world
+                GameObject voiceHandlerGO = voiceHandler.gameObject;
+                Destroy(voiceHandler);
+                voiceHandler = voiceHandlerGO.AddComponent<Handlers.Voice.VoiceHandler>();
+            }
+
+            Logging.Log("[WebVerseRuntime->UnloadWorld] Voice Handler reset. Unloading World...");
 
             StraightFour.StraightFour.UnloadWorld();
             state = RuntimeState.Unloaded;
 
-            Logging.Log("[WebVerseRuntime->UnloadWorld] World Unloaded.");
+            // Clean up unused resources on all platforms (not just WebGL)
+            Resources.UnloadUnusedAssets();
+            System.GC.Collect();
+
+            Logging.Log("[WebVerseRuntime->UnloadWorld] World Unloaded. Resources cleaned up.");
         }
 
         /// <summary>
@@ -879,7 +926,7 @@ namespace FiveSQD.WebVerse.Runtime
             straightFour.automobileEntityTypeMap
                 = new Dictionary<StraightFour.Entity.EntityManager.AutomobileEntityType,
                         NWH.VehiclePhysics2.StateSettings>();
-            foreach (SerializableAutomobileEntityType automobileEntityType in automobileEntityTypeMap)
+            foreach (SerializableAutomobileEntityType automobileEntityType in automobileEntityTypeMap ?? new List<SerializableAutomobileEntityType>())
             {
                 StraightFour.Entity.EntityManager.AutomobileEntityType type;
                 switch(automobileEntityType.type)
@@ -977,6 +1024,12 @@ namespace FiveSQD.WebVerse.Runtime
             omiHandler.timeout = timeout;
             omiHandler.Initialize();
 
+            // Set up Voice Handler for spatial voice chat.
+            // Note: Voice handler is created but not initialized until a voice-enabled world loads.
+            GameObject voiceHandlerGO = new GameObject("Voice");
+            voiceHandlerGO.transform.SetParent(handlersGO.transform);
+            voiceHandler = voiceHandlerGO.AddComponent<VoiceHandler>();
+
             // Set up VOS Synchronization Manager.
             GameObject vosSynchronizationManagerGO = new GameObject("VOSSynchronizationManager");
             vosSynchronizationManagerGO.transform.SetParent(transform);
@@ -1033,6 +1086,15 @@ namespace FiveSQD.WebVerse.Runtime
                     consoleCallbacks.Add(consoleCallback);
                 }
             }
+
+            // Set up Automation Server (if port is configured).
+            if (automationPort > 0)
+            {
+                GameObject automationServerGO = new GameObject("AutomationServer");
+                automationServerGO.transform.SetParent(transform);
+                automationServer = automationServerGO.AddComponent<AutomationServer>();
+                automationServer.Initialize(automationPort);
+            }
         }
 
         /// <summary>
@@ -1040,6 +1102,13 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         private void TerminateComponents()
         {
+            // Terminate Automation Server.
+            if (automationServer != null)
+            {
+                automationServer.Terminate();
+                Destroy(automationServer.gameObject);
+            }
+
             // Terminate WebVerse WebView.
             webverseWebView.Terminate();
             Destroy(webverseWebView.gameObject);
@@ -1076,6 +1145,10 @@ namespace FiveSQD.WebVerse.Runtime
             fileHandler.Terminate();
             x3dHandler.Terminate();
             omiHandler.Terminate();
+            if (voiceHandler != null && voiceHandler.Config != null)
+            {
+                voiceHandler.Terminate();
+            }
             Destroy(fileHandler.transform.parent.gameObject);
 
             // Terminate World Engine.
@@ -1083,6 +1156,7 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 StraightFour.StraightFour.UnloadWorld();
             }
+            StraightFour.StraightFour.ClearInstance();
             Destroy(straightFour.gameObject);
 
             if (consoles != null)
@@ -1141,6 +1215,36 @@ namespace FiveSQD.WebVerse.Runtime
 
                 Logging.Log("[WebVerseRuntime->ResourceCleanupCoroutine] Periodic resource cleanup completed.");
             }
+        }
+
+
+        /// <summary>
+        /// Clear cache.
+        /// </summary>
+        /// <param name="timeWindow">Time window to clear (5m, 1h, 24h, all).</param>
+        public void ClearCache(string timeWindow)
+        {
+            float seconds = -1;
+            switch (timeWindow)
+            {
+                case "5m":
+                    seconds = 300;
+                    break;
+                case "1h":
+                    seconds = 3600;
+                    break;
+                case "24h":
+                    seconds = 86400;
+                    break;
+                case "all":
+                    seconds = -1;
+                    break;
+                default:
+                    Logging.LogError("[WebVerseRuntime->ClearCache] Invalid time window: " + timeWindow);
+                    return;
+            }
+            
+            fileHandler.ClearCache(seconds);
         }
     }
 }

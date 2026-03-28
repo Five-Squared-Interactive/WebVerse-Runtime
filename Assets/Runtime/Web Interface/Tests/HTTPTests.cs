@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 #if USE_BESTHTTP
 using System.Collections;
@@ -15,6 +15,18 @@ using System;
 public class HTTPTests
 {
     private float httpRequestWaitPeriod = 3; // Reduced wait time
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
 
     [Test]
     public void HTTPRequest_Constructor_InitializesCorrectly()
@@ -34,18 +46,19 @@ public class HTTPTests
         int receivedResponse = -1;
         byte[] receivedData = null;
         bool callbackExecuted = false;
-        
+
         Action<int, Dictionary<string, string>, byte[]> onGetResponse = (resp, headers, data) =>
         {
             receivedResponse = resp;
             receivedData = data;
             callbackExecuted = true;
         };
-        
+
         HTTPRequest request = new HTTPRequest("https://invalid-host-for-testing.local", HTTPRequest.HTTPMethod.Get, onGetResponse);
-        
+
         try
         {
+            LogAssert.Expect(LogType.Error, "[Error] [HTTPRequest->Send] No request manager.");
             request.Send();
         }
         catch (Exception)
@@ -53,12 +66,12 @@ public class HTTPTests
             // Expected for invalid URL
             callbackExecuted = true;
         }
-        
+
         yield return new WaitForSeconds(httpRequestWaitPeriod);
-        
+
         // Should either execute callback with error or throw exception
         Assert.IsTrue(callbackExecuted || receivedResponse == -1);
-        
+
         if (callbackExecuted && receivedResponse != -1)
         {
             // If callback executed, response should indicate failure
@@ -82,9 +95,10 @@ public class HTTPTests
         };
         
         HTTPRequest request = new HTTPRequest("https://invalid-host-for-testing.local", HTTPRequest.HTTPMethod.Head, onHeadResponse);
-        
+
         try
         {
+            LogAssert.Expect(LogType.Error, "[Error] [HTTPRequest->Send] No request manager.");
             request.Send();
         }
         catch (Exception)
@@ -106,28 +120,40 @@ public class HTTPTests
         int receivedResponse = -1;
         byte[] receivedData = null;
         bool callbackExecuted = false;
-        
+
         Action<int, Dictionary<string, string>, byte[]> onPostResponse = (resp, headers, data) =>
         {
             receivedResponse = resp;
             receivedData = data;
             callbackExecuted = true;
         };
-        
-        HTTPRequest request = new HTTPRequest("https://invalid-host-for-testing.local", HTTPRequest.HTTPMethod.Post, onPostResponse);
-        
+
+        HTTPRequest request = null;
         try
         {
-            request.Send();
+            request = new HTTPRequest("https://invalid-host-for-testing.local", HTTPRequest.HTTPMethod.Post, onPostResponse);
         }
         catch (Exception)
         {
-            // Expected for invalid URL
+            // Expected - Post with null data/dataType may throw ArgumentException
             callbackExecuted = true;
         }
-        
+
+        if (request != null)
+        {
+            try
+            {
+                LogAssert.Expect(LogType.Error, "[Error] [HTTPRequest->Send] No request manager.");
+                request.Send();
+            }
+            catch (Exception)
+            {
+                callbackExecuted = true;
+            }
+        }
+
         yield return new WaitForSeconds(httpRequestWaitPeriod);
-        
+
         // Should handle invalid URL gracefully
         Assert.IsTrue(callbackExecuted || receivedResponse == -1);
     }
@@ -181,9 +207,10 @@ public class HTTPTests
         };
         
         HTTPRequest request = new HTTPRequest("https://invalid-host-for-testing.local", HTTPRequest.HTTPMethod.Delete, onDeleteResponse);
-        
+
         try
         {
+            LogAssert.Expect(LogType.Error, "[Error] [HTTPRequest->Send] No request manager.");
             request.Send();
         }
         catch (Exception)

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using Jint;
 using FiveSQD.WebVerse.Utilities;
@@ -115,10 +115,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript
 #if USE_WEBINTERFACE
             new System.Tuple<string, System.Type>("MQTTClient", typeof(MQTTClient)),
             new System.Tuple<string, System.Type>("WebSocket", typeof(WebSocket)),
+            new System.Tuple<string, System.Type>("SocketIO", typeof(SocketIO)),
 #endif
 
             // Input.
             new System.Tuple<string, System.Type>("Input", typeof(APIs.Input.Input)),
+
+            // Voice.
+            new System.Tuple<string, System.Type>("Voice", typeof(APIs.Voice.Voice)),
 
 #if USE_WEBINTERFACE
             // VOS Synchronization.
@@ -191,6 +195,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript
             engine.Advanced.ResetCallStack();
             engine = new Engine();
             RegisterAllAPIs();
+            // Clear old mapping before initializing new one to prevent leaks
+            EntityAPIHelper.ClearEntityMapping();
             EntityAPIHelper.InitializeEntityMapping();
         }
 

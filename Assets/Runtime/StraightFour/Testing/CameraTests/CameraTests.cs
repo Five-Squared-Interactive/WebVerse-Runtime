@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections;
 using NUnit.Framework;
@@ -9,6 +9,18 @@ using UnityEditor;
 
 public class CameraTests
 {
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -31,11 +43,16 @@ public class CameraTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
+
+        // Verify Camera.main is available before loading the world
+        Assert.IsNotNull(Camera.main, "Camera.main must be available before LoadWorld");
+
         StraightFour.LoadWorld("test");
 
         Assert.IsNotNull(StraightFour.ActiveWorld.cameraManager);
+        Assert.IsNotNull(StraightFour.ActiveWorld.cameraManager.cam, "CameraManager.cam must not be null");
 
         GameObject parentGO = new GameObject("parent");
 

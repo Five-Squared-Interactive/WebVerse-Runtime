@@ -1,0 +1,211 @@
+/* Animations - Transitions and Keyframes */
+
+/* Chrome visibility transitions */
+.chrome {
+    transition: opacity var(--transition-fast) var(--easing-default);
+}
+
+.chrome--hidden {
+    transition: opacity var(--transition-medium) var(--easing-default);
+}
+
+/* Content frame transitions */
+.content-frame {
+    opacity: 0;
+    transition: opacity var(--transition-medium) var(--easing-default);
+}
+
+.content-frame--visible {
+    opacity: 1;
+}
+
+/* Dropdown animations */
+.dropdown {
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity var(--transition-fast) var(--easing-default),
+                transform var(--transition-fast) var(--easing-default);
+}
+
+.dropdown.dropdown--open {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* VR mode - dropdowns animate upward */
+.vr-mode .dropdown {
+    transform: translateY(8px);
+}
+
+.vr-mode .dropdown.dropdown--open {
+    transform: translateY(0);
+}
+
+/* Toast animations */
+.toast {
+    animation: toast-in var(--transition-medium) var(--easing-default);
+}
+
+.toast--removing {
+    animation: toast-out var(--transition-fast) var(--easing-default) forwards;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes toast-out {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+/* VR mode toasts animate from top */
+.vr-mode .toast {
+    animation: toast-in-vr var(--transition-medium) var(--easing-default);
+}
+
+.vr-mode .toast--removing {
+    animation: toast-out-vr var(--transition-fast) var(--easing-default) forwards;
+}
+
+@keyframes toast-in-vr {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes toast-out-vr {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+/* Tab switch highlight */
+.tab-item--switching {
+    animation: tab-highlight var(--transition-medium) var(--easing-default);
+}
+
+@keyframes tab-highlight {
+    0% {
+        background: var(--color-background-active);
+    }
+    50% {
+        background: var(--color-accent);
+    }
+    100% {
+        background: var(--color-background-active);
+    }
+}
+
+/* Loading pulse */
+.loading-pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Button press feedback */
+@keyframes button-press {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Shake animation for errors */
+.shake {
+    animation: shake 0.5s var(--easing-default);
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    20%, 60% {
+        transform: translateX(-5px);
+    }
+    40%, 80% {
+        transform: translateX(5px);
+    }
+}
+
+/* Fade in/out utilities */
+.fade-in {
+    animation: fade-in var(--transition-fast) var(--easing-default);
+}
+
+.fade-out {
+    animation: fade-out var(--transition-fast) var(--easing-default) forwards;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Scale in for dropdowns and tooltips */
+.scale-in {
+    animation: scale-in var(--transition-fast) var(--easing-bounce);
+}
+
+@keyframes scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab UI Preview</title>
+    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/animations.css">
+    <style>
+        /* Test background - simulates Unity 3D scene */
+        html, body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+        }
+
+        /* Debug panel */
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 2000;
+        }
+        .debug-panel h3 {
+            margin-bottom: 8px;
+            color: #4a9eff;
+        }
+        .debug-panel button {
+            display: block;
+            width: 100%;
+            margin: 4px 0;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .debug-panel button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- Chrome Container -->
+    <div id="chrome" class="chrome chrome--visible">
+        <!-- Tabs Button (circular, left side) -->
+        <button id="tabs-button" class="tabs-button" aria-label="Open tabs menu" aria-expanded="false">
+            <span class="tabs-button__icon">2</span>
+            <img class="tabs-button__world-icon" src="" alt="" style="display: none;">
+        </button>
+
+        <!-- Main Bar -->
+        <div class="main-bar">
+            <!-- Navigation Buttons -->
+            <div class="nav-buttons">
+                <button id="btn-back" class="nav-btn" aria-label="Go back">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M11 2L5 8l6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button id="btn-forward" class="nav-btn" aria-label="Go forward" disabled>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M5 2l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button id="btn-reload" class="nav-btn" aria-label="Reload">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M13.5 8a5.5 5.5 0 11-1.5-3.8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        <path d="M13 2v3h-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- URL Bar -->
+            <div class="url-bar-container">
+                <input
+                    id="url-bar"
+                    class="url-bar"
+                    type="text"
+                    value="https://example.com/my-world"
+                    placeholder="Enter world URL..."
+                    aria-label="World URL"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Menu Button -->
+            <button id="btn-menu" class="nav-btn menu-btn" aria-label="Open menu" aria-expanded="false">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="3" r="1.5"/>
+                    <circle cx="8" cy="8" r="1.5"/>
+                    <circle cx="8" cy="13" r="1.5"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Tab Dropdown -->
+        <div id="tab-dropdown" class="dropdown tab-dropdown" style="display: none;">
+            <div id="tab-list" class="tab-dropdown__items">
+                <!-- Sample tabs for preview -->
+                <button class="tab-item tab-item--active">
+                    <div class="tab-item__icon">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M2 8h12M8 2c-2 2-2 10 0 12M8 2c2 2 2 10 0 12" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+                    </div>
+                    <div class="tab-item__info">
+                        <span class="tab-item__name">My World</span>
+                        <span class="tab-item__url">example.com/my-world</span>
+                    </div>
+                    <button class="tab-item__close" aria-label="Close tab">&times;</button>
+                </button>
+                <button class="tab-item">
+                    <div class="tab-item__icon">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M2 8h12M8 2c-2 2-2 10 0 12M8 2c2 2 2 10 0 12" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+                    </div>
+                    <div class="tab-item__info">
+                        <span class="tab-item__name">Another World</span>
+                        <span class="tab-item__url">webverse.io/demo</span>
+                    </div>
+                    <button class="tab-item__close" aria-label="Close tab">&times;</button>
+                </button>
+            </div>
+            <button id="btn-new-tab" class="tab-item tab-item--new" aria-label="New tab">
+                <span class="tab-item__icon">+</span>
+                <span class="tab-item__label">New Tab</span>
+            </button>
+        </div>
+
+        <!-- Menu Dropdown -->
+        <div id="menu-dropdown" class="dropdown menu-dropdown" style="display: none;">
+            <button class="menu-item" data-action="history">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M8 4v4l3 2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+                History
+            </button>
+            <button class="menu-item" data-action="console">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="1" y="2" width="14" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M4 6l2 2-2 2M7 10h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+                Console
+            </button>
+            <button class="menu-item" data-action="settings">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.9 2.9l1.4 1.4M11.7 11.7l1.4 1.4M2.9 13.1l1.4-1.4M11.7 4.3l1.4-1.4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+                Settings
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" data-action="fullscreen">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Fullscreen
+            </button>
+            <button class="menu-item" data-action="vr-mode">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="1" y="4" width="14" height="8" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <circle cx="5" cy="8" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                    <circle cx="11" cy="8" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                </svg>
+                VR Mode
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" data-action="about">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M8 5v1M8 7v4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                </svg>
+                About
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Debug Panel -->
+    <div class="debug-panel">
+        <h3>Test Controls</h3>
+        <button onclick="toggleTabDropdown()">Toggle Tabs Dropdown</button>
+        <button onclick="toggleMenuDropdown()">Toggle Menu Dropdown</button>
+        <button onclick="toggleLoading()">Toggle Loading</button>
+        <button onclick="showToast()">Show Toast</button>
+        <button onclick="toggleVRMode()">Toggle VR Mode</button>
+    </div>
+
+    <script src="scripts/bridge.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script>
+        // Test controls
+        function toggleTabDropdown() {
+            const dropdown = document.getElementById('tab-dropdown');
+            const isOpen = dropdown.style.display !== 'none';
+            dropdown.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) {
+                dropdown.classList.add('dropdown--open');
+            } else {
+                dropdown.classList.remove('dropdown--open');
+            }
+        }
+
+        function toggleMenuDropdown() {
+            const dropdown = document.getElementById('menu-dropdown');
+            const isOpen = dropdown.style.display !== 'none';
+            dropdown.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) {
+                dropdown.classList.add('dropdown--open');
+            } else {
+                dropdown.classList.remove('dropdown--open');
+            }
+        }
+
+        function toggleLoading() {
+            const indicator = document.getElementById('loading-indicator');
+            indicator.style.display = indicator.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function showToast() {
+            window.tabUI?.showToast('World loaded successfully!', 'success', 3000);
+        }
+
+        function toggleVRMode() {
+            document.body.classList.toggle('vr-mode');
+        }
+    </script>
+</body>
+</html>

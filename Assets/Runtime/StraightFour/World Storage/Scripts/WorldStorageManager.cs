@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections.Generic;
 using FiveSQD.StraightFour.Utilities;
@@ -105,6 +105,43 @@ namespace FiveSQD.StraightFour.WorldStorage
             }
 
             return storageDictionary[key];
+        }
+
+        /// <summary>
+        /// Get all items from world storage.
+        /// </summary>
+        /// <returns>Dictionary containing all storage items, or null if not initialized.</returns>
+        public Dictionary<string, string> GetAllItems()
+        {
+            if (storageDictionary == null)
+            {
+                LogSystem.LogError("[WorldStorageManager->GetAllItems] World Storage not initialized.");
+                return null;
+            }
+
+            return new Dictionary<string, string>(storageDictionary);
+        }
+
+        /// <summary>
+        /// Set all items in world storage, replacing existing items.
+        /// </summary>
+        /// <param name="items">Dictionary of items to set.</param>
+        public void SetAllItems(Dictionary<string, string> items)
+        {
+            if (storageDictionary == null)
+            {
+                LogSystem.LogError("[WorldStorageManager->SetAllItems] World Storage not initialized.");
+                return;
+            }
+
+            storageDictionary.Clear();
+            if (items != null)
+            {
+                foreach (var kvp in items)
+                {
+                    SetItem(kvp.Key, kvp.Value);
+                }
+            }
         }
 
         /// <summary>

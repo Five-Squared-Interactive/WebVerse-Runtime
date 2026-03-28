@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -49,6 +49,44 @@ namespace FiveSQD.WebVerse.Handlers.GLTF
         {
             gltfLoader = gameObject.AddComponent<GLTFLoader>();
             base.Initialize();
+        }
+
+        /// <summary>
+        /// Reset the GLTF handler, clearing cached prefabs.
+        /// </summary>
+        public void Reset()
+        {
+            int count = gltfMeshPrefabs.Count;
+            // Destroy all cached prefabs
+            foreach (var prefab in gltfMeshPrefabs.Values)
+            {
+                if (prefab != null)
+                {
+#if UNITY_EDITOR
+                    if (!Application.isPlaying)
+                    {
+                        DestroyImmediate(prefab);
+                    }
+                    else
+                    {
+                        Destroy(prefab);
+                    }
+#else
+                    Destroy(prefab);
+#endif
+                }
+            }
+            gltfMeshPrefabs.Clear();
+            Logging.Log("[GLTFHandler->Reset] Cleared " + count + " cached prefabs.");
+        }
+
+        /// <summary>
+        /// Terminate the GLTF handler.
+        /// </summary>
+        public override void Terminate()
+        {
+            Reset();
+            base.Terminate();
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
@@ -261,6 +261,14 @@ namespace FiveSQD.WebVerse.Interface.MultibarMenu
                 if (multibarInput.keyboard != null)
                 {
                     multibarInput.keyboard.SetActive(false);
+                }
+
+                // Show WebView when multibar is shown and a webpage is loaded
+                if (gameObject.activeSelf && WebVerseRuntime.Instance.webverseWebView != null
+                    && WebVerseRuntime.Instance.state == WebVerseRuntime.RuntimeState.WebPage)
+                {
+                    WebVerseRuntime.Instance.webverseWebView.Show();
+                    Logging.Log("[Multibar->ToggleMultibar] Showing WebView.");
                 }
             }
             if (desktopToggleTooltip != null)
