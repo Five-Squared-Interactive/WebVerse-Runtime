@@ -181,6 +181,19 @@ jobs:
           if (Test-Path $logFile) { Get-Content $logFile -Tail 50 }
           if ($process.ExitCode -ne 0) { Write-Host "::error::Build failed"; exit $process.ExitCode }
 
+      - name: Copy Vuplex Chromium to build output
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $chromiumSource = "$env:PROJECT_PATH\Assets\Runtime\StraightFour\3rd-party\Vuplex\WebView\Standalone\Windows\Plugins\VuplexWebViewChromium"
+          $chromiumTarget = "$env:PROJECT_PATH\Builds\Windows-Desktop\WebVerse_Data\Plugins\VuplexWebViewChromium"
+          if (Test-Path $chromiumSource) {
+            New-Item -ItemType Directory -Path $chromiumTarget -Force | Out-Null
+            Copy-Item -Path "$chromiumSource\*" -Destination $chromiumTarget -Recurse -Force
+            Write-Host "Copied VuplexWebViewChromium to build output"
+          } else {
+            Write-Host "::warning::VuplexWebViewChromium not found at $chromiumSource"
+          }
+
       - name: Create archive
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
