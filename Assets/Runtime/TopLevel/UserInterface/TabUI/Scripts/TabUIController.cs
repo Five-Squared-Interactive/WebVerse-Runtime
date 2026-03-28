@@ -38,10 +38,20 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         private bool isVR;
 
         /// <summary>
+        /// Set VR mode before calling Initialize.
+        /// </summary>
+        public bool IsVR { get => isVR; set => isVR = value; }
+
+        /// <summary>
         /// Parent transform for VR mode positioning.
         /// </summary>
         [SerializeField]
         private Transform vrParent;
+
+        /// <summary>
+        /// Set VR parent transform before calling Initialize.
+        /// </summary>
+        public Transform VRParent { get => vrParent; set => vrParent = value; }
 
         #endregion
 

@@ -384,6 +384,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 GameObject vrTabUIGO = new GameObject("VRTabUI");
                 vrTabUIGO.transform.SetParent(vrParent);
                 vrTabUIController = vrTabUIGO.AddComponent<TabUIController>();
+                vrTabUIController.IsVR = true;
                 // VR controller setup is deferred until VR mode is enabled
             }
         }
@@ -979,6 +980,8 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             // Initialize and show VR Tab UI
             if (vrTabUIController != null && tabUIWebViewPrefab != null)
             {
+                vrTabUIController.IsVR = true;
+                vrTabUIController.VRParent = vrParent;
                 vrTabUIController.Initialize(tabManager, tabUIWebViewPrefab);
                 vrTabUIController.OnNavigateRequested += HandleNavigateRequest;
                 vrTabUIController.OnMenuAction += HandleMenuAction;
