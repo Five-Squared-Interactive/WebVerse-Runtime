@@ -277,6 +277,7 @@ namespace FiveSQD.WebVerse.Runtime
                 tabUIIntegration.OnClearCacheRequested += HandleClearCache;
                 tabUIIntegration.OnExitRequested += HandleExit;
                 tabUIIntegration.OnPageLoaded += HandlePageLoaded;
+                tabUIIntegration.OnVRModeToggleRequested += () => { if (vrEnabled) DisableVR(); else EnableVR(); };
 
                 Logging.Log("[DesktopMode->Awake] Tab UI initialized with data providers.");
             }
