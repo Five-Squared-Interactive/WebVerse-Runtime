@@ -225,6 +225,11 @@ namespace FiveSQD.WebVerse.Runtime
             if (steamVRInputComponent != null && tabUIIntegration != null)
             {
                 steamVRInputComponent.OnMenuPressed += tabUIIntegration.ToggleChrome;
+                Logging.Log("[DesktopMode->EnableVR] Subscribed VR menu button to TabUI ToggleChrome.");
+            }
+            else
+            {
+                Logging.LogWarning($"[DesktopMode->EnableVR] Failed to subscribe VR menu button. steamVRInputComponent={(steamVRInputComponent != null ? "found" : "null")}, tabUIIntegration={(tabUIIntegration != null ? "found" : "null")}");
             }
         }
 

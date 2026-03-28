@@ -52,6 +52,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         [Tooltip("Parent transform for VR mode Tab UI.")]
         private Transform vrParent;
 
+        /// <summary>
+        /// VR Camera for canvas event processing.
+        /// </summary>
+        [SerializeField]
+        [Tooltip("VR Camera for canvas event processing.")]
+        private Camera vrCamera;
+
         [Header("Configuration")]
 
         /// <summary>
@@ -982,6 +989,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             {
                 vrTabUIController.IsVR = true;
                 vrTabUIController.VRParent = vrParent;
+                vrTabUIController.VRCamera = vrCamera;
                 vrTabUIController.Initialize(tabManager, tabUIWebViewPrefab);
                 vrTabUIController.OnNavigateRequested += HandleNavigateRequest;
                 vrTabUIController.OnMenuAction += HandleMenuAction;
