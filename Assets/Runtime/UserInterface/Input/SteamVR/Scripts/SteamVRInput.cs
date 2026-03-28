@@ -39,6 +39,11 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         public XRController rightController;
 
         /// <summary>
+        /// Fired when either VR menu button is pressed (Started phase).
+        /// </summary>
+        public event Action OnMenuPressed;
+
+        /// <summary>
         /// Invoked on a left menu.
         /// </summary>
         /// <param name="context">Callback context.</param>
@@ -46,6 +51,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             if (context.phase == InputActionPhase.Started)
             {
+                OnMenuPressed?.Invoke();
                 WebVerseRuntime.Instance.inputManager.LeftMenu();
                 WebVerseRuntime.Instance.inputManager.leftMenuValue = true;
                 if (WebVerseRuntime.Instance.inputManager.rightMenuValue == false)
@@ -79,6 +85,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             if (context.phase == InputActionPhase.Started)
             {
+                OnMenuPressed?.Invoke();
                 WebVerseRuntime.Instance.inputManager.RightMenu();
                 WebVerseRuntime.Instance.inputManager.rightMenuValue = true;
                 if (WebVerseRuntime.Instance.inputManager.leftMenuValue == false)

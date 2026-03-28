@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Input;
+using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Interface.TabUI;
 using UnityEngine;
 
@@ -190,6 +191,11 @@ namespace FiveSQD.WebVerse.Runtime
         private bool vrEnabled;
 
         /// <summary>
+        /// Cached SteamVR input component for VR menu button routing.
+        /// </summary>
+        private SteamVRInput steamVRInputComponent;
+
+        /// <summary>
         /// Enable VR.
         /// </summary>
         public void EnableVR()
@@ -212,6 +218,13 @@ namespace FiveSQD.WebVerse.Runtime
             if (tabUIIntegration != null)
             {
                 tabUIIntegration.EnableVRMode();
+            }
+
+            // Route VR menu button to TabUI chrome toggle
+            steamVRInputComponent = steamVRInput.GetComponentInChildren<SteamVRInput>();
+            if (steamVRInputComponent != null && tabUIIntegration != null)
+            {
+                steamVRInputComponent.OnMenuPressed += tabUIIntegration.ToggleChrome;
             }
         }
 
@@ -242,6 +255,13 @@ namespace FiveSQD.WebVerse.Runtime
             runtime.vr = false;
             SetCanvasEventCamera(desktopCamera);
             skySphereFollower.transformToFollow = desktopCamera.transform;
+
+            // Unsubscribe VR menu button from TabUI
+            if (steamVRInputComponent != null && tabUIIntegration != null)
+            {
+                steamVRInputComponent.OnMenuPressed -= tabUIIntegration.ToggleChrome;
+                steamVRInputComponent = null;
+            }
 
             // Switch Tab UI back to Desktop mode
             if (tabUIIntegration != null)
