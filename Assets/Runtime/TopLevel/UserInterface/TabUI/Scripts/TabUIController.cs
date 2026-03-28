@@ -250,15 +250,17 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             {
                 canvas.renderMode = RenderMode.WorldSpace;
 
-                // Set up RectTransform for VR
+                // Set the event camera so the VR raycaster can interact with the canvas
+                canvas.worldCamera = Camera.main;
+
+                // Set up RectTransform for VR — large enough to show full UI
                 RectTransform rt = webViewObject.GetComponent<RectTransform>();
                 if (rt != null)
                 {
-                    rt.anchorMin = new Vector2(0.5f, 0);
-                    rt.anchorMax = new Vector2(0.5f, 0);
-                    rt.pivot = new Vector2(0.5f, 0);
-                    rt.sizeDelta = new Vector2(1200, 80);
-                    rt.localPosition = new Vector3(0, 0.5f, 2f);
+                    rt.anchorMin = new Vector2(0.5f, 0.5f);
+                    rt.anchorMax = new Vector2(0.5f, 0.5f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.sizeDelta = new Vector2(1600, 900);
                     rt.localScale = Vector3.one * 0.001f;
                 }
 
@@ -270,7 +272,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 }
 
 #if WV_VR_ENABLED
-                // Add VR raycaster
+                // Add VR raycaster for controller interaction
                 if (webViewObject.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
                 {
                     webViewObject.AddComponent<TrackedDeviceGraphicRaycaster>();
@@ -278,16 +280,35 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 #endif
             }
 
-            // Parent to VR parent if specified
-            if (vrParent != null)
-            {
-                webViewObject.transform.SetParent(vrParent);
-                webViewObject.transform.localPosition = Vector3.zero;
-                webViewObject.transform.localRotation = Quaternion.identity;
-            }
+            // Do NOT parent to VR rig — we position it manually on toggle
+            // so it spawns in front of the user like the legacy Multibar
+            webViewObject.transform.SetParent(null);
+
+            // Start hidden — user toggles it on with the menu button
+            webViewObject.SetActive(false);
+            chromeVisible = false;
 
             // Send mode to WebView
             SendModeToWebView("vr");
+        }
+
+        /// <summary>
+        /// Position the VR chrome in front of the user's current view.
+        /// Called each time the chrome is shown in VR mode.
+        /// </summary>
+        private void PositionVRChromeInFrontOfUser()
+        {
+            Camera vrCam = Camera.main;
+            if (vrCam == null || webViewObject == null) return;
+
+            // Place 2m in front of the camera, at eye level, facing the user
+            Vector3 forward = vrCam.transform.forward;
+            forward.y = 0; // Keep level
+            if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+            forward.Normalize();
+
+            webViewObject.transform.position = vrCam.transform.position + forward * 2f;
+            webViewObject.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
         #endregion
@@ -862,6 +883,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         {
             chromeVisible = true;
             webViewObject?.SetActive(true);
+
+            // In VR, reposition in front of the user each time
+            if (isVR)
+            {
+                PositionVRChromeInFrontOfUser();
+            }
+
             ExecuteJavaScript("window.tabUI?.showChrome();");
         }
 
@@ -871,8 +899,16 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         public void HideChrome()
         {
             chromeVisible = false;
-            ExecuteJavaScript("window.tabUI?.hideChrome();");
-            // Keep WebView active but chrome hidden via CSS
+            if (isVR)
+            {
+                // In VR, fully hide the WebView object
+                webViewObject?.SetActive(false);
+            }
+            else
+            {
+                ExecuteJavaScript("window.tabUI?.hideChrome();");
+                // Keep WebView active but chrome hidden via CSS
+            }
         }
 
         /// <summary>
