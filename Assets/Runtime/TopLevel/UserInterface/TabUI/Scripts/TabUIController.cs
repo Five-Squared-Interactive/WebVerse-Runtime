@@ -333,17 +333,44 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 var es = EventSystem.current;
                 Logging.Log($"[TabUIController VR Diag] EventSystem inputModule={es?.currentInputModule?.GetType().FullName ?? "NULL"}");
 
+                // Layer check
+                Logging.Log($"[TabUIController VR Diag] webViewObject layer={webViewObject.layer} ({LayerMask.LayerToName(webViewObject.layer)})");
+
+                // All registered raycasters in scene
+                var allRaycasters = FindObjectsOfType<UnityEngine.EventSystems.BaseRaycaster>();
+                Logging.Log($"[TabUIController VR Diag] Active BaseRaycasters in scene: {allRaycasters.Length}");
+                foreach (var rc in allRaycasters)
+                {
+                    Logging.Log($"[TabUIController VR Diag]   Raycaster: {rc.gameObject.name} type={rc.GetType().Name} enabled={rc.enabled} active={rc.gameObject.activeInHierarchy}");
+                }
+
+                // Check XRInteractionManager and registered interactors
+                var xrManager = FindObjectOfType<UnityEngine.XR.Interaction.Toolkit.XRInteractionManager>();
+                if (xrManager != null)
+                {
+                    var interactors = new List<UnityEngine.XR.Interaction.Toolkit.IXRInteractor>();
+                    xrManager.GetRegisteredInteractors(interactors);
+                    Logging.Log($"[TabUIController VR Diag] XRInteractionManager registered interactors: {interactors.Count}");
+                    foreach (var interactor in interactors)
+                    {
+                        var mb = interactor as MonoBehaviour;
+                        Logging.Log($"[TabUIController VR Diag]   Interactor: {mb?.gameObject.name ?? "?"} type={interactor.GetType().Name} enabled={mb?.enabled} active={mb?.gameObject.activeInHierarchy}");
+                    }
+                }
+                else
+                {
+                    Logging.LogWarning("[TabUIController VR Diag] No XRInteractionManager found in scene");
+                }
+
                 var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
                 Logging.Log($"[TabUIController VR Diag] Graphic children count={graphics?.Length ?? 0}");
                 if (graphics != null)
                 {
                     foreach (var g in graphics)
                     {
-                        Logging.Log($"[TabUIController VR Diag]   Graphic: {g.gameObject.name} type={g.GetType().Name} raycastTarget={g.raycastTarget} active={g.gameObject.activeInHierarchy}");
+                        Logging.Log($"[TabUIController VR Diag]   Graphic: {g.gameObject.name} type={g.GetType().Name} raycastTarget={g.raycastTarget} active={g.gameObject.activeInHierarchy} layer={g.gameObject.layer}");
                     }
                 }
-                // Log full child hierarchy
-                _LogHierarchy(webViewObject.transform, 0);
             }
             catch (Exception ex)
             {
