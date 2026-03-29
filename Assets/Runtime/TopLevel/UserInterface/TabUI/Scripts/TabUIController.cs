@@ -7,6 +7,7 @@ using FiveSQD.StraightFour.WorldState;
 using FiveSQD.WebVerse.Utilities;
 using Newtonsoft.Json;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 #if WV_VR_ENABLED
 using UnityEngine.XR.Interaction.Toolkit.UI;
@@ -256,7 +257,15 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 canvas.renderMode = RenderMode.WorldSpace;
 
                 // Use the explicit VR camera for event processing
-                canvas.worldCamera = VRCamera;
+                if (VRCamera != null)
+                {
+                    canvas.worldCamera = VRCamera;
+                }
+                else
+                {
+                    canvas.worldCamera = Camera.main;
+                    Logging.LogWarning("[TabUIController->SetupVRMode] VRCamera is null, falling back to Camera.main");
+                }
 
                 // Set up RectTransform for VR — large enough to show full UI
                 RectTransform rt = webViewObject.GetComponent<RectTransform>();
@@ -278,22 +287,6 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 #endif
             }
 
-#if VUPLEX_INCLUDED && WV_VR_ENABLED
-            // Vuplex CanvasWebViewPrefab creates its own nested Canvas —
-            // TrackedDeviceGraphicRaycaster must also be on that child canvas
-            if (webViewPrefabComponent != null)
-            {
-                var childCanvas = webViewPrefabComponent.GetComponent<Canvas>();
-                if (childCanvas != null)
-                {
-                    var childGR = childCanvas.GetComponent<GraphicRaycaster>();
-                    if (childGR != null) childGR.enabled = false;
-                    if (childCanvas.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
-                        childCanvas.gameObject.AddComponent<TrackedDeviceGraphicRaycaster>();
-                }
-            }
-#endif
-
             // Do NOT parent to VR rig — we position it manually on toggle
             // so it spawns in front of the user like the legacy Multibar
             webViewObject.transform.SetParent(null);
@@ -304,6 +297,48 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             // Send mode to WebView
             SendModeToWebView("vr");
+
+            // Diagnostic logging
+            _LogVRSetupDiagnostics();
+        }
+
+        /// <summary>
+        /// Log diagnostics about the VR setup for debugging pointer interaction.
+        /// </summary>
+        private void _LogVRSetupDiagnostics()
+        {
+            Canvas canvas = webViewObject?.GetComponent<Canvas>();
+            Logging.Log($"[TabUIController VR Diagnostics] Canvas: {(canvas != null ? "found" : "MISSING")}");
+            if (canvas != null)
+            {
+                Logging.Log($"  renderMode={canvas.renderMode}, worldCamera={(canvas.worldCamera != null ? canvas.worldCamera.name : "NULL")}");
+            }
+
+#if WV_VR_ENABLED
+            var tdgr = webViewObject?.GetComponent<TrackedDeviceGraphicRaycaster>();
+            Logging.Log($"  TrackedDeviceGraphicRaycaster: {(tdgr != null ? $"present, enabled={tdgr.enabled}" : "MISSING")}");
+#endif
+
+            var gr = webViewObject?.GetComponent<GraphicRaycaster>();
+            Logging.Log($"  GraphicRaycaster: {(gr != null ? $"present, enabled={gr.enabled}" : "not present")}");
+
+            // Check EventSystem input module
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es != null)
+            {
+                Logging.Log($"  EventSystem inputModule: {es.currentInputModule?.GetType().Name ?? "NULL"}");
+            }
+
+            // Check for Graphic raycast targets under the canvas
+            var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
+            Logging.Log($"  Graphic children (including inactive): {graphics?.Length ?? 0}");
+            if (graphics != null)
+            {
+                foreach (var g in graphics)
+                {
+                    Logging.Log($"    {g.gameObject.name}: type={g.GetType().Name}, raycastTarget={g.raycastTarget}, enabled={g.enabled}");
+                }
+            }
         }
 
         /// <summary>
