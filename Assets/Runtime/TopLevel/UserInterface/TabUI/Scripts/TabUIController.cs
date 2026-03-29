@@ -383,9 +383,18 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     TrackedDeviceModel nfModel;
                     bool gotModel = nearFar.TryGetUIModel(out nfModel);
                     Logging.Log($"[TabUIController VR Diag] NearFarInteractor.TryGetUIModel={gotModel}, raycastPoints={nfModel.raycastPoints?.Count ?? 0}");
+                }
+                else
+                {
+                    Logging.LogWarning("[TabUIController VR Diag] No NearFarInteractor found in scene");
+                }
+#endif
 
-                    // Check GraphicRegistry for this canvas
+                // Check GraphicRegistry for this canvas
+                try
+                {
                     var canvasForGraphics = webViewObject?.GetComponent<Canvas>();
+                    Logging.Log($"[TabUIController VR Diag] canvasForGraphics={(canvasForGraphics != null ? "found" : "null")}");
                     if (canvasForGraphics != null)
                     {
                         var registeredGraphics = GraphicRegistry.GetGraphicsForCanvas(canvasForGraphics);
@@ -419,11 +428,10 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                         }
                     }
                 }
-                else
+                catch (Exception grEx)
                 {
-                    Logging.LogWarning("[TabUIController VR Diag] No NearFarInteractor found in scene");
+                    Logging.LogError($"[TabUIController VR Diag] GraphicRegistry check exception: {grEx}");
                 }
-#endif
 
                 var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
                 Logging.Log($"[TabUIController VR Diag] Graphic children count={graphics?.Length ?? 0}");
