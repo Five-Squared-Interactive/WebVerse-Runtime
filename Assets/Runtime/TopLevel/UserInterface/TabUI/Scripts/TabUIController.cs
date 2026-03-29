@@ -307,37 +307,32 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         private void _LogVRSetupDiagnostics()
         {
-            Canvas canvas = webViewObject?.GetComponent<Canvas>();
-            Logging.Log($"[TabUIController VR Diagnostics] Canvas: {(canvas != null ? "found" : "MISSING")}");
-            if (canvas != null)
+            try
             {
-                Logging.Log($"  renderMode={canvas.renderMode}, worldCamera={(canvas.worldCamera != null ? canvas.worldCamera.name : "NULL")}");
-            }
+                Canvas canvas = webViewObject?.GetComponent<Canvas>();
+                string worldCam = "NULL";
+                try { worldCam = canvas?.worldCamera != null ? canvas.worldCamera.name : "NULL"; } catch { worldCam = "ERROR"; }
+                Logging.Log($"[TabUIController VR Diag] Canvas={canvas != null} renderMode={canvas?.renderMode} worldCamera={worldCam}");
+
+                var gr = webViewObject?.GetComponent<GraphicRaycaster>();
+                Logging.Log($"[TabUIController VR Diag] GraphicRaycaster={(gr != null ? $"enabled={gr.enabled}" : "none")}");
 
 #if VUPLEX_XR_INTERACTION_TOOLKIT
-            var tdgr = webViewObject?.GetComponent<TrackedDeviceGraphicRaycaster>();
-            Logging.Log($"  TrackedDeviceGraphicRaycaster: {(tdgr != null ? $"present, enabled={tdgr.enabled}" : "MISSING")}");
+                var tdgr = webViewObject?.GetComponent<TrackedDeviceGraphicRaycaster>();
+                Logging.Log($"[TabUIController VR Diag] TrackedDeviceGraphicRaycaster={(tdgr != null ? $"enabled={tdgr.enabled}" : "MISSING")}");
+#else
+                Logging.Log("[TabUIController VR Diag] VUPLEX_XR_INTERACTION_TOOLKIT is NOT defined");
 #endif
 
-            var gr = webViewObject?.GetComponent<GraphicRaycaster>();
-            Logging.Log($"  GraphicRaycaster: {(gr != null ? $"present, enabled={gr.enabled}" : "not present")}");
+                var es = EventSystem.current;
+                Logging.Log($"[TabUIController VR Diag] EventSystem inputModule={es?.currentInputModule?.GetType().FullName ?? "NULL"}");
 
-            // Check EventSystem input module
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            if (es != null)
-            {
-                Logging.Log($"  EventSystem inputModule: {es.currentInputModule?.GetType().Name ?? "NULL"}");
+                var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
+                Logging.Log($"[TabUIController VR Diag] Graphic children count={graphics?.Length ?? 0}");
             }
-
-            // Check for Graphic raycast targets under the canvas
-            var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
-            Logging.Log($"  Graphic children (including inactive): {graphics?.Length ?? 0}");
-            if (graphics != null)
+            catch (Exception ex)
             {
-                foreach (var g in graphics)
-                {
-                    Logging.Log($"    {g.gameObject.name}: type={g.GetType().Name}, raycastTarget={g.raycastTarget}, enabled={g.enabled}");
-                }
+                Logging.LogError($"[TabUIController VR Diag] Exception: {ex}");
             }
         }
 
