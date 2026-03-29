@@ -302,6 +302,9 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             webViewObject.SetActive(false);
             chromeVisible = false;
 
+            // In VR, allow all raycasts (screen-space chrome bar filter doesn't apply)
+            if (inputFilter != null) inputFilter.vrMode = true;
+
             // Send mode to WebView
             SendModeToWebView("vr");
 

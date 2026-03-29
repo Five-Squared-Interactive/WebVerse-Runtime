@@ -25,6 +25,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         public bool allowFullScreenInput = false;
 
         /// <summary>
+        /// When true, VR mode is active and all raycasts are allowed
+        /// (screen-space chrome bar logic does not apply to world-space canvases).
+        /// </summary>
+        public bool vrMode = false;
+
+        /// <summary>
         /// Optional secondary hit rect in screen coordinates (bottom-left origin).
         /// Used for the stats HUD overlay.
         /// </summary>
@@ -36,7 +42,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
         {
-            if (allowFullScreenInput) return true;
+            if (allowFullScreenInput || vrMode) return true;
 
             // Allow raycasts only in the chrome bar area (top of screen).
             // Screen coordinates: (0,0) = bottom-left, (width,height) = top-right.
