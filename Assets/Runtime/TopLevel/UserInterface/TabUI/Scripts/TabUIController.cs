@@ -394,6 +394,28 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                         {
                             var g = registeredGraphics[gi];
                             Logging.Log($"[TabUIController VR Diag]   RegGraphic: {g.gameObject.name} depth={g.depth} raycastTarget={g.raycastTarget} cull={g.canvasRenderer.cull} layer={g.gameObject.layer}");
+
+                            // Check CanvasGroup hierarchy
+                            var current = g.transform;
+                            while (current != null)
+                            {
+                                var cg = current.GetComponent<CanvasGroup>();
+                                if (cg != null)
+                                {
+                                    Logging.Log($"[TabUIController VR Diag]   CanvasGroup on '{current.name}': blocksRaycasts={cg.blocksRaycasts}, interactable={cg.interactable}, alpha={cg.alpha}, ignoreParent={cg.ignoreParentGroups}");
+                                }
+                                current = current.parent;
+                            }
+
+                            // Manual raycast test using eventCamera
+                            var evtCam = canvasForGraphics.worldCamera ?? Camera.main;
+                            var rt = g.rectTransform;
+                            var corners = new Vector3[4];
+                            rt.GetWorldCorners(corners);
+                            var center = (corners[0] + corners[2]) * 0.5f;
+                            var screenPt = evtCam.WorldToScreenPoint(center);
+                            bool containsPoint = RectTransformUtility.RectangleContainsScreenPoint(rt, screenPt, evtCam);
+                            Logging.Log($"[TabUIController VR Diag]   RectContainsScreenPoint(center)={containsPoint}, screenPt={screenPt}, worldCenter={center}");
                         }
                     }
                 }
