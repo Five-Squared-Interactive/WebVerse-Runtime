@@ -931,6 +931,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             if (isVR)
             {
                 PositionVRChromeInFrontOfUser();
+                _LogVRSetupDiagnostics();
             }
 
             ExecuteJavaScript("window.tabUI?.showChrome();");
