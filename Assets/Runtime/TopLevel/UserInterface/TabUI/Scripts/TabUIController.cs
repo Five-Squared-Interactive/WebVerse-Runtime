@@ -379,10 +379,23 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                         Logging.Log($"[TabUIController VR Diag] NearFarInteractor registered with XRUIInputModule: {hasModel}");
                     }
 
-                    // Check TryGetUIModel
+                    // Check TryGetUIModel and its data
                     TrackedDeviceModel nfModel;
                     bool gotModel = nearFar.TryGetUIModel(out nfModel);
-                    Logging.Log($"[TabUIController VR Diag] NearFarInteractor.TryGetUIModel={gotModel}");
+                    Logging.Log($"[TabUIController VR Diag] NearFarInteractor.TryGetUIModel={gotModel}, layerMask={nfModel.layerMask.value}, raycastPoints={nfModel.raycastPoints?.Count ?? 0}, interactionType={nfModel.interactionType}");
+
+                    // Check GraphicRegistry for this canvas
+                    var canvasForGraphics = webViewObject?.GetComponent<Canvas>();
+                    if (canvasForGraphics != null)
+                    {
+                        var registeredGraphics = GraphicRegistry.GetGraphicsForCanvas(canvasForGraphics);
+                        Logging.Log($"[TabUIController VR Diag] GraphicRegistry graphics for canvas: {registeredGraphics.Count}");
+                        for (int gi = 0; gi < registeredGraphics.Count; gi++)
+                        {
+                            var g = registeredGraphics[gi];
+                            Logging.Log($"[TabUIController VR Diag]   RegGraphic: {g.gameObject.name} depth={g.depth} raycastTarget={g.raycastTarget} cull={g.canvasRenderer.cull} layer={g.gameObject.layer}");
+                        }
+                    }
                 }
                 else
                 {
