@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-#if WV_VR_ENABLED
+#if VUPLEX_XR_INTERACTION_TOOLKIT
 using UnityEngine.XR.Interaction.Toolkit.UI;
 #endif
 #if VUPLEX_INCLUDED
@@ -281,7 +281,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 // XRUIInputModule requires TrackedDeviceGraphicRaycaster for VR pointer interaction
                 var graphicRaycaster = webViewObject.GetComponent<GraphicRaycaster>();
                 if (graphicRaycaster != null) graphicRaycaster.enabled = false;
-#if WV_VR_ENABLED
+#if VUPLEX_XR_INTERACTION_TOOLKIT
                 if (webViewObject.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
                     webViewObject.AddComponent<TrackedDeviceGraphicRaycaster>();
 #endif
@@ -314,7 +314,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 Logging.Log($"  renderMode={canvas.renderMode}, worldCamera={(canvas.worldCamera != null ? canvas.worldCamera.name : "NULL")}");
             }
 
-#if WV_VR_ENABLED
+#if VUPLEX_XR_INTERACTION_TOOLKIT
             var tdgr = webViewObject?.GetComponent<TrackedDeviceGraphicRaycaster>();
             Logging.Log($"  TrackedDeviceGraphicRaycaster: {(tdgr != null ? $"present, enabled={tdgr.enabled}" : "MISSING")}");
 #endif
