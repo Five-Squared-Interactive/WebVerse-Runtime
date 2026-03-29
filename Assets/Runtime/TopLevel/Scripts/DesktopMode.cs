@@ -208,6 +208,13 @@ namespace FiveSQD.WebVerse.Runtime
             topLevelVRRig.SetActive(true);
             desktopInput.SetActive(false);
             steamVRInput.SetActive(true);
+
+            // Initialize VR rig (sets pointer modes, platform config)
+            var vrRigComponent = vrRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
+            if (vrRigComponent != null)
+            {
+                vrRigComponent.Initialize();
+            }
             runtime.platformInput = vrPlatformInput;
             runtime.inputManager.platformInput = vrPlatformInput;
             runtime.vr = true;

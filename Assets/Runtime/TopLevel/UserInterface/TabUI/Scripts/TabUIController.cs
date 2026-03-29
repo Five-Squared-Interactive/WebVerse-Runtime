@@ -278,13 +278,19 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     rt.localScale = Vector3.one * 0.001f;
                 }
 
-                // XRUIInputModule requires TrackedDeviceGraphicRaycaster for VR pointer interaction
+                // XRUIInputModule requires TrackedDeviceGraphicRaycaster for VR pointer interaction.
+                // Destroy the standard GraphicRaycaster — just disabling it can cause conflicts.
                 var graphicRaycaster = webViewObject.GetComponent<GraphicRaycaster>();
-                if (graphicRaycaster != null) graphicRaycaster.enabled = false;
 #if VUPLEX_XR_INTERACTION_TOOLKIT
+                // Must check type exactly so we don't destroy the TrackedDeviceGraphicRaycaster
+                if (graphicRaycaster != null && graphicRaycaster.GetType() == typeof(GraphicRaycaster))
+                    Destroy(graphicRaycaster);
                 if (webViewObject.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
                     webViewObject.AddComponent<TrackedDeviceGraphicRaycaster>();
 #endif
+                // Disable CanvasScaler — it interferes with WorldSpace canvas raycasting
+                var canvasScaler = webViewObject.GetComponent<CanvasScaler>();
+                if (canvasScaler != null) canvasScaler.enabled = false;
             }
 
             // Do NOT parent to VR rig — we position it manually on toggle
