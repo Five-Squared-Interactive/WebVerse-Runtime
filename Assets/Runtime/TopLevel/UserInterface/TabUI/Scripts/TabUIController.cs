@@ -1022,6 +1022,9 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             chromeVisible = true;
             webViewObject?.SetActive(true);
 
+            // Force canvas rebuild so graphics get valid depth for raycast detection
+            Canvas.ForceUpdateCanvases();
+
             // In VR, reposition in front of the user each time
             if (isVR)
             {
