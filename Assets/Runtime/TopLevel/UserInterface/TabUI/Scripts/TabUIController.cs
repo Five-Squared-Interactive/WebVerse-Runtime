@@ -221,6 +221,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             if (rawImage != null)
             {
                 inputFilter = rawImage.gameObject.AddComponent<ChromeInputFilter>();
+                if (isVR) inputFilter.vrMode = true;
             }
 
             // Subscribe to messages from JS
