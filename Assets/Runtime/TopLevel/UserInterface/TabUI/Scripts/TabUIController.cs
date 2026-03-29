@@ -425,6 +425,23 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                             var screenPt = evtCam.WorldToScreenPoint(center);
                             bool containsPoint = RectTransformUtility.RectangleContainsScreenPoint(rt, screenPt, evtCam);
                             Logging.Log($"[TabUIController VR Diag]   RectContainsScreenPoint(center)={containsPoint}, screenPt={screenPt}, worldCenter={center}");
+
+                            // Check ICanvasRaycastFilter implementations
+                            var filterCheck = g.transform;
+                            while (filterCheck != null)
+                            {
+                                var filters = filterCheck.GetComponents<ICanvasRaycastFilter>();
+                                foreach (var f in filters)
+                                {
+                                    bool valid = f.IsRaycastLocationValid(screenPt, evtCam);
+                                    Logging.Log($"[TabUIController VR Diag]   RaycastFilter on '{filterCheck.name}': type={f.GetType().Name} valid={valid}");
+                                }
+                                filterCheck = filterCheck.parent;
+                            }
+
+                            // Call graphic.Raycast directly
+                            bool graphicRaycastResult = g.Raycast(screenPt, evtCam);
+                            Logging.Log($"[TabUIController VR Diag]   graphic.Raycast={graphicRaycastResult}");
                         }
                     }
                 }
