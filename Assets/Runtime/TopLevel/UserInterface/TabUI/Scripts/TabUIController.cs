@@ -11,6 +11,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 #if VUPLEX_XR_INTERACTION_TOOLKIT
 using UnityEngine.XR.Interaction.Toolkit.UI;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 #endif
 #if VUPLEX_INCLUDED
 using Vuplex.WebView;
@@ -348,7 +349,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 var xrManager = FindObjectOfType<UnityEngine.XR.Interaction.Toolkit.XRInteractionManager>();
                 if (xrManager != null)
                 {
-                    var interactors = new List<UnityEngine.XR.Interaction.Toolkit.IXRInteractor>();
+                    var interactors = new List<UnityEngine.XR.Interaction.Toolkit.Interactors.IXRInteractor>();
                     xrManager.GetRegisteredInteractors(interactors);
                     Logging.Log($"[TabUIController VR Diag] XRInteractionManager registered interactors: {interactors.Count}");
                     foreach (var interactor in interactors)
@@ -361,6 +362,33 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 {
                     Logging.LogWarning("[TabUIController VR Diag] No XRInteractionManager found in scene");
                 }
+
+#if VUPLEX_XR_INTERACTION_TOOLKIT
+                // NearFarInteractor-specific diagnostics
+                var nearFar = FindObjectOfType<NearFarInteractor>();
+                if (nearFar != null)
+                {
+                    Logging.Log($"[TabUIController VR Diag] NearFarInteractor: enableFarCasting={nearFar.enableFarCasting}, enableUIInteraction={nearFar.enableUIInteraction}, isActiveAndEnabled={nearFar.isActiveAndEnabled}, hasSelection={nearFar.hasSelection}");
+
+                    // Check if registered with XRUIInputModule
+                    var uiModule = es?.currentInputModule as XRUIInputModule;
+                    if (uiModule != null)
+                    {
+                        TrackedDeviceModel uiModel;
+                        bool hasModel = uiModule.GetTrackedDeviceModel(nearFar, out uiModel);
+                        Logging.Log($"[TabUIController VR Diag] NearFarInteractor registered with XRUIInputModule: {hasModel}");
+                    }
+
+                    // Check TryGetUIModel
+                    TrackedDeviceModel nfModel;
+                    bool gotModel = nearFar.TryGetUIModel(out nfModel);
+                    Logging.Log($"[TabUIController VR Diag] NearFarInteractor.TryGetUIModel={gotModel}");
+                }
+                else
+                {
+                    Logging.LogWarning("[TabUIController VR Diag] No NearFarInteractor found in scene");
+                }
+#endif
 
                 var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
                 Logging.Log($"[TabUIController VR Diag] Graphic children count={graphics?.Length ?? 0}");
