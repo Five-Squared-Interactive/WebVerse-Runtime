@@ -51,6 +51,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             if (context.phase == InputActionPhase.Started)
             {
+                Logging.Log($"[SteamVRInput] LeftMenu pressed. OnMenuPressed subscribers: {(OnMenuPressed != null ? OnMenuPressed.GetInvocationList().Length.ToString() : "0")}");
                 OnMenuPressed?.Invoke();
                 WebVerseRuntime.Instance.inputManager.LeftMenu();
                 WebVerseRuntime.Instance.inputManager.leftMenuValue = true;
@@ -627,6 +628,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 {
                     WebVerseRuntime.Instance.inputManager.SecondaryPress();
                 }
+                OnMenuPressed?.Invoke();
             }
             else if (context.phase == InputActionPhase.Performed)
             {

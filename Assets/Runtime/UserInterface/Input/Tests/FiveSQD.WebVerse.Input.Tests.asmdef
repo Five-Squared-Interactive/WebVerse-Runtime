@@ -1,0 +1,24 @@
+{
+    "name": "FiveSQD.WebVerse.Input.Tests",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b99f61c11f63dc04897456e22b3ace30",
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:cadc04802aa07a046856a14dd4648e81"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

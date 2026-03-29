@@ -269,9 +269,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     rt.localScale = Vector3.one * 0.001f;
                 }
 
-                // Keep GraphicRaycaster enabled — the XR Interaction Toolkit's
-                // XRUIInputModule works with standard GraphicRaycaster on
-                // World Space canvases (same pattern as legacy Multibar-VR)
+                // XRUIInputModule requires TrackedDeviceGraphicRaycaster for VR pointer interaction
+                var graphicRaycaster = webViewObject.GetComponent<GraphicRaycaster>();
+                if (graphicRaycaster != null) graphicRaycaster.enabled = false;
+#if WV_VR_ENABLED
+                if (webViewObject.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
+                    webViewObject.AddComponent<TrackedDeviceGraphicRaycaster>();
+#endif
             }
 
             // Do NOT parent to VR rig — we position it manually on toggle
@@ -296,12 +300,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             if (vrCam == null || webViewObject == null) return;
 
             // Place 2m in front of the camera, matching the user's gaze direction
-            // but keeping it level (no pitch), same pattern as legacy Multibar
-            webViewObject.transform.position = vrCam.transform.position;
-            webViewObject.transform.rotation = Quaternion.Euler(
-                vrCam.transform.rotation.eulerAngles.x,
-                vrCam.transform.rotation.eulerAngles.y,
-                0);
+            // but keeping it level (no pitch)
+            Vector3 forward = vrCam.transform.forward;
+            forward.y = 0;
+            forward.Normalize();
+            webViewObject.transform.position = vrCam.transform.position + forward * 2f;
+            webViewObject.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
         #endregion
