@@ -793,7 +793,7 @@ namespace FiveSQD.WebVerse.Input
             if (rayInteractorType == RayInteractorType.NearFar)
             {
                 var interactor = isLeft ? leftNearFarInteractor : rightNearFarInteractor;
-                if (interactor != null) interactor.enabled = enabled;
+                SetInteractorEnabled(interactor, enabled);
             }
             else
             {
