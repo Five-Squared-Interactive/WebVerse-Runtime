@@ -220,6 +220,19 @@ namespace FiveSQD.WebVerse.Runtime
             if (vrRigComponent != null)
             {
                 vrRigComponent.Initialize();
+
+                // Fix ray interactor type mismatch: if Standard is set but no XRRayInteractor exists,
+                // switch to NearFar if a NearFarInteractor is available
+                if (vrRigComponent.rayInteractorType == FiveSQD.WebVerse.Input.VRRig.RayInteractorType.Standard
+                    && vrRigComponent.rightRayInteractor == null
+                    && vrRigComponent.rightNearFarInteractor != null)
+                {
+                    Logging.Log("[DesktopMode->EnableVR] No XRRayInteractor found, switching to NearFar interactor type.");
+                    vrRigComponent.rayInteractorType = FiveSQD.WebVerse.Input.VRRig.RayInteractorType.NearFar;
+                    // Re-apply pointer mode now that the correct interactor type is set
+                    vrRigComponent.rightPointerMode = FiveSQD.WebVerse.Input.VRRig.PointerMode.UI;
+                }
+
                 Logging.Log($"[DesktopMode->EnableVR] VRRig initialized. rightPointerMode={vrRigComponent.rightPointerMode}, rayType={vrRigComponent.rayInteractorType}, rightRay={(vrRigComponent.rightRayInteractor != null ? $"enabled={vrRigComponent.rightRayInteractor.enabled}" : "NULL")}, rightNearFar={(vrRigComponent.rightNearFarInteractor != null ? $"enabled={vrRigComponent.rightNearFarInteractor.enabled}" : "NULL")}");
             }
             else
