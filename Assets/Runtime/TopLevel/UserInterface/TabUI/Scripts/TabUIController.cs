@@ -329,10 +329,31 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
                 var graphics = webViewObject?.GetComponentsInChildren<Graphic>(true);
                 Logging.Log($"[TabUIController VR Diag] Graphic children count={graphics?.Length ?? 0}");
+                if (graphics != null)
+                {
+                    foreach (var g in graphics)
+                    {
+                        Logging.Log($"[TabUIController VR Diag]   Graphic: {g.gameObject.name} type={g.GetType().Name} raycastTarget={g.raycastTarget} active={g.gameObject.activeInHierarchy}");
+                    }
+                }
+                // Log full child hierarchy
+                _LogHierarchy(webViewObject.transform, 0);
             }
             catch (Exception ex)
             {
                 Logging.LogError($"[TabUIController VR Diag] Exception: {ex}");
+            }
+        }
+
+        private void _LogHierarchy(Transform t, int depth)
+        {
+            string indent = new string(' ', depth * 2);
+            var components = t.GetComponents<Component>();
+            string compNames = string.Join(", ", System.Array.ConvertAll(components, c => c?.GetType().Name ?? "null"));
+            Logging.Log($"[TabUIController VR Hierarchy] {indent}{t.name} [{compNames}] active={t.gameObject.activeSelf}");
+            for (int i = 0; i < t.childCount; i++)
+            {
+                _LogHierarchy(t.GetChild(i), depth + 1);
             }
         }
 
