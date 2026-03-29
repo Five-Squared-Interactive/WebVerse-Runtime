@@ -210,10 +210,21 @@ namespace FiveSQD.WebVerse.Runtime
             steamVRInput.SetActive(true);
 
             // Initialize VR rig (sets pointer modes, platform config)
-            var vrRigComponent = vrRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
+            FiveSQD.WebVerse.Input.VRRig vrRigComponent = null;
+            if (vrRig != null)
+                vrRigComponent = vrRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
+            if (vrRigComponent == null && topLevelVRRig != null)
+                vrRigComponent = topLevelVRRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
+            if (vrRigComponent == null)
+                vrRigComponent = FindObjectOfType<FiveSQD.WebVerse.Input.VRRig>();
             if (vrRigComponent != null)
             {
                 vrRigComponent.Initialize();
+                Logging.Log($"[DesktopMode->EnableVR] VRRig initialized. rightPointerMode={vrRigComponent.rightPointerMode}, rayType={vrRigComponent.rayInteractorType}, rightRay={(vrRigComponent.rightRayInteractor != null ? $"enabled={vrRigComponent.rightRayInteractor.enabled}" : "NULL")}, rightNearFar={(vrRigComponent.rightNearFarInteractor != null ? $"enabled={vrRigComponent.rightNearFarInteractor.enabled}" : "NULL")}");
+            }
+            else
+            {
+                Logging.LogWarning("[DesktopMode->EnableVR] VRRig component NOT FOUND anywhere in scene");
             }
             runtime.platformInput = vrPlatformInput;
             runtime.inputManager.platformInput = vrPlatformInput;
