@@ -382,7 +382,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     // Check TryGetUIModel and its data
                     TrackedDeviceModel nfModel;
                     bool gotModel = nearFar.TryGetUIModel(out nfModel);
-                    Logging.Log($"[TabUIController VR Diag] NearFarInteractor.TryGetUIModel={gotModel}, raycastPoints={nfModel.raycastPoints?.Count ?? 0}, interactionType={nfModel.interactionType}");
+                    Logging.Log($"[TabUIController VR Diag] NearFarInteractor.TryGetUIModel={gotModel}, raycastPoints={nfModel.raycastPoints?.Count ?? 0}");
 
                     // Check GraphicRegistry for this canvas
                     var canvasForGraphics = webViewObject?.GetComponent<Canvas>();
