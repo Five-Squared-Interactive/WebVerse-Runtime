@@ -278,6 +278,22 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 #endif
             }
 
+#if VUPLEX_INCLUDED && WV_VR_ENABLED
+            // Vuplex CanvasWebViewPrefab creates its own nested Canvas —
+            // TrackedDeviceGraphicRaycaster must also be on that child canvas
+            if (webViewPrefabComponent != null)
+            {
+                var childCanvas = webViewPrefabComponent.GetComponent<Canvas>();
+                if (childCanvas != null)
+                {
+                    var childGR = childCanvas.GetComponent<GraphicRaycaster>();
+                    if (childGR != null) childGR.enabled = false;
+                    if (childCanvas.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
+                        childCanvas.gameObject.AddComponent<TrackedDeviceGraphicRaycaster>();
+                }
+            }
+#endif
+
             // Do NOT parent to VR rig — we position it manually on toggle
             // so it spawns in front of the user like the legacy Multibar
             webViewObject.transform.SetParent(null);
@@ -304,7 +320,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             Vector3 forward = vrCam.transform.forward;
             forward.y = 0;
             forward.Normalize();
-            webViewObject.transform.position = vrCam.transform.position + forward * 2f;
+            webViewObject.transform.position = vrCam.transform.position + forward * 1.5f;
             webViewObject.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 

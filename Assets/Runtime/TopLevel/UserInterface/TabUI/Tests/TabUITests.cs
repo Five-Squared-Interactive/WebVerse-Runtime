@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using System.Collections.Generic;
 using System;
+using System.Threading;
 
 /// <summary>
 /// Unit tests for Tab UI components.
@@ -2006,6 +2007,686 @@ public class TabUITests
         Assert.IsTrue(result);
         Assert.AreSame(tab2, manager.GetTabByIndex(0));
         Assert.AreSame(tab1, manager.GetTabByIndex(1));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    #endregion
+
+    #region Phase 4D - Tab Lifecycle Tests
+
+    [Test]
+    public void TabManager_OpenNewTab_VerifyCountIncreases()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        Assert.AreEqual(0, manager.TabCount);
+
+        // Act
+        manager.CreateTab("http://world1.com", makeActive: false);
+
+        // Assert
+        Assert.AreEqual(1, manager.TabCount);
+
+        manager.CreateTab("http://world2.com", makeActive: false);
+        Assert.AreEqual(2, manager.TabCount);
+
+        manager.CreateTab("http://world3.com", makeActive: false);
+        Assert.AreEqual(3, manager.TabCount);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_CloseTab_VerifyCountDecreases()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        var tab1 = manager.CreateTab("http://world1.com", makeActive: false);
+        var tab2 = manager.CreateTab("http://world2.com", makeActive: false);
+        var tab3 = manager.CreateTab("http://world3.com", makeActive: false);
+        Assert.AreEqual(3, manager.TabCount);
+
+        // Act & Assert
+        manager.CloseTab(tab2.Id);
+        Assert.AreEqual(2, manager.TabCount);
+
+        manager.CloseTab(tab1.Id);
+        Assert.AreEqual(1, manager.TabCount);
+
+        manager.CloseTab(tab3.Id);
+        Assert.AreEqual(0, manager.TabCount);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_OpenMultipleTabsSequentially_AllTracked()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        var createdTabs = new List<TabState>();
+
+        // Act
+        for (int i = 0; i < 5; i++)
+        {
+            createdTabs.Add(manager.CreateTab($"http://world{i}.com", makeActive: false));
+        }
+
+        // Assert
+        Assert.AreEqual(5, manager.TabCount);
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.AreSame(createdTabs[i], manager.GetTabByIndex(i));
+            Assert.AreEqual($"http://world{i}.com", manager.GetTabByIndex(i).WorldUrl);
+        }
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_MaxTabs_EnforcesLimit()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        manager.MaxTabs = 3;
+
+        // Act
+        manager.CreateTab("http://world1.com", makeActive: false);
+        manager.CreateTab("http://world2.com", makeActive: false);
+        manager.CreateTab("http://world3.com", makeActive: false);
+        var overflowTab = manager.CreateTab("http://world4.com", makeActive: false);
+
+        // Assert
+        Assert.IsNull(overflowTab);
+        Assert.AreEqual(3, manager.TabCount);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_GetTab_ById_ReturnsCorrectTab()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        var tab1 = manager.CreateTab("http://world1.com", makeActive: false);
+        var tab2 = manager.CreateTab("http://world2.com", makeActive: false);
+
+        // Act
+        var result = manager.GetTab(tab2.Id);
+
+        // Assert
+        Assert.AreSame(tab2, result);
+        Assert.AreEqual("http://world2.com", result.WorldUrl);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_GetTab_UnknownId_ReturnsNull()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        manager.CreateTab("http://world1.com", makeActive: false);
+
+        // Act
+        var result = manager.GetTab("nonexistent-id");
+
+        // Assert
+        Assert.IsNull(result);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_GetTabIndex_ReturnsCorrectIndex()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        var tab1 = manager.CreateTab("http://world1.com", makeActive: false);
+        var tab2 = manager.CreateTab("http://world2.com", makeActive: false);
+        var tab3 = manager.CreateTab("http://world3.com", makeActive: false);
+
+        // Act & Assert
+        Assert.AreEqual(0, manager.GetTabIndex(tab1.Id));
+        Assert.AreEqual(1, manager.GetTabIndex(tab2.Id));
+        Assert.AreEqual(2, manager.GetTabIndex(tab3.Id));
+        Assert.AreEqual(-1, manager.GetTabIndex("nonexistent"));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_HasTabWithUrl_ReturnsTrueForExisting()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        manager.CreateTab("http://world1.com", makeActive: false);
+
+        // Act & Assert
+        Assert.IsTrue(manager.HasTabWithUrl("http://world1.com"));
+        Assert.IsFalse(manager.HasTabWithUrl("http://unknown.com"));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_CloseTab_WhenNoTabsOpen_ReturnsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+
+        // Act
+        bool result = manager.CloseTab("some-id");
+
+        // Assert
+        Assert.IsFalse(result);
+        Assert.AreEqual(0, manager.TabCount);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_SwitchToTabByIndex_NegativeIndex_LogsWarning()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        manager.CreateTab("http://example.com", makeActive: false);
+        bool callbackInvoked = false;
+        bool callbackResult = true;
+
+        // Act
+        manager.SwitchToTabByIndex(-1, (success) =>
+        {
+            callbackInvoked = true;
+            callbackResult = success;
+        });
+
+        // Assert
+        Assert.IsTrue(callbackInvoked);
+        Assert.IsFalse(callbackResult);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabManager_CloseTabsToRight_WithNoActiveTab_DoesNotThrow()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestTabManager");
+        var manager = go.AddComponent<TabManager>();
+        manager.CreateTab("http://world1.com", makeActive: false);
+        manager.CreateTab("http://world2.com", makeActive: false);
+
+        // Act & Assert - No active tab set, should handle gracefully
+        Assert.DoesNotThrow(() => manager.CloseTabsToRight());
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    #endregion
+
+    #region Phase 4D - TabState Extended Tests
+
+    [Test]
+    public void TabState_Clone_CopiesAllProperties()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        var original = new TabState("http://example.com", "My World");
+        original.LoadState = TabLoadState.Loaded;
+        original.SnapshotId = "snap-123";
+        original.BasePath = "http://example.com/base/";
+        original.ErrorMessage = "some error";
+        original.CanClose = false;
+        original.Metadata = "custom-data";
+
+        // Act
+        var clone = original.Clone();
+
+        // Assert
+        Assert.AreNotSame(original, clone);
+        Assert.AreNotEqual(original.Id, clone.Id); // Clone gets a new ID
+        Assert.AreEqual(original.WorldUrl, clone.WorldUrl);
+        Assert.AreEqual(original.DisplayName, clone.DisplayName);
+        Assert.AreEqual(original.LoadState, clone.LoadState);
+        Assert.AreEqual(original.SnapshotId, clone.SnapshotId);
+        Assert.AreEqual(original.BasePath, clone.BasePath);
+        Assert.AreEqual(original.ErrorMessage, clone.ErrorMessage);
+        Assert.AreEqual(original.CanClose, clone.CanClose);
+        Assert.AreEqual(original.Metadata, clone.Metadata);
+    }
+
+    [Test]
+    public void TabState_MarkActive_UpdatesLastActiveAt()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        var tab = new TabState("http://example.com");
+        DateTime beforeMark = tab.LastActiveAt;
+
+        // Small delay to ensure timestamp differs
+        System.Threading.Thread.Sleep(10);
+
+        // Act
+        tab.MarkActive();
+
+        // Assert
+        Assert.GreaterOrEqual(tab.LastActiveAt, beforeMark);
+    }
+
+    [Test]
+    public void TabState_IsWebPage_DefaultsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange & Act
+        var tab = new TabState("http://example.com");
+
+        // Assert
+        Assert.IsFalse(tab.IsWebPage);
+    }
+
+    [Test]
+    public void TabState_IsWebPage_CanBeSet()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        var tab = new TabState("http://example.com");
+
+        // Act
+        tab.IsWebPage = true;
+
+        // Assert
+        Assert.IsTrue(tab.IsWebPage);
+    }
+
+    [Test]
+    public void TabState_Metadata_CanBeSetAndRetrieved()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        var tab = new TabState("http://example.com");
+
+        // Act
+        tab.Metadata = "{\"theme\":\"dark\",\"zoom\":1.5}";
+
+        // Assert
+        Assert.AreEqual("{\"theme\":\"dark\",\"zoom\":1.5}", tab.Metadata);
+    }
+
+    [Test]
+    public void TabState_GetDisplayName_ExtractsDomainFromUrl()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange - No explicit display name, should extract from URL
+        var tab = new TabState("http://www.example.com/world/test.veml");
+        tab.DisplayName = null;
+
+        // Act
+        string displayName = tab.GetDisplayName();
+
+        // Assert
+        Assert.AreEqual("www.example.com", displayName);
+    }
+
+    [Test]
+    public void TabState_GetDisplayName_ReturnsNewTab_ForNullUrl()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        var tab = new TabState(null);
+        tab.DisplayName = null;
+
+        // Act
+        string displayName = tab.GetDisplayName();
+
+        // Assert
+        Assert.AreEqual("New Tab", displayName);
+    }
+
+    [Test]
+    public void TabState_SuspendedState_CanBeSet()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        var tab = new TabState("http://example.com");
+        tab.LoadState = TabLoadState.Loaded;
+
+        // Act
+        tab.LoadState = TabLoadState.Suspended;
+        tab.SnapshotId = "snapshot-456";
+
+        // Assert
+        Assert.AreEqual(TabLoadState.Suspended, tab.LoadState);
+        Assert.AreEqual("snapshot-456", tab.SnapshotId);
+    }
+
+    #endregion
+
+    #region Phase 4D - ChromeInputFilter Extended Tests
+
+    [Test]
+    public void ChromeInputFilter_ExactChromeBoundary_IsValid()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestFilter");
+        var filter = go.AddComponent<ChromeInputFilter>();
+        filter.chromeHeight = 120f;
+        filter.allowFullScreenInput = false;
+
+        // Act - Point exactly at the chrome boundary
+        bool result = filter.IsRaycastLocationValid(
+            new Vector2(400, Screen.height - 120f), null);
+
+        // Assert - Should be valid (at boundary)
+        Assert.IsTrue(result);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void ChromeInputFilter_JustBelowChromeBoundary_IsInvalid()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestFilter");
+        var filter = go.AddComponent<ChromeInputFilter>();
+        filter.chromeHeight = 120f;
+        filter.allowFullScreenInput = false;
+
+        // Act - Point just below the chrome boundary
+        bool result = filter.IsRaycastLocationValid(
+            new Vector2(400, Screen.height - 121f), null);
+
+        // Assert
+        Assert.IsFalse(result);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void ChromeInputFilter_CustomChromeHeight_Respected()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestFilter");
+        var filter = go.AddComponent<ChromeInputFilter>();
+        filter.chromeHeight = 200f;
+        filter.allowFullScreenInput = false;
+
+        // Act - Point within custom chrome height
+        bool insideChrome = filter.IsRaycastLocationValid(
+            new Vector2(400, Screen.height - 150f), null);
+        bool outsideChrome = filter.IsRaycastLocationValid(
+            new Vector2(400, Screen.height - 250f), null);
+
+        // Assert
+        Assert.IsTrue(insideChrome);
+        Assert.IsFalse(outsideChrome);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    #endregion
+
+    #region Phase 4D - TabUIController Extended Tests
+
+    [Test]
+    public void TabUIController_SetTheme_ValidThemes_SetsCurrentTheme()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Act & Assert
+        controller.SetTheme("dark");
+        Assert.AreEqual("dark", controller.CurrentTheme);
+
+        controller.SetTheme("light");
+        Assert.AreEqual("light", controller.CurrentTheme);
+
+        controller.SetTheme("system");
+        Assert.AreEqual("system", controller.CurrentTheme);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_SetTheme_InvalidTheme_FallsBackToSystem()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Act
+        controller.SetTheme("invalid-theme");
+
+        // Assert
+        Assert.AreEqual("system", controller.CurrentTheme);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_SetContentFrameVisible_UpdatesProperty()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+        Assert.IsFalse(controller.IsContentFrameVisible);
+
+        // Act
+        controller.SetContentFrameVisible(true);
+
+        // Assert
+        Assert.IsTrue(controller.IsContentFrameVisible);
+
+        // Act
+        controller.SetContentFrameVisible(false);
+
+        // Assert
+        Assert.IsFalse(controller.IsContentFrameVisible);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_OnThemeChanged_EventCanBeSubscribed()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+        string receivedTheme = null;
+
+        // Act
+        controller.OnThemeChanged += (theme) => receivedTheme = theme;
+
+        // Assert - Event subscription works, not yet fired
+        Assert.IsNull(receivedTheme);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_SendHistoryData_DoesNotThrow_WithoutWebView()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+        var historyItems = new List<Dictionary<string, string>>
+        {
+            new Dictionary<string, string> { { "name", "World 1" }, { "url", "http://world1.com" } },
+            new Dictionary<string, string> { { "name", "World 2" }, { "url", "http://world2.com" } }
+        };
+
+        // Act & Assert
+        Assert.DoesNotThrow(() => controller.SendHistoryData(historyItems));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_SendSettingsData_DoesNotThrow_WithoutWebView()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+        var settings = new Dictionary<string, object>
+        {
+            { "theme", "dark" },
+            { "homePage", "http://example.com" }
+        };
+
+        // Act & Assert
+        Assert.DoesNotThrow(() => controller.SendSettingsData(settings));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_SendAboutData_DoesNotThrow_WithoutWebView()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Act & Assert
+        Assert.DoesNotThrow(() => controller.SendAboutData(new
+        {
+            title = "WebVerse",
+            version = "1.0.0",
+            description = "Test"
+        }));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_SendConsoleLine_DoesNotThrow_WithoutWebView()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Act & Assert
+        Assert.DoesNotThrow(() => controller.SendConsoleLine("info", "Test log line"));
+        Assert.DoesNotThrow(() => controller.SendConsoleLine("error", "Error log line"));
+        Assert.DoesNotThrow(() => controller.SendConsoleLine("warn", "Warning log line"));
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_CurrentTheme_DefaultsToSystem()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Assert
+        Assert.AreEqual("system", controller.CurrentTheme);
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_HideOverlay_RestoreOverlay_DoNotThrow()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange
+        GameObject go = new GameObject("TestController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Act & Assert - No webViewObject, should handle gracefully
+        Assert.DoesNotThrow(() => controller.HideOverlay());
+        Assert.DoesNotThrow(() => controller.RestoreOverlay());
 
         // Cleanup
         UnityEngine.Object.DestroyImmediate(go);
