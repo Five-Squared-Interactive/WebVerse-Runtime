@@ -13,7 +13,9 @@ namespace FiveSQD.WebVerse.Interface.TabUI
     public class ChromeInputFilter : MonoBehaviour, ICanvasRaycastFilter
     {
         /// <summary>
-        /// Height in pixels from the top of the screen where the chrome bar lives.
+        /// Height in local pixels where the chrome bar lives.
+        /// Desktop: measured from the top of the screen.
+        /// VR: measured from the bottom of the panel.
         /// Matches the CSS: spacing-md(16) + bar-height(96) + spacing-sm(8) = 120.
         /// </summary>
         public float chromeHeight = 120f;
@@ -25,21 +27,19 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         public bool allowFullScreenInput = false;
 
         /// <summary>
-        /// When true, VR mode is active — uses local canvas coordinates
-        /// instead of screen coordinates for chrome bar detection.
+        /// When true, VR mode is active and local-coordinate filtering is
+        /// used instead of screen-space filtering.
         /// </summary>
         public bool vrMode = false;
-
-        /// <summary>
-        /// Whether the chrome bar is at the bottom of the canvas in VR.
-        /// </summary>
-        public bool chromeBarAtBottom = true;
 
         /// <summary>
         /// Optional secondary hit rect in screen coordinates (bottom-left origin).
         /// Used for the stats HUD overlay.
         /// </summary>
         public Rect? secondaryHitRect = null;
+
+        private RectTransform cachedRT;
+        private int logFrameCounter;
 
         /// <summary>
         /// Determines whether the given screen point should be considered
@@ -51,32 +51,34 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             if (vrMode)
             {
-                // In VR, screen coordinates don't map to world-space canvases.
-                // Convert to local rect coordinates and check against chrome bar region.
-                RectTransform rt = transform as RectTransform;
-                if (rt == null) return false;
-
-                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    rt, screenPoint, eventCamera, out Vector2 localPoint))
+                // In VR, convert screen-space hit point back to local coordinates
+                // on this RawImage's RectTransform so we can check if it's in
+                // the chrome bar region (bottom of the panel).
+                if (cachedRT == null) cachedRT = transform as RectTransform;
+                if (cachedRT != null && RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    cachedRT, screenPoint, eventCamera, out Vector2 localPoint))
                 {
-                    // localPoint origin is at the pivot. Rect gives us the actual bounds.
-                    Rect rect = rt.rect;
+                    // rect.yMin is the bottom edge in local space.
+                    // Chrome bar occupies [yMin, yMin + chromeHeight].
+                    float chromeBarTop = cachedRT.rect.yMin + chromeHeight;
+                    bool inChromeBar = localPoint.y <= chromeBarTop;
 
-                    if (chromeBarAtBottom)
+                    // Diagnostic logging (every ~60 calls to avoid spam)
+                    if (++logFrameCounter >= 60)
                     {
-                        // Chrome bar at bottom: allow raycasts in the bottom chromeHeight pixels
-                        return localPoint.y <= (rect.yMin + chromeHeight);
+                        logFrameCounter = 0;
+                        Debug.Log($"[ChromeInputFilter VR] local=({localPoint.x:F0},{localPoint.y:F0}), " +
+                            $"rect=({cachedRT.rect.yMin:F0} to {cachedRT.rect.yMax:F0}), " +
+                            $"chromeBarTop={chromeBarTop:F0}, hit={inChromeBar}");
                     }
-                    else
-                    {
-                        // Chrome bar at top: allow raycasts in the top chromeHeight pixels
-                        return localPoint.y >= (rect.yMax - chromeHeight);
-                    }
+
+                    return inChromeBar;
                 }
-                return false;
+                // Conversion failed — allow raycast as fallback
+                return true;
             }
 
-            // Desktop: screen-space check.
+            // Desktop: chrome bar at top of screen.
             // Screen coordinates: (0,0) = bottom-left, (width,height) = top-right.
             if (screenPoint.y >= (Screen.height - chromeHeight)) return true;
 
