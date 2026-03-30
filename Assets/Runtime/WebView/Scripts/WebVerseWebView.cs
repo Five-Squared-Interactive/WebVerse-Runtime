@@ -188,25 +188,19 @@ namespace FiveSQD.WebVerse.WebView
                 canvas.overrideSorting = true;
                 canvas.sortingOrder = -1;
 
-                // Position the content below the chrome bar, not overlapping it.
-                // Chrome panel is 1600x900 in local pixels (localScale 0.001).
-                // Chrome bar occupies the top 120px. Content fills the remaining area below.
-                float chromeBarHeight = 120f;
-                float contentHeight = 900f - chromeBarHeight; // 780px
+                // Overlap the chrome panel — the chrome bar is transparent outside
+                // the bar area so the content shows through.
                 RectTransform rt = webViewObject.GetComponent<RectTransform>();
                 if (rt != null)
                 {
                     rt.anchorMin = new Vector2(0.5f, 0.5f);
                     rt.anchorMax = new Vector2(0.5f, 0.5f);
-                    rt.pivot = new Vector2(0.5f, 1f); // top-center pivot
-                    rt.sizeDelta = new Vector2(1600, contentHeight);
-                    // Place top edge at the bottom of the chrome bar:
-                    // Chrome center is at local y=0, top is +450, chrome bar bottom is +450-120 = +330
-                    rt.localPosition = new Vector3(0, 450f - chromeBarHeight, 0);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.sizeDelta = new Vector2(1600, 900);
+                    rt.localPosition = Vector3.zero;
                     rt.localScale = Vector3.one;
                 }
 
-                // No content insets needed — sizing handles the layout
                 SetContentInsets(0, 0, 0, 0);
 
                 // Disable standard GraphicRaycaster for VR

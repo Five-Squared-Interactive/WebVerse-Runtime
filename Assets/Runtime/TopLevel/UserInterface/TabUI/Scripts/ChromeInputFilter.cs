@@ -25,10 +25,15 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         public bool allowFullScreenInput = false;
 
         /// <summary>
-        /// When true, VR mode is active and all raycasts are allowed
-        /// (screen-space chrome bar logic does not apply to world-space canvases).
+        /// When true, VR mode is active — uses local canvas coordinates
+        /// instead of screen coordinates for chrome bar detection.
         /// </summary>
         public bool vrMode = false;
+
+        /// <summary>
+        /// Whether the chrome bar is at the bottom of the canvas in VR.
+        /// </summary>
+        public bool chromeBarAtBottom = true;
 
         /// <summary>
         /// Optional secondary hit rect in screen coordinates (bottom-left origin).
@@ -42,9 +47,36 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
         {
-            if (allowFullScreenInput || vrMode) return true;
+            if (allowFullScreenInput) return true;
 
-            // Allow raycasts only in the chrome bar area (top of screen).
+            if (vrMode)
+            {
+                // In VR, screen coordinates don't map to world-space canvases.
+                // Convert to local rect coordinates and check against chrome bar region.
+                RectTransform rt = transform as RectTransform;
+                if (rt == null) return false;
+
+                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    rt, screenPoint, eventCamera, out Vector2 localPoint))
+                {
+                    // localPoint origin is at the pivot. Rect gives us the actual bounds.
+                    Rect rect = rt.rect;
+
+                    if (chromeBarAtBottom)
+                    {
+                        // Chrome bar at bottom: allow raycasts in the bottom chromeHeight pixels
+                        return localPoint.y <= (rect.yMin + chromeHeight);
+                    }
+                    else
+                    {
+                        // Chrome bar at top: allow raycasts in the top chromeHeight pixels
+                        return localPoint.y >= (rect.yMax - chromeHeight);
+                    }
+                }
+                return false;
+            }
+
+            // Desktop: screen-space check.
             // Screen coordinates: (0,0) = bottom-left, (width,height) = top-right.
             if (screenPoint.y >= (Screen.height - chromeHeight)) return true;
 
