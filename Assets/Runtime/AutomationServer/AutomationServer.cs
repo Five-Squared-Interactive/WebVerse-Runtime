@@ -299,7 +299,7 @@ namespace FiveSQD.WebVerse.Automation
         /// </summary>
         /// <param name="input">The input string.</param>
         /// <returns>The escaped string.</returns>
-        internal static string EscapeJson(string input)
+        public static string EscapeJson(string input)
         {
             if (string.IsNullOrEmpty(input)) return "";
             return input

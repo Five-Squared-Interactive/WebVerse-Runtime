@@ -3914,6 +3914,8 @@ MonoBehaviour:
   runtime: {fileID: 472491403}
   tabUIWebViewPrefab: {fileID: 6775236243950286557, guid: f04603dd8ca66a74abbf0f1b3388304a, type: 3}
   vrParent: {fileID: 1445162059}
+  vrCamera: {fileID: 0}
+  vrKeyboardPrefab: {fileID: 4082378025312144168, guid: dbd4be94f7b0ff04688b7ecbfacc98ab, type: 3}
   maxTabs: 10
   maxSnapshotMemoryMB: 100
   homeUrl: 

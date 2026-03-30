@@ -60,6 +60,23 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public Camera VRCamera { get; set; }
 
+        /// <summary>
+        /// The root transform of the chrome WebView panel.
+        /// Used to parent content WebViews so they move with the chrome in VR.
+        /// </summary>
+        public Transform ChromeTransform => webViewObject != null ? webViewObject.transform : null;
+
+        /// <summary>
+        /// VR keyboard prefab. Set before Initialize.
+        /// </summary>
+        [SerializeField]
+        private GameObject vrKeyboardPrefab;
+
+        /// <summary>
+        /// Set the VR keyboard prefab programmatically (for dynamically created controllers).
+        /// </summary>
+        public GameObject VRKeyboardPrefab { set => vrKeyboardPrefab = value; }
+
         #endregion
 
         #region Private Fields
@@ -75,6 +92,9 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         private bool webViewReady;
         private bool chromeVisible = true;
         private bool contentFrameVisible;
+
+        // VR keyboard
+        private FiveSQD.WebVerse.Input.Keyboard.Keyboard vrKeyboard;
 
         // Navigation history for current tab
         private Stack<string> backHistory = new Stack<string>();
@@ -224,6 +244,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 if (isVR) inputFilter.vrMode = true;
             }
 
+            // Set up VR keyboard
+            if (isVR)
+            {
+                SetupVRKeyboard();
+            }
+
             // Subscribe to messages from JS
             webView.MessageEmitted += OnWebViewMessage;
 
@@ -311,6 +337,68 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             // Diagnostic logging
             _LogVRSetupDiagnostics();
+        }
+
+        /// <summary>
+        /// Set up the VR keyboard below the chrome panel.
+        /// </summary>
+        private void SetupVRKeyboard()
+        {
+#if VUPLEX_INCLUDED
+            if (webViewObject == null || webView == null) return;
+
+            if (vrKeyboardPrefab == null)
+            {
+                Logging.LogWarning("[TabUIController->SetupVRKeyboard] VR keyboard prefab not assigned.");
+                return;
+            }
+
+            var keyboardObj = Instantiate(vrKeyboardPrefab);
+            vrKeyboard = keyboardObj.GetComponent<FiveSQD.WebVerse.Input.Keyboard.Keyboard>();
+            if (vrKeyboard == null)
+            {
+                Logging.LogWarning("[TabUIController->SetupVRKeyboard] Keyboard component not found on prefab.");
+                Destroy(keyboardObj);
+                return;
+            }
+
+            // Route keys to the WebView
+            vrKeyboard.webViewTarget = webView;
+
+            // Start hidden
+            keyboardObj.SetActive(false);
+
+            // Show/hide keyboard when input focus changes, and position below chrome
+            webView.FocusChanged += (sender, e) =>
+            {
+                if (vrKeyboard != null)
+                {
+                    vrKeyboard.gameObject.SetActive(e.Value);
+                    if (e.Value)
+                    {
+                        PositionVRKeyboard();
+                    }
+                    Logging.Log($"[TabUIController] VR keyboard {(e.Value ? "shown" : "hidden")}");
+                }
+            };
+
+            Logging.Log("[TabUIController] VR keyboard set up.");
+#endif
+        }
+
+        /// <summary>
+        /// Position the VR keyboard below the chrome panel.
+        /// </summary>
+        private void PositionVRKeyboard()
+        {
+            if (vrKeyboard == null || webViewObject == null) return;
+
+            // Place keyboard below the chrome panel
+            var chromePos = webViewObject.transform.position;
+            var chromeRot = webViewObject.transform.rotation;
+            var offset = chromeRot * new Vector3(0, -0.5f, 0);
+            vrKeyboard.transform.position = chromePos + offset;
+            vrKeyboard.transform.rotation = chromeRot;
         }
 
         /// <summary>
@@ -1299,6 +1387,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         public void Terminate()
         {
             UnsubscribeFromTabManager();
+
+            if (vrKeyboard != null)
+            {
+                Destroy(vrKeyboard.gameObject);
+                vrKeyboard = null;
+            }
 
 #if VUPLEX_INCLUDED
             if (webViewPrefabComponent != null)

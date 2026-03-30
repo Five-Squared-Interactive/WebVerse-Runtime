@@ -59,6 +59,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         [Tooltip("VR Camera for canvas event processing.")]
         private Camera vrCamera;
 
+        /// <summary>
+        /// VR keyboard prefab (e.g. USKeyboard). Shown when a text input is focused in VR.
+        /// </summary>
+        [SerializeField]
+        [Tooltip("VR keyboard prefab (e.g. USKeyboard). Shown when a text input is focused in VR.")]
+        private GameObject vrKeyboardPrefab;
+
         [Header("Configuration")]
 
         /// <summary>
@@ -722,8 +729,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         private void ShowContentFrame()
         {
             ActiveTabUIController?.SetContentFrameVisible(true);
-            runtime.webverseWebView?.SetContentInsets(
-                ContentInsetTop, ContentInsetLeft, ContentInsetBottom, ContentInsetRight);
+            // In VR, content fills the full panel — no insets needed
+            if (!isVRMode)
+            {
+                runtime.webverseWebView?.SetContentInsets(
+                    ContentInsetTop, ContentInsetLeft, ContentInsetBottom, ContentInsetRight);
+            }
         }
 
         /// <summary>
@@ -990,11 +1001,19 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 vrTabUIController.IsVR = true;
                 vrTabUIController.VRParent = vrParent;
                 vrTabUIController.VRCamera = vrCamera;
+                if (vrKeyboardPrefab != null) vrTabUIController.VRKeyboardPrefab = vrKeyboardPrefab;
                 vrTabUIController.Initialize(tabManager, tabUIWebViewPrefab);
                 vrTabUIController.OnNavigateRequested += HandleNavigateRequest;
                 vrTabUIController.OnMenuAction += HandleMenuAction;
                 SubscribeToControllerDataEvents(vrTabUIController);
                 vrTabUIController.ShowChrome();
+            }
+
+            // Set up content WebView for VR — parent it to the chrome panel
+            if (runtime.webverseWebView != null && vrTabUIController?.ChromeTransform != null)
+            {
+                runtime.webverseWebView.SetupVRModeForTabUI(
+                    vrTabUIController.ChromeTransform, vrCamera);
             }
 
             // Update input handler reference
@@ -1015,6 +1034,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             if (vrTabUIController != null)
             {
                 vrTabUIController.HideChrome();
+            }
+
+            // Restore content WebView from VR mode
+            if (runtime.webverseWebView != null)
+            {
+                runtime.webverseWebView.DisableVRMode();
             }
 
             // Show desktop Tab UI

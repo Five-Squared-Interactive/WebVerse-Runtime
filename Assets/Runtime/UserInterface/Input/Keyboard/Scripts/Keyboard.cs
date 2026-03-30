@@ -4,6 +4,9 @@ using FiveSQD.WebVerse.Utilities;
 using System;
 using TMPro;
 using UnityEngine;
+#if VUPLEX_INCLUDED
+using Vuplex.WebView;
+#endif
 
 namespace FiveSQD.WebVerse.Input.Keyboard
 {
@@ -23,6 +26,14 @@ namespace FiveSQD.WebVerse.Input.Keyboard
         /// </summary>
         [Tooltip("Action to perform on enter. Takes string from input.")]
         public Action<string> onEnter;
+
+#if VUPLEX_INCLUDED
+        /// <summary>
+        /// WebView target for sending key input. When set, keys are sent
+        /// to the WebView instead of the TMP_InputField.
+        /// </summary>
+        public IWebView webViewTarget;
+#endif
 
         /// <summary>
         /// The main keyboard.
@@ -60,6 +71,14 @@ namespace FiveSQD.WebVerse.Input.Keyboard
         /// <param name="character">Character to add.</param>
         public void AddCharacter(string character)
         {
+#if VUPLEX_INCLUDED
+            if (webViewTarget != null)
+            {
+                webViewTarget.SendKey(character);
+                if (shifted) UnShift();
+                return;
+            }
+#endif
             if (currentInput != null)
             {
                 if (string.IsNullOrEmpty(currentInput.text))
@@ -84,6 +103,14 @@ namespace FiveSQD.WebVerse.Input.Keyboard
         /// </summary>
         public void RemoveCharacter()
         {
+#if VUPLEX_INCLUDED
+            if (webViewTarget != null)
+            {
+                webViewTarget.SendKey("Backspace");
+                if (shifted) UnShift();
+                return;
+            }
+#endif
             if (currentInput != null)
             {
                 if (!string.IsNullOrEmpty(currentInput.text))
@@ -109,6 +136,14 @@ namespace FiveSQD.WebVerse.Input.Keyboard
         /// <param name="clear">Whether or not to clear the current input.</param>
         public void Enter(bool clear)
         {
+#if VUPLEX_INCLUDED
+            if (webViewTarget != null)
+            {
+                webViewTarget.SendKey("Enter");
+                if (shifted) UnShift();
+                return;
+            }
+#endif
             if (currentInput != null)
             {
                 if (onEnter != null)

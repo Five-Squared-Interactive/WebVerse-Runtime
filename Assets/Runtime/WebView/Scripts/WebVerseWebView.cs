@@ -155,6 +155,113 @@ namespace FiveSQD.WebVerse.WebView
         }
 
         /// <summary>
+        /// Set up VR mode for the TabUI flow by parenting the content WebView
+        /// to the chrome panel so they move together.
+        /// </summary>
+        /// <param name="chromeTransform">The chrome panel transform to parent to.</param>
+        /// <param name="vrCamera">The VR camera for canvas event processing.</param>
+        public void SetupVRModeForTabUI(Transform chromeTransform, Camera vrCamera)
+        {
+            if (webViewObject == null)
+            {
+                Logging.LogError("[WebVerseWebView->SetupVRModeForTabUI] WebView object not initialized.");
+                return;
+            }
+
+            if (chromeTransform == null)
+            {
+                Logging.LogError("[WebVerseWebView->SetupVRModeForTabUI] Chrome transform is null.");
+                return;
+            }
+
+            // Parent to the chrome panel so content moves with it
+            webViewObject.transform.SetParent(chromeTransform);
+            webViewObject.transform.localRotation = Quaternion.identity;
+            webViewObject.transform.localScale = Vector3.one;
+
+            Canvas canvas = webViewObject.GetComponent<Canvas>();
+            if (canvas != null)
+            {
+                canvas.renderMode = RenderMode.WorldSpace;
+                canvas.worldCamera = vrCamera != null ? vrCamera : Camera.main;
+                // Render behind the chrome overlay (lower sorting order)
+                canvas.overrideSorting = true;
+                canvas.sortingOrder = -1;
+
+                // Match the chrome panel size and fill the content area below the chrome bar.
+                // Chrome panel is 1600x900 with localScale 0.001.
+                // Content fills the same space — the chrome bar overlays on top.
+                RectTransform rt = webViewObject.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(0.5f, 0.5f);
+                    rt.anchorMax = new Vector2(0.5f, 0.5f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.sizeDelta = new Vector2(1600, 900);
+                    rt.localPosition = Vector3.zero;
+                    rt.localScale = Vector3.one;
+                }
+
+                // Remove content insets — in VR the content fills the full panel
+                SetContentInsets(0, 0, 0, 0);
+
+                // Disable standard GraphicRaycaster for VR
+                GraphicRaycaster graphicRaycaster = webViewObject.GetComponent<GraphicRaycaster>();
+                if (graphicRaycaster != null)
+                {
+                    graphicRaycaster.enabled = false;
+                }
+
+#if WV_VR_ENABLED
+                if (webViewObject.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
+                {
+                    webViewObject.AddComponent<TrackedDeviceGraphicRaycaster>();
+                }
+#endif
+            }
+
+            vrModeSetUp = true;
+            Logging.Log("[WebVerseWebView] VR mode setup for TabUI complete, parented to chrome panel.");
+        }
+
+        /// <summary>
+        /// Restore the content WebView from VR mode back to screen-space overlay.
+        /// </summary>
+        public void DisableVRMode()
+        {
+            if (webViewObject == null) return;
+
+            webViewObject.transform.SetParent(null);
+
+            Canvas canvas = webViewObject.GetComponent<Canvas>();
+            if (canvas != null)
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.worldCamera = null;
+                canvas.overrideSorting = false;
+                canvas.sortingOrder = 0;
+
+                // Re-enable standard GraphicRaycaster
+                GraphicRaycaster graphicRaycaster = webViewObject.GetComponent<GraphicRaycaster>();
+                if (graphicRaycaster != null)
+                {
+                    graphicRaycaster.enabled = true;
+                }
+
+#if WV_VR_ENABLED
+                var trackedRaycaster = webViewObject.GetComponent<TrackedDeviceGraphicRaycaster>();
+                if (trackedRaycaster != null)
+                {
+                    Destroy(trackedRaycaster);
+                }
+#endif
+            }
+
+            vrModeSetUp = false;
+            Logging.Log("[WebVerseWebView] VR mode disabled, restored to screen-space.");
+        }
+
+        /// <summary>
         /// Terminate the WebVerse WebView.
         /// </summary>
         public void Terminate()
