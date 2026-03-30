@@ -369,10 +369,16 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 kbCanvas.renderMode = RenderMode.WorldSpace;
                 kbCanvas.worldCamera = VRCamera != null ? VRCamera : Camera.main;
 
-                // Scale to match the chrome panel (pixels -> meters)
+                // Reset RectTransform — prefab has non-zero anchoredPosition and
+                // bottom-left anchors that would offset the keyboard from where
+                // we set the transform position.
                 RectTransform rt = keyboardObj.GetComponent<RectTransform>();
                 if (rt != null)
                 {
+                    rt.anchorMin = new Vector2(0.5f, 0.5f);
+                    rt.anchorMax = new Vector2(0.5f, 0.5f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.anchoredPosition = Vector2.zero;
                     rt.localScale = Vector3.one * 0.001f;
                 }
 
@@ -404,6 +410,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     if (e.Value)
                     {
                         PositionVRKeyboard();
+                        Canvas.ForceUpdateCanvases();
                     }
                     Logging.Log($"[TabUIController] VR keyboard {(e.Value ? "shown" : "hidden")}");
                 }
@@ -422,21 +429,19 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             if (vrKeyboard == null || webViewObject == null) return;
 
             // Chrome panel is 1600x900 at 0.001 scale = 1.6m x 0.9m.
-            // Place the keyboard just below the bottom edge of the chrome.
-            var chromePos = webViewObject.transform.position;
-            var chromeRot = webViewObject.transform.rotation;
-
-            // Offset down by half the chrome height (0.45m) + a small gap + half the keyboard height
-            // Keyboard is 1200x419 at 0.001 = 1.2m x 0.419m, half height = ~0.21m
-            float chromHalfHeight = 0.45f;
-            float gap = 0.02f;
+            // Keyboard is 1200x419 at 0.001 = 1.2m x 0.419m.
+            float chromeHalfHeight = 0.45f;
             float kbHalfHeight = 0.21f;
-            var downOffset = chromeRot * new Vector3(0, -(chromHalfHeight + gap + kbHalfHeight), 0);
+            float gap = 0.02f;
 
-            vrKeyboard.transform.position = chromePos + downOffset;
+            // Place just below chrome bottom edge
+            Vector3 downOffset = webViewObject.transform.rotation * new Vector3(0, -(chromeHalfHeight + gap + kbHalfHeight), 0);
+            vrKeyboard.transform.position = webViewObject.transform.position + downOffset;
 
             // Tilt 45 degrees toward the user around the chrome's local X axis
-            vrKeyboard.transform.rotation = chromeRot * Quaternion.Euler(45f, 0, 0);
+            vrKeyboard.transform.rotation = webViewObject.transform.rotation * Quaternion.Euler(45f, 0, 0);
+
+            Logging.Log($"[TabUIController] VR keyboard positioned at {vrKeyboard.transform.position}, rot={vrKeyboard.transform.rotation.eulerAngles}");
         }
 
         /// <summary>
