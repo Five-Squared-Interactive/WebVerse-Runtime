@@ -201,7 +201,6 @@ namespace FiveSQD.WebVerse.Runtime
         public void EnableVR()
         {
             vrEnabled = true;
-            StartCoroutine(EnableVRCoroutine());
             desktopRig.SetActive(false);
             vrRig.transform.position = desktopRig.transform.position;
             vrRig.SetActive(true);
@@ -209,46 +208,14 @@ namespace FiveSQD.WebVerse.Runtime
             desktopInput.SetActive(false);
             steamVRInput.SetActive(true);
 
-            // Initialize VR rig (sets pointer modes, platform config)
-            FiveSQD.WebVerse.Input.VRRig vrRigComponent = null;
-            if (vrRig != null)
-                vrRigComponent = vrRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
-            if (vrRigComponent == null && topLevelVRRig != null)
-                vrRigComponent = topLevelVRRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
-            if (vrRigComponent == null)
-                vrRigComponent = FindObjectOfType<FiveSQD.WebVerse.Input.VRRig>();
-            if (vrRigComponent != null)
-            {
-                vrRigComponent.Initialize();
-                Logging.Log($"[DesktopMode->EnableVR] VRRig initialized. rightPointerMode={vrRigComponent.rightPointerMode}, rayType={vrRigComponent.rayInteractorType}, rightRay={(vrRigComponent.rightRayInteractor != null ? $"enabled={vrRigComponent.rightRayInteractor.enabled}" : "NULL")}, rightNearFar={(vrRigComponent.rightNearFarInteractor != null ? $"enabled={vrRigComponent.rightNearFarInteractor.enabled}" : "NULL")}");
-            }
-            else
-            {
-                Logging.LogWarning("[DesktopMode->EnableVR] VRRig component NOT FOUND anywhere in scene");
-            }
             runtime.platformInput = vrPlatformInput;
             runtime.inputManager.platformInput = vrPlatformInput;
             runtime.vr = true;
             SetCanvasEventCamera(vrCamera);
             skySphereFollower.transformToFollow = vrCamera.transform;
 
-            // Switch Tab UI to VR mode
-            if (tabUIIntegration != null)
-            {
-                tabUIIntegration.EnableVRMode();
-            }
-
-            // Route VR menu button to TabUI chrome toggle
-            steamVRInputComponent = steamVRInput.GetComponentInChildren<SteamVRInput>();
-            if (steamVRInputComponent != null && tabUIIntegration != null)
-            {
-                steamVRInputComponent.OnMenuPressed += tabUIIntegration.ToggleChrome;
-                Logging.Log("[DesktopMode->EnableVR] Subscribed VR menu button to TabUI ToggleChrome.");
-            }
-            else
-            {
-                Logging.LogWarning($"[DesktopMode->EnableVR] Failed to subscribe VR menu button. steamVRInputComponent={(steamVRInputComponent != null ? "found" : "null")}, tabUIIntegration={(tabUIIntegration != null ? "found" : "null")}");
-            }
+            // Start XR init — VRRig and TabUI setup happen after XR is ready
+            StartCoroutine(EnableVRCoroutine());
         }
 
         /// <summary>
@@ -421,19 +388,57 @@ namespace FiveSQD.WebVerse.Runtime
                 UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.StopSubsystems();
                 UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.DeinitializeLoader();
             }
-            
-            Logging.Log("[FocusedMode->EnableVRCoroutine] Initializing XR...");
+
+            Logging.Log("[DesktopMode->EnableVRCoroutine] Initializing XR...");
             yield return UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.InitializeLoader();
 
             if (UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader == null)
             {
-                Logging.LogError("[FocusedMode->EnableVRCoroutine] Initializing XR Failed. Check Editor or Player log for details.");
+                Logging.LogError("[DesktopMode->EnableVRCoroutine] Initializing XR Failed. Check Editor or Player log for details.");
                 vrEnabled = false;
+                yield break;
+            }
+
+            Logging.Log("[DesktopMode->EnableVRCoroutine] Starting XR...");
+            UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.StartSubsystems();
+
+            // Wait one frame for XR subsystems to fully activate
+            yield return null;
+
+            // Initialize VR rig now that XR is ready (sets pointer modes, platform config)
+            FiveSQD.WebVerse.Input.VRRig vrRigComponent = null;
+            if (vrRig != null)
+                vrRigComponent = vrRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
+            if (vrRigComponent == null && topLevelVRRig != null)
+                vrRigComponent = topLevelVRRig.GetComponentInChildren<FiveSQD.WebVerse.Input.VRRig>();
+            if (vrRigComponent == null)
+                vrRigComponent = FindObjectOfType<FiveSQD.WebVerse.Input.VRRig>();
+            if (vrRigComponent != null)
+            {
+                vrRigComponent.Initialize();
+                Logging.Log($"[DesktopMode->EnableVR] VRRig initialized. rightPointerMode={vrRigComponent.rightPointerMode}, rayType={vrRigComponent.rayInteractorType}, rightRay={(vrRigComponent.rightRayInteractor != null ? $"enabled={vrRigComponent.rightRayInteractor.enabled}" : "NULL")}, rightNearFar={(vrRigComponent.rightNearFarInteractor != null ? $"enabled={vrRigComponent.rightNearFarInteractor.enabled}" : "NULL")}");
             }
             else
             {
-                Logging.Log("[FocusedMode->EnableVRCoroutine] Starting XR...");
-                UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.StartSubsystems();
+                Logging.LogWarning("[DesktopMode->EnableVR] VRRig component NOT FOUND anywhere in scene");
+            }
+
+            // Switch Tab UI to VR mode
+            if (tabUIIntegration != null)
+            {
+                tabUIIntegration.EnableVRMode();
+            }
+
+            // Route VR menu button to TabUI chrome toggle
+            steamVRInputComponent = steamVRInput.GetComponentInChildren<SteamVRInput>();
+            if (steamVRInputComponent != null && tabUIIntegration != null)
+            {
+                steamVRInputComponent.OnMenuPressed += tabUIIntegration.ToggleChrome;
+                Logging.Log("[DesktopMode->EnableVR] Subscribed VR menu button to TabUI ToggleChrome.");
+            }
+            else
+            {
+                Logging.LogWarning($"[DesktopMode->EnableVR] Failed to subscribe VR menu button. steamVRInputComponent={(steamVRInputComponent != null ? "found" : "null")}, tabUIIntegration={(tabUIIntegration != null ? "found" : "null")}");
             }
         }
 

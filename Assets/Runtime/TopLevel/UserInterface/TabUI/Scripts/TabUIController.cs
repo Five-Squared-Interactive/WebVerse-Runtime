@@ -362,6 +362,33 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 return;
             }
 
+            // Convert the keyboard canvas to world space for VR
+            Canvas kbCanvas = keyboardObj.GetComponent<Canvas>();
+            if (kbCanvas != null)
+            {
+                kbCanvas.renderMode = RenderMode.WorldSpace;
+                kbCanvas.worldCamera = VRCamera != null ? VRCamera : Camera.main;
+
+                // Scale to match the chrome panel (pixels -> meters)
+                RectTransform rt = keyboardObj.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.localScale = Vector3.one * 0.001f;
+                }
+
+                // Disable standard GraphicRaycaster, add TrackedDevice for VR input
+                var graphicRaycaster = keyboardObj.GetComponent<GraphicRaycaster>();
+                if (graphicRaycaster != null && graphicRaycaster.GetType() == typeof(GraphicRaycaster))
+                    Destroy(graphicRaycaster);
+#if VUPLEX_XR_INTERACTION_TOOLKIT
+                if (keyboardObj.GetComponent<TrackedDeviceGraphicRaycaster>() == null)
+                    keyboardObj.AddComponent<TrackedDeviceGraphicRaycaster>();
+#endif
+                // Disable CanvasScaler — interferes with WorldSpace canvas raycasting
+                var canvasScaler = keyboardObj.GetComponent<CanvasScaler>();
+                if (canvasScaler != null) canvasScaler.enabled = false;
+            }
+
             // Route keys to the WebView
             vrKeyboard.webViewTarget = webView;
 
@@ -387,18 +414,29 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         }
 
         /// <summary>
-        /// Position the VR keyboard below the chrome panel.
+        /// Position the VR keyboard just below the chrome panel,
+        /// tilted 45 degrees toward the user on the X axis.
         /// </summary>
         private void PositionVRKeyboard()
         {
             if (vrKeyboard == null || webViewObject == null) return;
 
-            // Place keyboard below the chrome panel
+            // Chrome panel is 1600x900 at 0.001 scale = 1.6m x 0.9m.
+            // Place the keyboard just below the bottom edge of the chrome.
             var chromePos = webViewObject.transform.position;
             var chromeRot = webViewObject.transform.rotation;
-            var offset = chromeRot * new Vector3(0, -0.5f, 0);
-            vrKeyboard.transform.position = chromePos + offset;
-            vrKeyboard.transform.rotation = chromeRot;
+
+            // Offset down by half the chrome height (0.45m) + a small gap + half the keyboard height
+            // Keyboard is 1200x419 at 0.001 = 1.2m x 0.419m, half height = ~0.21m
+            float chromHalfHeight = 0.45f;
+            float gap = 0.02f;
+            float kbHalfHeight = 0.21f;
+            var downOffset = chromeRot * new Vector3(0, -(chromHalfHeight + gap + kbHalfHeight), 0);
+
+            vrKeyboard.transform.position = chromePos + downOffset;
+
+            // Tilt 45 degrees toward the user around the chrome's local X axis
+            vrKeyboard.transform.rotation = chromeRot * Quaternion.Euler(45f, 0, 0);
         }
 
         /// <summary>
