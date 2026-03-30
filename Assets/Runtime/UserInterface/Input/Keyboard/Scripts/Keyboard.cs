@@ -60,6 +60,11 @@ namespace FiveSQD.WebVerse.Input.Keyboard
                 return;
             }
 
+            if (webViewTarget == null)
+            {
+                webViewTarget = GetComponentInParent<IWebView>();
+            }
+
             mainKeyboard.SetActive(true);
             shiftKeyboard.SetActive(false);
             shifted = false;
