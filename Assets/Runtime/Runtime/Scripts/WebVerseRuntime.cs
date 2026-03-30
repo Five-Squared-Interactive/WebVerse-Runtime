@@ -879,6 +879,22 @@ namespace FiveSQD.WebVerse.Runtime
             state = RuntimeState.WebPage;
             webverseWebView.Show();
             webverseWebView.LoadURL(url);
+            
+            if (WebVerseRuntime.Instance.vrRig != null)
+            {
+                WebVerseRuntime.Instance.vrRig.joystickMotionEnabled =  false;
+                WebVerseRuntime.Instance.vrRig.leftGrabMoveEnabled = false;
+                WebVerseRuntime.Instance.vrRig.rightGrabMoveEnabled = false;
+                WebVerseRuntime.Instance.vrRig.leftInteractionEnabled = true;
+                WebVerseRuntime.Instance.vrRig.rightInteractionEnabled = true;
+                WebVerseRuntime.Instance.vrRig.leftPointerMode = VRRig.PointerMode.UI;
+                WebVerseRuntime.Instance.vrRig.rightPointerMode = VRRig.PointerMode.UI;
+                WebVerseRuntime.Instance.vrRig.leftPokerEnabled = true;
+                WebVerseRuntime.Instance.vrRig.rightPokerEnabled = true;
+                WebVerseRuntime.Instance.vrRig.turnLocomotionMode = VRRig.TurnLocomotionMode.None;
+                WebVerseRuntime.Instance.vrRig.twoHandedGrabMoveEnabled = false;
+            }
+
             if (onLoaded != null)
             {
                 onLoaded.Invoke("Web Page");
