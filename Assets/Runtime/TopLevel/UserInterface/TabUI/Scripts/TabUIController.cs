@@ -230,6 +230,14 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 if (isVR) inputFilter.vrMode = true;
             }
 
+            // Wire any keyboard in the prefab to send input to this WebView
+            var keyboard = webViewObject.GetComponentInChildren<FiveSQD.WebVerse.Input.Keyboard.Keyboard>(true);
+            if (keyboard != null)
+            {
+                keyboard.webViewTarget = webView;
+                Logging.Log("[TabUIController] Keyboard wired to chrome WebView.");
+            }
+
             // Subscribe to messages from JS
             webView.MessageEmitted += OnWebViewMessage;
 
