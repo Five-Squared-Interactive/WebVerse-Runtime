@@ -2782,37 +2782,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &851533197
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 851533198}
-  m_Layer: 0
-  m_Name: VRInterface
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &851533198
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 851533197}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1448, y: 93.95001, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1052874265
 GameObject:
   m_ObjectHideFlags: 0
@@ -3700,7 +3669,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   autoDetectPlatform: 0
-  rayInteractorType: 0
+  rayInteractorType: 1
   enableHandTracking: 0
   enableGrabMove: 0
   enableDynamicMove: 0
@@ -3878,7 +3847,7 @@ GameObject:
   - component: {fileID: 1898133185}
   - component: {fileID: 1898133186}
   m_Layer: 0
-  m_Name: DesktopInterface
+  m_Name: Interface
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3912,10 +3881,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   runtime: {fileID: 472491403}
-  tabUIWebViewPrefab: {fileID: 6775236243950286557, guid: f04603dd8ca66a74abbf0f1b3388304a, type: 3}
+  tabUIWebViewPrefab: {fileID: 4071536258802031107, guid: 7cc144b3038d1ba43be354d7a45820e9, type: 3}
   vrParent: {fileID: 1445162059}
   vrCamera: {fileID: 0}
-  vrKeyboardPrefab: {fileID: 4082378025312144168, guid: dbd4be94f7b0ff04688b7ecbfacc98ab, type: 3}
   maxTabs: 10
   maxSnapshotMemoryMB: 100
   homeUrl: 
@@ -4077,7 +4045,6 @@ SceneRoots:
   - {fileID: 1445162059}
   - {fileID: 472491404}
   - {fileID: 1898133185}
-  - {fileID: 851533198}
   - {fileID: 575351976}
   - {fileID: 839982477}
   - {fileID: 1137534127}

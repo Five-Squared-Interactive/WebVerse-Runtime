@@ -59,13 +59,6 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         [Tooltip("VR Camera for canvas event processing.")]
         private Camera vrCamera;
 
-        /// <summary>
-        /// VR keyboard prefab (e.g. USKeyboard). Shown when a text input is focused in VR.
-        /// </summary>
-        [SerializeField]
-        [Tooltip("VR keyboard prefab (e.g. USKeyboard). Shown when a text input is focused in VR.")]
-        private GameObject vrKeyboardPrefab;
-
         [Header("Configuration")]
 
         /// <summary>
@@ -1001,7 +994,6 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 vrTabUIController.IsVR = true;
                 vrTabUIController.VRParent = vrParent;
                 vrTabUIController.VRCamera = vrCamera;
-                if (vrKeyboardPrefab != null) vrTabUIController.VRKeyboardPrefab = vrKeyboardPrefab;
                 vrTabUIController.Initialize(tabManager, tabUIWebViewPrefab);
                 vrTabUIController.OnNavigateRequested += HandleNavigateRequest;
                 vrTabUIController.OnMenuAction += HandleMenuAction;
