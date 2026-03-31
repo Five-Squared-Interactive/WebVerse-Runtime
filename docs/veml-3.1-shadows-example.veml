@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  VEML 3.1 Schema Example: Shadows Feature
+  
+  This example demonstrates the new 'shadows' attribute in effects-settings 
+  introduced in VEML schema version 3.1.
+  
+  The shadows attribute controls global shadow behavior for all lights in the world:
+  - shadows="off": Disables shadows for all lights
+  - shadows="on": Enables soft shadows for all lights
+  - shadows="preserve": Leaves shadow settings unchanged (default if not specified)
+-->
+<veml xmlns="http://www.fivesqd.com/schemas/veml/3.1" 
+      xsi:schemaLocation="http://www.fivesqd.com/schemas/veml/3.1 schema.xsd"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <metadata>
+        <title>VEML 3.1 Shadows Example</title>
+    </metadata>
+    <environment>
+        <!-- Global effects settings with shadows control -->
+        <effects-settings shadows="on">
+            <lite-fog fogenabled="false" />
+        </effects-settings>
+        
+        <!-- Example directional light (sun) -->
+        <entity id="sun" type="light">
+            <transform>
+                <position x="0" y="10" z="0"/>
+                <rotation x="50" y="330" z="0"/>
+            </transform>
+            <light-properties type="directional" intensity="1.0" />
+        </entity>
+        
+        <!-- Example spot light -->
+        <entity id="spotlight" type="light">
+            <transform>
+                <position x="5" y="5" z="0"/>
+                <rotation x="45" y="0" z="0"/>
+            </transform>
+            <light-properties type="spot" intensity="2.0" range="10" />
+        </entity>
+        
+        <!-- Example ground plane to receive shadows -->
+        <entity id="ground" type="plane">
+            <transform>
+                <position x="0" y="0" z="0"/>
+                <scale x="10" y="1" z="10"/>
+            </transform>
+            <color>gray</color>
+        </entity>
+        
+        <!-- Example cube to cast shadows -->
+        <entity id="cube1" type="cube">
+            <transform>
+                <position x="0" y="1" z="0"/>
+            </transform>
+            <color>blue</color>
+        </entity>
+    </environment>
+</veml>
