@@ -3,7 +3,6 @@
 using System;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Voice;
 using FiveSQD.WebVerse.Handlers.Voice.Audio;
 using FiveSQD.WebVerse.Handlers.Voice.Entities;
@@ -19,12 +18,6 @@ public class VoiceEntityTests
     private VoiceSpeakerEntity _speakerEntity;
     private OpusCodec _codec;
     private VoiceConfig _config;
-
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
 
     [SetUp]
     public void SetUp()

@@ -18,16 +18,9 @@ public class ImageHandlerTests
     private WebVerseRuntime runtime;
     private GameObject runtimeGO;
 
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
-
     [SetUp]
     public void SetUp()
     {
-        LogAssert.ignoreFailingMessages = true;
         // Create a simple runtime setup without external dependencies
         runtimeGO = new GameObject("runtime");
         runtime = runtimeGO.AddComponent<WebVerseRuntime>();

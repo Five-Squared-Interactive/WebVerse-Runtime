@@ -1,7 +1,6 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Voice;
 
 /// <summary>
@@ -11,12 +10,6 @@ using FiveSQD.WebVerse.Handlers.Javascript.APIs.Voice;
 /// </summary>
 public class VoiceAPITests
 {
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
-
     [SetUp]
     public void SetUp()
     {

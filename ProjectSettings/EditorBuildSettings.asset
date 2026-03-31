@@ -17,11 +17,15 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Runtime/TopLevel/Scenes/DesktopRuntime.unity
     guid: 79b9dcf5be2d2cb48a60719c81cf1357
-  - enabled: 1
+  - enabled: 0
     path: Assets/Runtime/TopLevel/Scenes/MobileRuntime.unity
     guid: a4272902a3b27db4db98c1e399f238b5
+  - enabled: 1
+    path: Assets/Runtime/TopLevel/Scenes/VRRuntime.unity
+    guid: 40bc2279a2f36644db31adb165dbabb9
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: 3c904462da43f1742b30483a67a73e46, type: 2}
+    com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 19fffb50dc75b624d8d0e4c54301aa63, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 2286c3415e367974cb28de4c0ac3d585, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 11a3a8eab5d5ace48990e4384021fc12, type: 2}
   m_UseUCBPForAssetBundles: 0

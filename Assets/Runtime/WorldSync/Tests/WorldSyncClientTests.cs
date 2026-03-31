@@ -1,7 +1,6 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using System;
 using System.Collections.Generic;
 
@@ -141,12 +140,6 @@ namespace FiveSQD.WebVerse.WorldSync.Tests
     {
         private WorldSyncClient _client;
         private WorldSyncConfig _config;
-
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            LogAssert.ignoreFailingMessages = true;
-        }
 
         [SetUp]
         public void Setup()

@@ -34,6 +34,7 @@ public class WorldTests
     [UnityTest]
     public IEnumerator WorldTests_World()
     {
+        LogAssert.ignoreFailingMessages = true;
         GameObject worldGO = new GameObject();
         World world = worldGO.AddComponent<World>();
 

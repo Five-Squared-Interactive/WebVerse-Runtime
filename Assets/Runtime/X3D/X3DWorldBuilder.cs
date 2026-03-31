@@ -82,6 +82,7 @@ namespace X3D
             catch (Exception ex)
             {
                 Debug.LogError($"[X3DWorldBuilder] Error building world: {ex.Message}\n{ex.StackTrace}");
+                throw;
             }
         }
 

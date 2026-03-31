@@ -2,7 +2,6 @@
 
 using System;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Voice.Audio;
 
 /// <summary>
@@ -11,12 +10,6 @@ using FiveSQD.WebVerse.Handlers.Voice.Audio;
 public class JitterBufferTests
 {
     private JitterBuffer _buffer;
-
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
 
     [SetUp]
     public void SetUp()

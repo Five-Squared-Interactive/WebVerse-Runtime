@@ -1002,7 +1002,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             }
 
             // Set up content WebView for VR — parent it to the chrome panel
-            if (runtime.webverseWebView != null && vrTabUIController?.ChromeTransform != null)
+            if (runtime != null && runtime.webverseWebView != null && vrTabUIController?.ChromeTransform != null)
             {
                 runtime.webverseWebView.SetupVRModeForTabUI(
                     vrTabUIController.ChromeTransform, vrCamera);
@@ -1029,7 +1029,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             }
 
             // Restore content WebView from VR mode
-            if (runtime.webverseWebView != null)
+            if (runtime != null && runtime.webverseWebView != null)
             {
                 runtime.webverseWebView.DisableVRMode();
             }

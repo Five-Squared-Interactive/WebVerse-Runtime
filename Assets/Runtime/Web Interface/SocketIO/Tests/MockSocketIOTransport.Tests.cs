@@ -2,7 +2,6 @@
 
 using System;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.WebInterface.SocketIO;
 using FiveSQD.WebVerse.WebInterface.SocketIO.Tests.Mocks;
 
@@ -16,16 +15,9 @@ namespace FiveSQD.WebVerse.WebInterface.SocketIO.Tests
     {
         private MockSocketIOTransport mock;
 
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            LogAssert.ignoreFailingMessages = true;
-        }
-
         [SetUp]
         public void SetUp()
         {
-            LogAssert.ignoreFailingMessages = true;
             mock = new MockSocketIOTransport();
         }
 

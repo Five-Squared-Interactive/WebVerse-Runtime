@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.File;
 using System.IO;
 
@@ -13,12 +12,6 @@ namespace FiveSQD.WebVerse.Handlers.File.Tests
         private string testDirectory;
         private FileHandler fileHandler;
         private GameObject fileHandlerObject;
-
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            LogAssert.ignoreFailingMessages = true;
-        }
 
         [SetUp]
         public void Setup()

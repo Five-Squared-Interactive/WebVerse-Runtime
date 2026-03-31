@@ -1,7 +1,6 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.WebInterface.SocketIO;
 
 namespace FiveSQD.WebVerse.WebInterface.SocketIO.Tests
@@ -13,12 +12,6 @@ namespace FiveSQD.WebVerse.WebInterface.SocketIO.Tests
     public class SocketIOOptionsTests
     {
         private SocketIOOptions options;
-
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            LogAssert.ignoreFailingMessages = true;
-        }
 
         [SetUp]
         public void SetUp()

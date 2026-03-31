@@ -2,7 +2,6 @@
 
 using System;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Voice;
 using FiveSQD.WebVerse.Handlers.Voice.Audio;
 
@@ -12,12 +11,6 @@ using FiveSQD.WebVerse.Handlers.Voice.Audio;
 public class VoiceCodecTests
 {
     private OpusCodec _codec;
-
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
 
     [SetUp]
     public void SetUp()

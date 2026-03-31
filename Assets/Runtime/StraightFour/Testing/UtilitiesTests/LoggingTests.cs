@@ -7,18 +7,6 @@ using FiveSQD.StraightFour.Utilities;
 
 public class LoggingTests
 {
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
-
-    [SetUp]
-    public void SetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
-
     [Test]
     public void LoggingTests_General()
     {

@@ -4,7 +4,6 @@ using FiveSQD.WebVerse.Handlers.File;
 using FiveSQD.WebVerse.Runtime;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using FiveSQD.WebVerse.LocalStorage;
 using System.IO;
 
@@ -15,12 +14,6 @@ public class FileHandlerTests
 {
     private WebVerseRuntime runtime;
     private GameObject runtimeGO;
-
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        LogAssert.ignoreFailingMessages = true;
-    }
 
     [SetUp]
     public void SetUp()
