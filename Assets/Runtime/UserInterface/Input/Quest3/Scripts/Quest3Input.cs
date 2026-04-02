@@ -15,6 +15,16 @@ namespace FiveSQD.WebVerse.Input.Quest3
     public class Quest3Input : BasePlatformInput
     {
         /// <summary>
+        /// Event fired when a menu button is pressed (left or right, when no other menu is held).
+        /// </summary>
+        public event Action OnMenuPressed;
+
+        /// <summary>
+        /// Event fired when the left secondary button (Y) is pressed.
+        /// </summary>
+        public event Action OnLeftSecondaryPressed;
+
+        /// <summary>
         /// The left controller gameobject.
         /// </summary>
         [Tooltip("The left controller gameobject.")]
@@ -45,6 +55,75 @@ namespace FiveSQD.WebVerse.Input.Quest3
         public InputModeManager inputModeManager;
 
         /// <summary>
+        /// Cached PlayerInput reference for programmatic action binding.
+        /// </summary>
+        private PlayerInput playerInput;
+
+        private void Start()
+        {
+            playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                // Scene-wired Unity Events have null targets (old SteamVR/Multibar references removed).
+                // Switch to C# events and route actions programmatically.
+                playerInput.notificationBehavior = PlayerNotifications.InvokeCSharpEvents;
+                playerInput.onActionTriggered += RouteAction;
+                Logging.Log("[Q3TabUI] Quest3Input: Programmatic input action binding complete.");
+            }
+            else
+            {
+                Logging.LogWarning("[Q3TabUI] Quest3Input: No PlayerInput component found on this GameObject!");
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (playerInput != null)
+            {
+                playerInput.onActionTriggered -= RouteAction;
+            }
+        }
+
+        /// <summary>
+        /// Routes PlayerInput action callbacks to the appropriate handler method.
+        /// </summary>
+        private void RouteAction(InputAction.CallbackContext context)
+        {
+            try
+            {
+                switch (context.action.name)
+                {
+                    case "LeftMenu": OnLeftMenu(context); break;
+                    case "RightMenu": OnRightMenu(context); break;
+                    case "LeftTriggerTouch": OnLeftTriggerTouch(context); break;
+                    case "RightTriggerTouch": OnRightTriggerTouch(context); break;
+                    case "LeftTriggerPress": OnLeftTriggerPress(context); break;
+                    case "RightTriggerPress": OnRightTriggerPress(context); break;
+                    case "LeftGripPress": OnLeftGripPress(context); break;
+                    case "RightGripPress": OnRightGripPress(context); break;
+                    case "LeftTouchPadValue": OnLeftThumbstickValue(context); break;
+                    case "RightTouchPadValue": OnRightThumbstickValue(context); break;
+                    case "LeftTouchPadPress": OnLeftThumbstickPress(context); break;
+                    case "RightTouchPadPress": OnRightThumbstickPress(context); break;
+                    case "LeftPrimaryTouch": OnLeftPrimaryTouch(context); break;
+                    case "RightPrimaryTouch": OnRightPrimaryTouch(context); break;
+                    case "LeftPrimaryPress": OnLeftPrimaryPress(context); break;
+                    case "RightPrimaryPress": OnRightPrimaryPress(context); break;
+                    case "LeftSecondaryTouch": OnLeftSecondaryTouch(context); break;
+                    case "RightSecondaryTouch": OnRightSecondaryTouch(context); break;
+                    case "LeftSecondaryPress": OnLeftSecondaryPress(context); break;
+                    case "RightSecondaryPress": OnRightSecondaryPress(context); break;
+                    case "LeftStick": OnLeftStick(context); break;
+                    case "RightStick": OnRightStick(context); break;
+                }
+            }
+            catch (System.NullReferenceException)
+            {
+                // WebVerseRuntime.Instance or inputManager may not be ready yet — silently ignore
+            }
+        }
+
+        /// <summary>
         /// Registers controller input with the InputModeManager.
         /// </summary>
         private void RegisterControllerInput()
@@ -69,6 +148,7 @@ namespace FiveSQD.WebVerse.Input.Quest3
                 if (WebVerseRuntime.Instance.inputManager.rightMenuValue == false)
                 {
                     WebVerseRuntime.Instance.inputManager.Menu();
+                    OnMenuPressed?.Invoke();
                 }
             }
             else if (context.phase == InputActionPhase.Canceled)
@@ -96,6 +176,7 @@ namespace FiveSQD.WebVerse.Input.Quest3
                 if (WebVerseRuntime.Instance.inputManager.leftMenuValue == false)
                 {
                     WebVerseRuntime.Instance.inputManager.Menu();
+                    OnMenuPressed?.Invoke();
                 }
             }
             else if (context.phase == InputActionPhase.Canceled)
@@ -515,6 +596,7 @@ namespace FiveSQD.WebVerse.Input.Quest3
                 {
                     WebVerseRuntime.Instance.inputManager.SecondaryPress();
                 }
+                OnLeftSecondaryPressed?.Invoke();
             }
             else if (context.phase == InputActionPhase.Canceled)
             {

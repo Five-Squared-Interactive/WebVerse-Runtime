@@ -184,6 +184,16 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         }
 
         /// <summary>
+        /// Set the VR camera before initialization. Called by Quest3Mode
+        /// to pass the VR camera reference when it's not set in the scene.
+        /// </summary>
+        /// <param name="camera">The VR camera.</param>
+        public void SetVRCamera(Camera camera)
+        {
+            vrCamera = camera;
+        }
+
+        /// <summary>
         /// Set the data provider for browsing history.
         /// The provider should return a list of objects with { name, url, timestamp } fields.
         /// Called by DesktopMode to wire NativeHistory.
@@ -232,12 +242,20 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
         private IEnumerator InitializeAfterRuntime()
         {
-            // Wait for runtime to initialize
-            while (Runtime.WebVerseRuntime.Instance == null)
+            Logging.Log($"[Q3TabUI] InitializeAfterRuntime: runtime={(runtime != null ? "SET" : "NULL")}, Instance={(Runtime.WebVerseRuntime.Instance != null ? "SET" : "NULL")}");
+            int frames = 0;
+            // Wait for runtime to be available (either scene-wired or singleton)
+            while (runtime == null && Runtime.WebVerseRuntime.Instance == null)
             {
+                frames++;
+                if (frames % 300 == 0)
+                {
+                    Logging.Log($"[Q3TabUI] InitializeAfterRuntime: still waiting after {frames} frames");
+                }
                 yield return null;
             }
 
+            Logging.Log($"[Q3TabUI] InitializeAfterRuntime: proceeding after {frames} frames, calling Initialize");
             Initialize();
         }
 
@@ -272,6 +290,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public void Initialize()
         {
+            Logging.Log($"[Q3TabUI] Initialize: runtime={(runtime != null ? "SET" : "NULL")}, Instance={(Runtime.WebVerseRuntime.Instance != null ? "SET" : "NULL")}");
             if (runtime == null)
             {
                 runtime = Runtime.WebVerseRuntime.Instance;
@@ -279,13 +298,17 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             if (runtime == null)
             {
-                Logging.LogError("[TabUIIntegration->Initialize] WebVerseRuntime not found.");
+                Logging.LogError("[Q3TabUI] Initialize: ABORT - WebVerseRuntime not found.");
                 return;
             }
 
+            Logging.Log("[Q3TabUI] Initialize: creating WorldStateManager");
             InitializeWorldStateManager();
+            Logging.Log("[Q3TabUI] Initialize: creating TabManager");
             InitializeTabManager();
+            Logging.Log("[Q3TabUI] Initialize: creating TabUIControllers");
             InitializeTabUIControllers();
+            Logging.Log("[Q3TabUI] Initialize: creating InputHandler");
             InitializeInputHandler();
 
             // Subscribe to WebVerseWebView events
@@ -980,28 +1003,40 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public void EnableVRMode()
         {
+            Logging.Log($"[Q3TabUI] EnableVRMode: starting. vrParent={(vrParent != null ? "SET" : "NULL")}, vrCamera={(vrCamera != null ? vrCamera.name : "NULL")}");
             isVRMode = true;
 
-            // Hide desktop Tab UI
+            // Hide desktop Tab UI — fully deactivate to prevent ScreenSpace overlay
+            // from rendering over the VR view
             if (desktopTabUIController != null)
             {
+                Logging.Log("[Q3TabUI] EnableVRMode: hiding desktop controller");
                 desktopTabUIController.HideChrome();
+                desktopTabUIController.HideOverlay();
             }
 
             // Initialize and show VR Tab UI
+            Logging.Log($"[Q3TabUI] EnableVRMode: vrTabUIController={(vrTabUIController != null ? "SET" : "NULL")}, tabUIWebViewPrefab={(tabUIWebViewPrefab != null ? "SET" : "NULL")}");
             if (vrTabUIController != null && tabUIWebViewPrefab != null)
             {
                 vrTabUIController.IsVR = true;
                 vrTabUIController.VRParent = vrParent;
                 vrTabUIController.VRCamera = vrCamera;
+                Logging.Log("[Q3TabUI] EnableVRMode: initializing VR controller");
                 vrTabUIController.Initialize(tabManager, tabUIWebViewPrefab);
                 vrTabUIController.OnNavigateRequested += HandleNavigateRequest;
                 vrTabUIController.OnMenuAction += HandleMenuAction;
                 SubscribeToControllerDataEvents(vrTabUIController);
+                Logging.Log("[Q3TabUI] EnableVRMode: calling ShowChrome on VR controller");
                 vrTabUIController.ShowChrome();
+            }
+            else
+            {
+                Logging.LogWarning("[Q3TabUI] EnableVRMode: SKIPPED VR controller init (null refs)");
             }
 
             // Set up content WebView for VR — parent it to the chrome panel
+            Logging.Log($"[Q3TabUI] EnableVRMode: webverseWebView={(runtime?.webverseWebView != null ? "SET" : "NULL")}, ChromeTransform={(vrTabUIController?.ChromeTransform != null ? "SET" : "NULL")}");
             if (runtime != null && runtime.webverseWebView != null && vrTabUIController?.ChromeTransform != null)
             {
                 runtime.webverseWebView.SetupVRModeForTabUI(
@@ -1013,6 +1048,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             {
                 inputHandler.Initialize(ActiveTabUIController, tabManager);
             }
+            Logging.Log("[Q3TabUI] EnableVRMode: completed");
         }
 
         /// <summary>

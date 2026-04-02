@@ -1,10 +1,13 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.Input.Quest3;
-using FiveSQD.WebVerse.Interface.MultibarMenu;
+using FiveSQD.WebVerse.Interface.TabUI;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Runtime
@@ -69,12 +72,6 @@ namespace FiveSQD.WebVerse.Runtime
         public WebVerseRuntime runtime;
 
         /// <summary>
-        /// VR Multibar.
-        /// </summary>
-        [Tooltip("VR Multibar.")]
-        public Multibar vrMultibar;
-
-        /// <summary>
         /// Native Settings.
         /// </summary>
         [Tooltip("Native Settings.")]
@@ -116,6 +113,18 @@ namespace FiveSQD.WebVerse.Runtime
         [Tooltip("Sky sphere follower.")]
         public StraightFour.Environment.SkySphereFollower skySphereFollower;
 
+        /// <summary>
+        /// Tab UI Integration.
+        /// </summary>
+        [Tooltip("Tab UI Integration.")]
+        public TabUIIntegration tabUIIntegration;
+
+        /// <summary>
+        /// Cached Quest3Input component for button event subscriptions.
+        /// </summary>
+        private Quest3Input quest3InputComponent;
+
+
         private void Awake()
         {
             // Platform detection - verify we're on Quest 3 or compatible Quest device
@@ -150,22 +159,67 @@ namespace FiveSQD.WebVerse.Runtime
             // Apply Quest 3 performance settings early, before runtime initialization
             Quest3PerformanceConfig.Apply();
 
-            nativeSettings.Initialize("3", System.IO.Path.Combine(Application.persistentDataPath, settingsFilePath));
-            nativeHistory.Initialize("3", System.IO.Path.Combine(Application.persistentDataPath, historyFilePath));
-
+            Logging.Log("[Q3TabUI] Awake: calling LoadRuntime");
             LoadRuntime();
+            Logging.Log($"[Q3TabUI] Awake: LoadRuntime OK, Instance={(Runtime.WebVerseRuntime.Instance != null ? "SET" : "NULL")}");
 
             // Initialize VR
             StartCoroutine(InitializeVR());
 
-            vrMultibar.Initialize(Multibar.MultibarMode.VR, nativeSettings);
+            string homeURL = "";
 
-            string homeURL = nativeSettings.GetHomeURL();
-            if (!string.IsNullOrEmpty(homeURL))
+            // Initialize Tab UI
+            Logging.Log($"[Q3TabUI] Awake: tabUIIntegration={(tabUIIntegration != null ? "SET" : "NULL")}");
+            if (tabUIIntegration != null)
             {
-                vrMultibar.SetURL(homeURL);
-                vrMultibar.Enter();
+                Logging.Log($"[Q3TabUI] Awake: vrCamera={(vrCamera != null ? vrCamera.name : "NULL")}");
+                // Pass VR camera (not set on TabUIIntegration in scene)
+                if (vrCamera != null)
+                {
+                    tabUIIntegration.SetVRCamera(vrCamera);
+                }
+
+                tabUIIntegration.SetHomeUrl(homeURL);
+
+                // Wire data providers
+                tabUIIntegration.SetHistoryProvider(() => GetHistoryData());
+                tabUIIntegration.SetConsoleLogProvider(() => GetConsoleLogData());
+                tabUIIntegration.SetSettingsProvider(() => GetSettingsData());
+
+                // Wire action handlers
+                tabUIIntegration.OnClearHistoryRequested += HandleClearHistory;
+                tabUIIntegration.OnSaveSettingsRequested += HandleSaveSettings;
+                tabUIIntegration.OnClearCacheRequested += HandleClearCache;
+                tabUIIntegration.OnExitRequested += HandleExit;
+                tabUIIntegration.OnPageLoaded += HandlePageLoaded;
+
+                // TabUIIntegration initializes in Start() (after Awake), so defer VR mode enable
+                StartCoroutine(EnableVRModeAfterTabUIInit());
+
+                Logging.Log("[Q3TabUI] Awake: Tab UI providers wired, coroutines started");
             }
+        }
+
+        /// <summary>
+        /// Wait for TabUIIntegration to finish initializing, then enable VR mode.
+        /// </summary>
+        private IEnumerator EnableVRModeAfterTabUIInit()
+        {
+            Logging.Log($"[Q3TabUI] EnableVRModeAfterTabUIInit: waiting for IsInitialized (currently {tabUIIntegration.IsInitialized})");
+            int frames = 0;
+            while (!tabUIIntegration.IsInitialized)
+            {
+                frames++;
+                if (frames % 300 == 0)
+                {
+                    Logging.Log($"[Q3TabUI] EnableVRModeAfterTabUIInit: still waiting after {frames} frames, Instance={(Runtime.WebVerseRuntime.Instance != null ? "SET" : "NULL")}");
+                }
+                yield return null;
+            }
+
+            Logging.Log($"[Q3TabUI] EnableVRModeAfterTabUIInit: IsInitialized=true after {frames} frames, calling EnableVRMode");
+            tabUIIntegration.EnableVRMode();
+            Logging.Log("[Q3TabUI] EnableVRModeAfterTabUIInit: EnableVRMode completed");
         }
 
         /// <summary>
@@ -194,10 +248,16 @@ namespace FiveSQD.WebVerse.Runtime
                 skySphereFollower.transformToFollow = vrCamera.transform;
             }
 
-            // Set up WebView as child of VR multibar
-            if (runtime.webverseWebView != null && vrMultibar != null)
+            // Route Quest 3 menu button and Y button to Tab UI chrome toggle
+            if (tabUIIntegration != null && quest3Input != null)
             {
-                runtime.webverseWebView.SetupVRMode(vrMultibar.transform);
+                quest3InputComponent = quest3Input.GetComponent<Quest3Input>();
+                if (quest3InputComponent != null)
+                {
+                    quest3InputComponent.OnMenuPressed += tabUIIntegration.ToggleChrome;
+                    quest3InputComponent.OnLeftSecondaryPressed += tabUIIntegration.ToggleChrome;
+                    Logging.Log("[Quest3Mode->InitializeVR] Menu and Y buttons wired to Tab UI ToggleChrome.");
+                }
             }
 
             // Initialize VR rig (sets up platform-specific controller models)
@@ -218,51 +278,15 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         private void LoadRuntime()
         {
-            LocalStorage.LocalStorageManager.LocalStorageMode storageMode = GetStorageMode();
-            if (storageMode != LocalStorage.LocalStorageManager.LocalStorageMode.Cache &&
-                storageMode != LocalStorage.LocalStorageManager.LocalStorageMode.Persistent)
-            {
-                Logging.LogError("[Quest3Mode->LoadRuntime] Could not get storage mode.");
-                return;
-            }
+            int maxEntries = int.Parse(testMaxEntries);
+            int maxEntryLength = int.Parse(testMaxEntryLength);
+            int maxKeyLength = int.Parse(testMaxKeyLength);
+            string filesDirectory = System.IO.Path.Combine(Application.persistentDataPath, testFilesDirectory);
+            float worldLoadTimeout = float.Parse(testWorldLoadTimeout);
+            if (worldLoadTimeout <= 0) worldLoadTimeout = 120;
 
-            uint maxEntries = GetMaxEntries();
-            if (maxEntries <= 0 || maxEntries >= 262144)
-            {
-                Logging.LogError("[Quest3Mode->LoadRuntime] Invalid max entries value.");
-                return;
-            }
-
-            uint maxEntryLength = GetMaxEntryLength();
-            if (maxEntryLength <= 8 || maxEntryLength >= 131072)
-            {
-                Logging.LogError("[Quest3Mode->LoadRuntime] Invalid max entry length value.");
-                return;
-            }
-
-            uint maxKeyLength = GetMaxKeyLength();
-            if (maxKeyLength <= 4 || maxKeyLength >= 8192)
-            {
-                Logging.LogError("[Quest3Mode->LoadRuntime] Invalid max key length value.");
-                return;
-            }
-
-            string filesDirectory = System.IO.Path.Combine(Application.persistentDataPath, GetCacheDirectory());
-            if (string.IsNullOrEmpty(filesDirectory))
-            {
-                Logging.LogError("[Quest3Mode->LoadRuntime] Invalid files directory value.");
-                return;
-            }
-
-            float worldLoadTimeout = GetWorldLoadTimeout();
-            if (worldLoadTimeout <= 0)
-            {
-                Logging.LogError("[Quest3Mode->LoadRuntime] Invalid world load timeout.");
-                worldLoadTimeout = 120;
-            }
-
-            runtime.Initialize(storageMode, (int)maxEntries, (int)maxEntryLength, (int)maxKeyLength,
-                filesDirectory, worldLoadTimeout);
+            runtime.Initialize(LocalStorage.LocalStorageManager.LocalStorageMode.Cache,
+                maxEntries, maxEntryLength, maxKeyLength, filesDirectory, worldLoadTimeout);
         }
 
         /// <summary>
@@ -287,93 +311,203 @@ namespace FiveSQD.WebVerse.Runtime
         /// Get the Local Storage Mode.
         /// </summary>
         /// <returns>Local Storage Mode.</returns>
-        private LocalStorage.LocalStorageManager.LocalStorageMode GetStorageMode()
-        {
-            string storageMode = "";
 
-#if UNITY_EDITOR
-            storageMode = testStorageMode;
-#else
-            storageMode = nativeSettings.GetStorageMode();
-#endif
-            if (storageMode.ToLower() == "persistent")
+        #region Tab UI Data Providers
+
+        /// <summary>
+        /// Get browsing history formatted for the Tab UI.
+        /// </summary>
+        public object GetHistoryData()
+        {
+            try
             {
-                return LocalStorage.LocalStorageManager.LocalStorageMode.Persistent;
+                if (nativeHistory == null) return new List<Dictionary<string, string>>();
+
+                var items = nativeHistory.GetAllItemsFromHistory();
+                if (items == null || items.Length == 0) return new List<Dictionary<string, string>>();
+
+                var result = new List<Dictionary<string, string>>();
+                var sorted = items.OrderByDescending(item => item.Item1);
+                foreach (var item in sorted)
+                {
+                    result.Add(new Dictionary<string, string>
+                    {
+                        { "timestamp", item.Item1.ToString("o") },
+                        { "name", item.Item2 ?? "" },
+                        { "url", item.Item3 ?? "" }
+                    });
+                }
+                return result;
             }
-            else if (storageMode.ToLower() == "cache")
+            catch (Exception ex)
             {
-                return LocalStorage.LocalStorageManager.LocalStorageMode.Cache;
+                Logging.LogError($"[Quest3Mode->GetHistoryData] Error: {ex.Message}");
+                return new List<Dictionary<string, string>>();
             }
-            else
+        }
+
+        /// <summary>
+        /// Get console log data formatted for the Tab UI.
+        /// Returns empty list — live console lines are forwarded via Logging callback.
+        /// </summary>
+        public object GetConsoleLogData()
+        {
+            return new List<object>();
+        }
+
+        /// <summary>
+        /// Get current settings formatted for the Tab UI.
+        /// </summary>
+        public object GetSettingsData()
+        {
+            try
             {
-                Logging.LogError("[Quest3Mode->GetStorageMode] Invalid storage mode.");
-                return LocalStorage.LocalStorageManager.LocalStorageMode.Uninitialized;
+                return new Dictionary<string, object>
+                {
+                    { "homeURL", nativeSettings.GetHomeURL() ?? "" },
+                    { "worldLoadTimeout", (int) nativeSettings.GetWorldLoadTimeout() },
+                    { "storageMode", nativeSettings.GetStorageMode() },
+                    { "maxStorageEntries", (int) nativeSettings.GetMaxStorageEntries() },
+                    { "maxStorageKeyLength", (int) nativeSettings.GetMaxStorageKeyLength() },
+                    { "maxStorageEntryLength", (int) nativeSettings.GetMaxStorageEntryLength() },
+                    { "cacheDirectory", nativeSettings.GetCacheDirectory() }
+                };
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[Quest3Mode->GetSettingsData] Error: {ex.Message}");
+                return new Dictionary<string, object>();
             }
         }
 
         /// <summary>
-        /// Get the Max Local Storage Entries.
+        /// Handle clear history request from Tab UI.
         /// </summary>
-        /// <returns>Max Local Storage Entries.</returns>
-        private uint GetMaxEntries()
+        public void HandleClearHistory()
         {
-#if UNITY_EDITOR
-            return uint.Parse(testMaxEntries);
-#else
-            return nativeSettings.GetMaxStorageEntries();
-#endif
+            if (nativeHistory != null)
+            {
+                nativeHistory.ClearHistory();
+                Logging.Log("[Quest3Mode] History cleared.");
+            }
         }
 
         /// <summary>
-        /// Get the Max Local Storage Entry Length.
+        /// Handle save settings request from Tab UI.
         /// </summary>
-        /// <returns>Max Local Storage Entry Length.</returns>
-        private uint GetMaxEntryLength()
+        public void HandleSaveSettings(Dictionary<string, object> settings)
         {
-#if UNITY_EDITOR
-            return uint.Parse(testMaxEntryLength);
-#else
-            return nativeSettings.GetMaxStorageEntryLength();
-#endif
+            if (nativeSettings == null || settings == null) return;
+
+            try
+            {
+                if (settings.TryGetValue("homeURL", out object homeUrl))
+                    nativeSettings.SetHomeURL(homeUrl?.ToString() ?? "");
+
+                if (settings.TryGetValue("storageMode", out object storageMode))
+                    nativeSettings.SetStorageMode(storageMode?.ToString() ?? "persistent");
+
+                if (settings.TryGetValue("worldLoadTimeout", out object wlt))
+                    nativeSettings.SetWorldLoadTimeout(Convert.ToUInt32(wlt));
+
+                if (settings.TryGetValue("maxStorageEntries", out object mse))
+                    nativeSettings.SetMaxStorageEntries(Convert.ToUInt32(mse));
+
+                if (settings.TryGetValue("maxStorageKeyLength", out object mskl))
+                    nativeSettings.SetMaxStorageKeyLength(Convert.ToUInt32(mskl));
+
+                if (settings.TryGetValue("maxStorageEntryLength", out object msel))
+                    nativeSettings.SetMaxStorageEntryLength(Convert.ToUInt32(msel));
+
+                if (settings.TryGetValue("cacheDirectory", out object cacheDir))
+                    nativeSettings.SetCacheDirectory(cacheDir?.ToString() ?? "");
+
+                Logging.Log("[Quest3Mode] Settings saved.");
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[Quest3Mode->HandleSaveSettings] Error: {ex.Message}");
+            }
         }
 
         /// <summary>
-        /// Get the Max Local Storage Key Length.
+        /// Handle page loaded — record in browsing history.
         /// </summary>
-        /// <returns>Max Local Storage Key Length.</returns>
-        private uint GetMaxKeyLength()
+        public void HandlePageLoaded(string siteName, string url)
         {
-#if UNITY_EDITOR
-            return uint.Parse(testMaxKeyLength);
-#else
-            return nativeSettings.GetMaxStorageKeyLength();
-#endif
+            if (nativeHistory != null && !string.IsNullOrEmpty(url))
+            {
+                nativeHistory.AddItemToHistory(DateTime.Now, siteName ?? "Web Page", url);
+            }
         }
 
         /// <summary>
-        /// Get the Cache Directory.
+        /// Handle clear cache request from Tab UI.
         /// </summary>
-        /// <returns>Cache Directory.</returns>
-        private string GetCacheDirectory()
+        public void HandleClearCache(string timeRange)
         {
-#if UNITY_EDITOR
-            return testFilesDirectory;
-#else
-            return nativeSettings.GetCacheDirectory();
-#endif
+            try
+            {
+                string cacheDir = testFilesDirectory;
+                string fullPath = System.IO.Path.Combine(Application.persistentDataPath, cacheDir);
+                if (string.IsNullOrEmpty(fullPath))
+                {
+                    Logging.LogWarning("[Quest3Mode->HandleClearCache] Cache directory not configured.");
+                    return;
+                }
+
+                if (System.IO.Directory.Exists(fullPath))
+                {
+                    foreach (var file in System.IO.Directory.GetFiles(fullPath))
+                        System.IO.File.Delete(file);
+                    foreach (var dir in System.IO.Directory.GetDirectories(fullPath))
+                        System.IO.Directory.Delete(dir, true);
+                    Logging.Log($"[Quest3Mode] Cache cleared (timeRange: {timeRange}, path: {fullPath}).");
+                }
+                else
+                {
+                    Logging.Log($"[Quest3Mode] Cache directory does not exist: {fullPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[Quest3Mode->HandleClearCache] Error: {ex.Message}");
+            }
         }
 
         /// <summary>
-        /// Get the World Load Timeout.
+        /// Handle exit request from Tab UI.
         /// </summary>
-        /// <returns>World Load Timeout.</returns>
-        private float GetWorldLoadTimeout()
+        public void HandleExit()
         {
+            Logging.Log("[Quest3Mode] Exit requested.");
 #if UNITY_EDITOR
-            return float.Parse(testWorldLoadTimeout);
+            UnityEditor.EditorApplication.isPlaying = false;
 #else
-            return nativeSettings.GetWorldLoadTimeout();
+            Application.Quit();
 #endif
+        }
+
+        #endregion
+
+        private void OnDestroy()
+        {
+            // Unsubscribe button events from Tab UI
+            if (quest3InputComponent != null && tabUIIntegration != null)
+            {
+                quest3InputComponent.OnMenuPressed -= tabUIIntegration.ToggleChrome;
+                quest3InputComponent.OnLeftSecondaryPressed -= tabUIIntegration.ToggleChrome;
+            }
+
+            // Unsubscribe Tab UI event handlers
+            if (tabUIIntegration != null)
+            {
+                tabUIIntegration.OnClearHistoryRequested -= HandleClearHistory;
+                tabUIIntegration.OnSaveSettingsRequested -= HandleSaveSettings;
+                tabUIIntegration.OnClearCacheRequested -= HandleClearCache;
+                tabUIIntegration.OnExitRequested -= HandleExit;
+                tabUIIntegration.OnPageLoaded -= HandlePageLoaded;
+            }
         }
     }
 }
