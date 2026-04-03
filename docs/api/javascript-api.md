@@ -602,7 +602,7 @@ Environment.setBloomEnabled(true);
 Environment.setBloomIntensity(0.3);
 ```
 
-### Camera Control
+## Camera Control
 
 ```javascript
 // Crosshair control
