@@ -193,5 +193,54 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities
                 StraightFour.StraightFour.ActiveWorld.cameraManager.cam.transform.forward * distance;
             return entityToPlace.SetPosition(new Vector3(newCamPos.x, newCamPos.y, newCamPos.z), false);
         }
+
+        /// <summary>
+        /// Enable the crosshair.
+        /// </summary>
+        /// <returns>Whether or not the operation was successful.</returns>
+        public static bool EnableCrosshair()
+        {
+            if (StraightFour.StraightFour.ActiveWorld == null ||
+                StraightFour.StraightFour.ActiveWorld.cameraManager == null)
+            {
+                Logging.LogWarning("[Camera:EnableCrosshair] Camera manager not available.");
+                return false;
+            }
+
+            StraightFour.StraightFour.ActiveWorld.cameraManager.crosshairEnabled = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Disable the crosshair.
+        /// </summary>
+        /// <returns>Whether or not the operation was successful.</returns>
+        public static bool DisableCrosshair()
+        {
+            if (StraightFour.StraightFour.ActiveWorld == null ||
+                StraightFour.StraightFour.ActiveWorld.cameraManager == null)
+            {
+                Logging.LogWarning("[Camera:DisableCrosshair] Camera manager not available.");
+                return false;
+            }
+
+            StraightFour.StraightFour.ActiveWorld.cameraManager.crosshairEnabled = false;
+            return true;
+        }
+
+        /// <summary>
+        /// Get whether or not the crosshair is enabled.
+        /// </summary>
+        /// <returns>Whether or not the crosshair is enabled.</returns>
+        public static bool IsCrosshairEnabled()
+        {
+            if (StraightFour.StraightFour.ActiveWorld == null ||
+                StraightFour.StraightFour.ActiveWorld.cameraManager == null)
+            {
+                return false;
+            }
+
+            return StraightFour.StraightFour.ActiveWorld.cameraManager.crosshairEnabled;
+        }
     }
 }
