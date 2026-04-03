@@ -237,7 +237,6 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities
             if (StraightFour.StraightFour.ActiveWorld == null ||
                 StraightFour.StraightFour.ActiveWorld.cameraManager == null)
             {
-                Logging.LogWarning("[Camera:IsCrosshairEnabled] Camera manager not available.");
                 return false;
             }
 
