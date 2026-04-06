@@ -147,7 +147,7 @@ jobs:
         run: |
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
           if (-not (Test-Path $packagesPath)) { Write-Host "::error::Packages not found"; exit 1 }
-          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets", "com.tivadar.best.socketio")
           foreach ($pkg in $embeddedPackages) {
             $sourcePath = Join-Path $packagesPath $pkg
             $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
@@ -267,6 +267,7 @@ jobs:
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.socketio" -Recurse -Force -ErrorAction SilentlyContinue
 
   # WebGL Compressed build (runs after Windows Desktop to benefit from Library cache)
   build-webgl-compressed:
@@ -352,7 +353,7 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
-          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets", "com.tivadar.best.socketio")
           foreach ($pkg in $embeddedPackages) {
             $sourcePath = Join-Path $packagesPath $pkg
             $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
@@ -448,6 +449,7 @@ jobs:
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.socketio" -Recurse -Force -ErrorAction SilentlyContinue
 
   # WebGL Uncompressed build (runs after WebGL Compressed)
   build-webgl-uncompressed:
@@ -533,7 +535,7 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
-          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets", "com.tivadar.best.socketio")
           foreach ($pkg in $embeddedPackages) {
             $sourcePath = Join-Path $packagesPath $pkg
             $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
@@ -629,6 +631,7 @@ jobs:
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.socketio" -Recurse -Force -ErrorAction SilentlyContinue
 
   # Mac Desktop build (runs in parallel with Windows jobs)
   build-mac:
@@ -694,7 +697,7 @@ jobs:
       - name: Setup Unity packages (Embedded)
         run: |
           PACKAGES_PATH="$UNITY_PACKAGES_PATH"
-          for pkg in "com.occasoftware.super-simple-skybox" "com.tivadar.best.http" "com.tivadar.best.mqtt" "com.tivadar.best.websockets"; do
+          for pkg in "com.occasoftware.super-simple-skybox" "com.tivadar.best.http" "com.tivadar.best.mqtt" "com.tivadar.best.websockets" "com.tivadar.best.socketio"; do
             source_path="$PACKAGES_PATH/$pkg"
             target_path="$PROJECT_PATH/Packages/$pkg"
             if [ -d "$source_path" ]; then
@@ -775,7 +778,7 @@ jobs:
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex.meta" || true
-          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
+          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" "$PROJECT_PATH/Packages/com.tivadar.best.socketio" || true
 
   # iOS build (runs on Mac runner)
   build-ios:
@@ -841,7 +844,7 @@ jobs:
       - name: Setup Unity packages (Embedded)
         run: |
           PACKAGES_PATH="$UNITY_PACKAGES_PATH"
-          for pkg in "com.occasoftware.super-simple-skybox" "com.tivadar.best.http" "com.tivadar.best.mqtt" "com.tivadar.best.websockets"; do
+          for pkg in "com.occasoftware.super-simple-skybox" "com.tivadar.best.http" "com.tivadar.best.mqtt" "com.tivadar.best.websockets" "com.tivadar.best.socketio"; do
             source_path="$PACKAGES_PATH/$pkg"
             target_path="$PROJECT_PATH/Packages/$pkg"
             if [ -d "$source_path" ]; then
@@ -1031,7 +1034,7 @@ jobs:
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Silantro.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/URPWater.meta" || true
           rm -rf "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex" "$PROJECT_PATH/Assets/Runtime/StraightFour/3rd-party/Vuplex.meta" || true
-          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" || true
+          rm -rf "$PROJECT_PATH/Packages/com.occasoftware.super-simple-skybox" "$PROJECT_PATH/Packages/com.tivadar.best.http" "$PROJECT_PATH/Packages/com.tivadar.best.mqtt" "$PROJECT_PATH/Packages/com.tivadar.best.websockets" "$PROJECT_PATH/Packages/com.tivadar.best.socketio" || true
 
   # Android build (runs on Windows runner)
   build-android:
@@ -1118,7 +1121,7 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
           $packagesPath = "$env:UNITY_PACKAGES_PATH"
-          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets")
+          $embeddedPackages = @("com.occasoftware.super-simple-skybox", "com.tivadar.best.http", "com.tivadar.best.mqtt", "com.tivadar.best.websockets", "com.tivadar.best.socketio")
           foreach ($pkg in $embeddedPackages) {
             $sourcePath = Join-Path $packagesPath $pkg
             $targetPath = Join-Path "$env:PROJECT_PATH\Packages" $pkg
@@ -1283,6 +1286,7 @@ jobs:
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.http" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.mqtt" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.websockets" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:PROJECT_PATH\Packages\com.tivadar.best.socketio" -Recurse -Force -ErrorAction SilentlyContinue
 
   # Summary job
   summary:
