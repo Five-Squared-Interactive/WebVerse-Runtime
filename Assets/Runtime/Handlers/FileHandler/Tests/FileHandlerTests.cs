@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Handlers.File;
 using FiveSQD.WebVerse.Runtime;

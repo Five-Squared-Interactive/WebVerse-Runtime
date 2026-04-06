@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities;
@@ -279,9 +279,9 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 if (WebVerseRuntime.Instance.vrRig != null)
                 {
                     WebVerseRuntime.Instance.vrRig.leftPointerMode =
-                        value == VRPointerMode.None ? WebVerse.Input.SteamVR.VRRig.PointerMode.None :
-                        value == VRPointerMode.Teleport ? WebVerse.Input.SteamVR.VRRig.PointerMode.Teleport :
-                        WebVerse.Input.SteamVR.VRRig.PointerMode.UI;
+                        value == VRPointerMode.None ? WebVerse.Input.VRRig.PointerMode.None :
+                        value == VRPointerMode.Teleport ? WebVerse.Input.VRRig.PointerMode.Teleport :
+                        WebVerse.Input.VRRig.PointerMode.UI;
                 }
             }
 
@@ -295,13 +295,13 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 {
                     switch (WebVerseRuntime.Instance.vrRig.leftPointerMode)
                     {
-                        case WebVerse.Input.SteamVR.VRRig.PointerMode.Teleport:
+                        case WebVerse.Input.VRRig.PointerMode.Teleport:
                             return VRPointerMode.Teleport;
 
-                        case WebVerse.Input.SteamVR.VRRig.PointerMode.UI:
+                        case WebVerse.Input.VRRig.PointerMode.UI:
                             return VRPointerMode.UI;
 
-                        case WebVerse.Input.SteamVR.VRRig.PointerMode.None:
+                        case WebVerse.Input.VRRig.PointerMode.None:
                         default:
                             return VRPointerMode.None;
                     }
@@ -319,9 +319,9 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 if (WebVerseRuntime.Instance.vrRig != null)
                 {
                     WebVerseRuntime.Instance.vrRig.rightPointerMode =
-                        value == VRPointerMode.None ? WebVerse.Input.SteamVR.VRRig.PointerMode.None :
-                        value == VRPointerMode.Teleport ? WebVerse.Input.SteamVR.VRRig.PointerMode.Teleport :
-                        WebVerse.Input.SteamVR.VRRig.PointerMode.UI;
+                        value == VRPointerMode.None ? WebVerse.Input.VRRig.PointerMode.None :
+                        value == VRPointerMode.Teleport ? WebVerse.Input.VRRig.PointerMode.Teleport :
+                        WebVerse.Input.VRRig.PointerMode.UI;
                 }
             }
 
@@ -335,13 +335,13 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 {
                     switch (WebVerseRuntime.Instance.vrRig.rightPointerMode)
                     {
-                        case WebVerse.Input.SteamVR.VRRig.PointerMode.Teleport:
+                        case WebVerse.Input.VRRig.PointerMode.Teleport:
                             return VRPointerMode.Teleport;
 
-                        case WebVerse.Input.SteamVR.VRRig.PointerMode.UI:
+                        case WebVerse.Input.VRRig.PointerMode.UI:
                             return VRPointerMode.UI;
 
-                        case WebVerse.Input.SteamVR.VRRig.PointerMode.None:
+                        case WebVerse.Input.VRRig.PointerMode.None:
                         default:
                             return VRPointerMode.None;
                     }
@@ -463,9 +463,9 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 if (WebVerseRuntime.Instance.vrRig != null)
                 {
                     WebVerseRuntime.Instance.vrRig.turnLocomotionMode =
-                        value == VRTurnLocomotionMode.None ? WebVerse.Input.SteamVR.VRRig.TurnLocomotionMode.None :
-                        value == VRTurnLocomotionMode.Smooth ? WebVerse.Input.SteamVR.VRRig.TurnLocomotionMode.Smooth :
-                        WebVerse.Input.SteamVR.VRRig.TurnLocomotionMode.Snap;
+                        value == VRTurnLocomotionMode.None ? WebVerse.Input.VRRig.TurnLocomotionMode.None :
+                        value == VRTurnLocomotionMode.Smooth ? WebVerse.Input.VRRig.TurnLocomotionMode.Smooth :
+                        WebVerse.Input.VRRig.TurnLocomotionMode.Snap;
                 }
             }
 
@@ -479,13 +479,13 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 {
                     switch (WebVerseRuntime.Instance.vrRig.turnLocomotionMode)
                     {
-                        case WebVerse.Input.SteamVR.VRRig.TurnLocomotionMode.Smooth:
+                        case WebVerse.Input.VRRig.TurnLocomotionMode.Smooth:
                             return VRTurnLocomotionMode.Smooth;
 
-                        case WebVerse.Input.SteamVR.VRRig.TurnLocomotionMode.Snap:
+                        case WebVerse.Input.VRRig.TurnLocomotionMode.Snap:
                             return VRTurnLocomotionMode.Snap;
 
-                        case WebVerse.Input.SteamVR.VRRig.TurnLocomotionMode.None:
+                        case WebVerse.Input.VRRig.TurnLocomotionMode.None:
                         default:
                             return VRTurnLocomotionMode.None;
                     }

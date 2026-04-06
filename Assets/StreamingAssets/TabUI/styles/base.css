@@ -1,0 +1,125 @@
+/* Base Styles - Reset and Typography */
+
+/* Reset */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-family);
+    font-size: var(--font-size-md);
+    color: var(--color-text-primary);
+    background: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Remove default button styles */
+button {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    outline: none;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+/* Remove default input styles */
+input {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    outline: none;
+}
+
+input::placeholder {
+    color: var(--color-text-placeholder);
+}
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+    box-shadow: var(--focus-ring);
+}
+
+/* Hide focus ring for mouse users */
+:focus:not(:focus-visible) {
+    box-shadow: none;
+}
+
+/* Typography utilities */
+.text-primary {
+    color: var(--color-text-primary);
+}
+
+.text-secondary {
+    color: var(--color-text-secondary);
+}
+
+.text-sm {
+    font-size: var(--font-size-sm);
+}
+
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Visually hidden but accessible */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Selection */
+::selection {
+    background: var(--color-accent);
+    color: white;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* SVG icons inherit color */
+svg {
+    display: inline-block;
+    vertical-align: middle;
+    fill: currentColor;
+}

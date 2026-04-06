@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0;
 using FiveSQD.WebVerse.Runtime;
@@ -181,6 +181,19 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         public static void InitializeEntityMapping()
         {
             loadedEntities = new Dictionary<StraightFour.Entity.BaseEntity, BaseEntity>();
+        }
+
+        /// <summary>
+        /// Clear the entity mapping and instance reference.
+        /// Call when unloading a world to prevent memory leaks.
+        /// </summary>
+        public static void ClearEntityMapping()
+        {
+            if (loadedEntities != null)
+            {
+                loadedEntities.Clear();
+            }
+            instance = null;
         }
 
         /// <summary>

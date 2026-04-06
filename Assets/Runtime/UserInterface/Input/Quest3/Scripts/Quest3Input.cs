@@ -1,0 +1,727 @@
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
+
+using FiveSQD.WebVerse.Runtime;
+using FiveSQD.WebVerse.Utilities;
+using System;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
+
+namespace FiveSQD.WebVerse.Input.Quest3
+{
+    /// <summary>
+    /// Class for interpreting Quest 3 controller input.
+    /// </summary>
+    public class Quest3Input : BasePlatformInput
+    {
+        /// <summary>
+        /// Event fired when a menu button is pressed (left or right, when no other menu is held).
+        /// </summary>
+        public event Action OnMenuPressed;
+
+        /// <summary>
+        /// Event fired when the left secondary button (Y) is pressed.
+        /// </summary>
+        public event Action OnLeftSecondaryPressed;
+
+        /// <summary>
+        /// The left controller gameobject.
+        /// </summary>
+        [Tooltip("The left controller gameobject.")]
+        public GameObject leftControllerGO;
+
+        /// <summary>
+        /// The right controller gameobject.
+        /// </summary>
+        [Tooltip("The right controller gameobject.")]
+        public GameObject rightControllerGO;
+
+        /// <summary>
+        /// The left controller.
+        /// </summary>
+        [Tooltip("The left controller.")]
+        public XRController leftController;
+
+        /// <summary>
+        /// The right controller.
+        /// </summary>
+        [Tooltip("The right controller.")]
+        public XRController rightController;
+
+        /// <summary>
+        /// Reference to the input mode manager.
+        /// </summary>
+        [Tooltip("Reference to the input mode manager.")]
+        public InputModeManager inputModeManager;
+
+        /// <summary>
+        /// Cached PlayerInput reference for programmatic action binding.
+        /// </summary>
+        private PlayerInput playerInput;
+
+        private void Start()
+        {
+            playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                // Scene-wired Unity Events have null targets (old SteamVR/Multibar references removed).
+                // Switch to C# events and route actions programmatically.
+                playerInput.notificationBehavior = PlayerNotifications.InvokeCSharpEvents;
+                playerInput.onActionTriggered += RouteAction;
+                Logging.Log("[Q3TabUI] Quest3Input: Programmatic input action binding complete.");
+            }
+            else
+            {
+                Logging.LogWarning("[Q3TabUI] Quest3Input: No PlayerInput component found on this GameObject!");
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (playerInput != null)
+            {
+                playerInput.onActionTriggered -= RouteAction;
+            }
+        }
+
+        /// <summary>
+        /// Routes PlayerInput action callbacks to the appropriate handler method.
+        /// </summary>
+        private void RouteAction(InputAction.CallbackContext context)
+        {
+            try
+            {
+                switch (context.action.name)
+                {
+                    case "LeftMenu": OnLeftMenu(context); break;
+                    case "RightMenu": OnRightMenu(context); break;
+                    case "LeftTriggerTouch": OnLeftTriggerTouch(context); break;
+                    case "RightTriggerTouch": OnRightTriggerTouch(context); break;
+                    case "LeftTriggerPress": OnLeftTriggerPress(context); break;
+                    case "RightTriggerPress": OnRightTriggerPress(context); break;
+                    case "LeftGripPress": OnLeftGripPress(context); break;
+                    case "RightGripPress": OnRightGripPress(context); break;
+                    case "LeftTouchPadValue": OnLeftThumbstickValue(context); break;
+                    case "RightTouchPadValue": OnRightThumbstickValue(context); break;
+                    case "LeftTouchPadPress": OnLeftThumbstickPress(context); break;
+                    case "RightTouchPadPress": OnRightThumbstickPress(context); break;
+                    case "LeftPrimaryTouch": OnLeftPrimaryTouch(context); break;
+                    case "RightPrimaryTouch": OnRightPrimaryTouch(context); break;
+                    case "LeftPrimaryPress": OnLeftPrimaryPress(context); break;
+                    case "RightPrimaryPress": OnRightPrimaryPress(context); break;
+                    case "LeftSecondaryTouch": OnLeftSecondaryTouch(context); break;
+                    case "RightSecondaryTouch": OnRightSecondaryTouch(context); break;
+                    case "LeftSecondaryPress": OnLeftSecondaryPress(context); break;
+                    case "RightSecondaryPress": OnRightSecondaryPress(context); break;
+                    case "LeftStick": OnLeftStick(context); break;
+                    case "RightStick": OnRightStick(context); break;
+                }
+            }
+            catch (System.NullReferenceException)
+            {
+                // WebVerseRuntime.Instance or inputManager may not be ready yet — silently ignore
+            }
+        }
+
+        /// <summary>
+        /// Registers controller input with the InputModeManager.
+        /// </summary>
+        private void RegisterControllerInput()
+        {
+            if (inputModeManager != null)
+            {
+                inputModeManager.RegisterControllerInput();
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left menu.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftMenu(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.LeftMenu();
+                WebVerseRuntime.Instance.inputManager.leftMenuValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightMenuValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.Menu();
+                    OnMenuPressed?.Invoke();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftMenu();
+                WebVerseRuntime.Instance.inputManager.leftMenuValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightMenuValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndMenu();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right menu.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightMenu(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.RightMenu();
+                WebVerseRuntime.Instance.inputManager.rightMenuValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftMenuValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.Menu();
+                    OnMenuPressed?.Invoke();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightMenu();
+                WebVerseRuntime.Instance.inputManager.rightMenuValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftMenuValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndMenu();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left trigger touch.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftTriggerTouch(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.LeftTriggerTouch();
+                WebVerseRuntime.Instance.inputManager.leftTriggerTouchValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightTriggerTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.TriggerTouch();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftTriggerTouch();
+                WebVerseRuntime.Instance.inputManager.leftTriggerTouchValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightTriggerTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndTriggerTouch();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right trigger touch.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightTriggerTouch(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.RightTriggerTouch();
+                WebVerseRuntime.Instance.inputManager.rightTriggerTouchValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftTriggerTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.TriggerTouch();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightTriggerTouch();
+                WebVerseRuntime.Instance.inputManager.rightTriggerTouchValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftTriggerTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndTriggerTouch();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left trigger press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftTriggerPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.LeftTriggerPress();
+                WebVerseRuntime.Instance.inputManager.leftTriggerPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightTriggerPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.TriggerPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftTriggerPress();
+                WebVerseRuntime.Instance.inputManager.leftTriggerPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightTriggerPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndTriggerPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right trigger press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightTriggerPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.RightTriggerPress();
+                WebVerseRuntime.Instance.inputManager.rightTriggerPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftTriggerPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.TriggerPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightTriggerPress();
+                WebVerseRuntime.Instance.inputManager.rightTriggerPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftTriggerPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndTriggerPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left grip press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftGripPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.LeftGripPress();
+                WebVerseRuntime.Instance.inputManager.leftGripPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightGripPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.GripPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftGripPress();
+                WebVerseRuntime.Instance.inputManager.leftGripPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightGripPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndGripPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right grip press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightGripPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                WebVerseRuntime.Instance.inputManager.RightGripPress();
+                WebVerseRuntime.Instance.inputManager.rightGripPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftGripPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.GripPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightGripPress();
+                WebVerseRuntime.Instance.inputManager.rightGripPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftGripPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndGripPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left thumbstick value change.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftThumbstickValue(InputAction.CallbackContext context)
+        {
+            Vector2 value = context.ReadValue<Vector2>();
+            WebVerseRuntime.Instance.inputManager.LeftTouchPadTouchValueChange(value);
+            WebVerseRuntime.Instance.inputManager.leftTouchPadTouchLocation = value;
+        }
+
+        /// <summary>
+        /// Invoked on a right thumbstick value change.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightThumbstickValue(InputAction.CallbackContext context)
+        {
+            Vector2 value = context.ReadValue<Vector2>();
+            WebVerseRuntime.Instance.inputManager.RightTouchPadTouchValueChange(value);
+            WebVerseRuntime.Instance.inputManager.rightTouchPadTouchLocation = value;
+        }
+
+        /// <summary>
+        /// Invoked on a left thumbstick press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftThumbstickPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.LeftTouchPadPress();
+                WebVerseRuntime.Instance.inputManager.leftTouchPadPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightTouchPadPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.TouchPadPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftTouchPadPress();
+                WebVerseRuntime.Instance.inputManager.leftTouchPadPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightTouchPadPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndTouchPadPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right thumbstick press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightThumbstickPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.RightTouchPadPress();
+                WebVerseRuntime.Instance.inputManager.rightTouchPadPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftTouchPadPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.TouchPadPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightTouchPadPress();
+                WebVerseRuntime.Instance.inputManager.rightTouchPadPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftTouchPadPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndTouchPadPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left primary button (X) touch.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftPrimaryTouch(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.LeftPrimaryTouch();
+                WebVerseRuntime.Instance.inputManager.leftPrimaryTouchValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightPrimaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.PrimaryTouch();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftPrimaryTouch();
+                WebVerseRuntime.Instance.inputManager.leftPrimaryTouchValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightPrimaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndPrimaryTouch();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right primary button (A) touch.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightPrimaryTouch(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.RightPrimaryTouch();
+                WebVerseRuntime.Instance.inputManager.rightPrimaryTouchValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftPrimaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.PrimaryTouch();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightPrimaryTouch();
+                WebVerseRuntime.Instance.inputManager.rightPrimaryTouchValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftPrimaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndPrimaryTouch();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left primary button (X) press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftPrimaryPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.LeftPrimaryPress();
+                WebVerseRuntime.Instance.inputManager.leftPrimaryPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightPrimaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.PrimaryPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftPrimaryPress();
+                WebVerseRuntime.Instance.inputManager.leftPrimaryPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightPrimaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndPrimaryPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right primary button (A) press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightPrimaryPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.RightPrimaryPress();
+                WebVerseRuntime.Instance.inputManager.rightPrimaryPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftPrimaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.PrimaryPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightPrimaryPress();
+                WebVerseRuntime.Instance.inputManager.rightPrimaryPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftPrimaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndPrimaryPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left secondary button (Y) touch.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftSecondaryTouch(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.LeftSecondaryTouch();
+                WebVerseRuntime.Instance.inputManager.leftSecondaryTouchValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightSecondaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.SecondaryTouch();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftSecondaryTouch();
+                WebVerseRuntime.Instance.inputManager.leftSecondaryTouchValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightSecondaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndSecondaryTouch();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right secondary button (B) touch.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightSecondaryTouch(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.RightSecondaryTouch();
+                WebVerseRuntime.Instance.inputManager.rightSecondaryTouchValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftSecondaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.SecondaryTouch();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightSecondaryTouch();
+                WebVerseRuntime.Instance.inputManager.rightSecondaryTouchValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftSecondaryTouchValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndSecondaryTouch();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left secondary button (Y) press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftSecondaryPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.LeftSecondaryPress();
+                WebVerseRuntime.Instance.inputManager.leftSecondaryPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.rightSecondaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.SecondaryPress();
+                }
+                OnLeftSecondaryPressed?.Invoke();
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftSecondaryPress();
+                WebVerseRuntime.Instance.inputManager.leftSecondaryPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.rightSecondaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndSecondaryPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right secondary button (B) press.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightSecondaryPress(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                WebVerseRuntime.Instance.inputManager.RightSecondaryPress();
+                WebVerseRuntime.Instance.inputManager.rightSecondaryPressValue = true;
+                if (WebVerseRuntime.Instance.inputManager.leftSecondaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.SecondaryPress();
+                }
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightSecondaryPress();
+                WebVerseRuntime.Instance.inputManager.rightSecondaryPressValue = false;
+                if (WebVerseRuntime.Instance.inputManager.leftSecondaryPressValue == false)
+                {
+                    WebVerseRuntime.Instance.inputManager.EndSecondaryPress();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a left stick.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnLeftStick(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                Vector2 value = context.ReadValue<Vector2>();
+                WebVerseRuntime.Instance.inputManager.LeftStick();
+                WebVerseRuntime.Instance.inputManager.LeftStickValueChange(value);
+                WebVerseRuntime.Instance.inputManager.leftStickValue = true;
+            }
+            else if (context.phase == InputActionPhase.Performed)
+            {
+                Vector2 value = context.ReadValue<Vector2>();
+                WebVerseRuntime.Instance.inputManager.LeftStickValueChange(value);
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndLeftStick();
+                WebVerseRuntime.Instance.inputManager.LeftStickValueChange(Vector2.zero);
+                WebVerseRuntime.Instance.inputManager.leftStickValue = false;
+            }
+        }
+
+        /// <summary>
+        /// Invoked on a right stick.
+        /// </summary>
+        /// <param name="context">Callback context.</param>
+        public void OnRightStick(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Started)
+            {
+                RegisterControllerInput();
+                Vector2 value = context.ReadValue<Vector2>();
+                WebVerseRuntime.Instance.inputManager.RightStick();
+                WebVerseRuntime.Instance.inputManager.RightStickValueChange(value);
+                WebVerseRuntime.Instance.inputManager.rightStickValue = true;
+            }
+            else if (context.phase == InputActionPhase.Performed)
+            {
+                Vector2 value = context.ReadValue<Vector2>();
+                WebVerseRuntime.Instance.inputManager.RightStickValueChange(value);
+            }
+            else if (context.phase == InputActionPhase.Canceled)
+            {
+                WebVerseRuntime.Instance.inputManager.EndRightStick();
+                WebVerseRuntime.Instance.inputManager.RightStickValueChange(Vector2.zero);
+                WebVerseRuntime.Instance.inputManager.rightStickValue = false;
+            }
+        }
+
+        /// <summary>
+        /// Get a raycast from the pointer.
+        /// </summary>
+        /// <param name="direction">Direction to cast the ray in.</param>
+        /// <param name="pointerIndex">Index of the pointer to get raycast from.</param>
+        /// <returns>A raycast from the pointer, or null.</returns>
+        public override Tuple<RaycastHit, Vector3> GetPointerRaycast(Vector3 direction, int pointerIndex = 0)
+        {
+            if (pointerIndex == 0)
+            {
+                RaycastHit hit;
+                if (Physics.Raycast(leftControllerGO.transform.position,
+                    leftControllerGO.transform.rotation * direction, out hit))
+                {
+                    return new Tuple<RaycastHit, Vector3>(hit, leftControllerGO.transform.position);
+                }
+            }
+            else if (pointerIndex == 1)
+            {
+                RaycastHit hit;
+                if (Physics.Raycast(rightControllerGO.transform.position,
+                    rightControllerGO.transform.rotation * direction, out hit))
+                {
+                    return new Tuple<RaycastHit, Vector3>(hit, rightControllerGO.transform.position);
+                }
+            }
+            else
+            {
+                Logging.LogWarning("[Quest3Input->GetPointerRaycast] Only indices of 0 (left) or 1 (right)" +
+                    " are supported for Quest 3.");
+            }
+
+            return null;
+        }
+    }
+}

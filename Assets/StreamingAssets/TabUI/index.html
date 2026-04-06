@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebVerse Chrome</title>
+    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/animations.css">
+</head>
+<body>
+    <!-- Chrome Container -->
+    <div id="chrome" class="chrome chrome--visible">
+        <!-- Tabs Button (circular, left side) -->
+        <button id="tabs-button" class="tabs-button" aria-label="Open tabs menu" aria-expanded="false" data-tooltip="Tabs">
+            <span class="tabs-button__icon"><svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg></span>
+            <img class="tabs-button__world-icon" src="" alt="" style="display: none;">
+        </button>
+
+        <!-- Main Bar -->
+        <div class="main-bar">
+            <!-- Navigation Buttons -->
+            <div class="nav-buttons">
+                <div class="nav-btn-wrapper">
+                    <button id="btn-back" class="nav-btn" aria-label="Go back" data-tooltip="Back (Alt+←) · Hold for history" disabled>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M11 2L5 8l6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div id="back-history-dropdown" class="dropdown nav-history-dropdown" style="display: none;">
+                        <div class="nav-history-dropdown__items"></div>
+                    </div>
+                </div>
+                <div class="nav-btn-wrapper">
+                    <button id="btn-forward" class="nav-btn" aria-label="Go forward" data-tooltip="Forward (Alt+→) · Hold for history" disabled>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M5 2l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div id="forward-history-dropdown" class="dropdown nav-history-dropdown" style="display: none;">
+                        <div class="nav-history-dropdown__items"></div>
+                    </div>
+                </div>
+                <button id="btn-reload" class="nav-btn" aria-label="Reload" data-tooltip="Reload (Ctrl+R / F5)" disabled>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M13.5 8a5.5 5.5 0 11-1.5-3.8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        <path d="M13 2v3h-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- URL Bar -->
+            <div class="url-bar-container">
+                <input
+                    id="url-bar"
+                    class="url-bar"
+                    type="text"
+                    placeholder="Enter world URL..."
+                    aria-label="World URL"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Fullscreen Toggle -->
+            <button id="btn-fullscreen" class="nav-btn" aria-label="Toggle fullscreen" data-tooltip="Fullscreen (F11)">
+                <svg class="icon-fullscreen" width="16" height="16" viewBox="0 0 16 16">
+                    <path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg class="icon-unfullscreen" width="16" height="16" viewBox="0 0 16 16" style="display:none;">
+                    <path d="M2 5h3V2M14 5h-3V2M11 14v-3h3M5 14v-3H2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+
+            <!-- VR Toggle -->
+            <button id="btn-vr" class="nav-btn" aria-label="Toggle VR mode" data-tooltip="VR Mode">
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                    <rect x="1" y="4" width="14" height="8" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <circle cx="5" cy="8" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                    <circle cx="11" cy="8" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                </svg>
+            </button>
+
+            <!-- Menu Button -->
+            <button id="btn-menu" class="nav-btn menu-btn" aria-label="Open menu" aria-expanded="false" data-tooltip="Menu">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="3" r="1.5"/>
+                    <circle cx="8" cy="8" r="1.5"/>
+                    <circle cx="8" cy="13" r="1.5"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Tab Dropdown -->
+        <div id="tab-dropdown" class="dropdown tab-dropdown" style="display: none;">
+            <div id="tab-list" class="tab-dropdown__items">
+                <!-- Tab items will be populated dynamically -->
+            </div>
+            <button id="btn-new-tab" class="tab-item tab-item--new" aria-label="New tab" data-tooltip="New Tab (Ctrl+T)">
+                <span class="tab-item__icon">+</span>
+                <span class="tab-item__label">New Tab</span>
+            </button>
+        </div>
+
+        <!-- Thumbnail Preview Popup -->
+        <div id="thumbnail-preview" class="thumbnail-preview">
+            <img id="thumbnail-preview-image" class="thumbnail-preview__image" alt="Tab preview">
+            <div id="thumbnail-preview-placeholder" class="thumbnail-preview__placeholder">
+                <div class="spinner"></div>
+                <span>Loading preview...</span>
+            </div>
+        </div>
+
+        <!-- Menu Dropdown -->
+        <div id="menu-dropdown" class="dropdown menu-dropdown" style="display: none;">
+            <button class="menu-item" data-action="history">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M8 4v4l3 2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+                History
+            </button>
+            <button class="menu-item" data-action="console">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="1" y="2" width="14" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M4 6l2 2-2 2M7 10h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+                Console
+            </button>
+            <button class="menu-item" data-action="stats" data-tooltip="F3 for HUD">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M2 14V8M6 14V4M10 14V6M14 14V2"/>
+                </svg>
+                Performance
+            </button>
+            <button class="menu-item" data-action="settings">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <line x1="2" y1="4" x2="14" y2="4"/>
+                    <line x1="2" y1="8" x2="14" y2="8"/>
+                    <line x1="2" y1="12" x2="14" y2="12"/>
+                    <circle cx="5" cy="4" r="1.5" fill="currentColor"/>
+                    <circle cx="10" cy="8" r="1.5" fill="currentColor"/>
+                    <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
+                </svg>
+                Settings
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" data-action="fullscreen" data-tooltip="F11">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Fullscreen
+            </button>
+            <button class="menu-item" data-action="vr-mode">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="1" y="4" width="14" height="8" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <circle cx="5" cy="8" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                    <circle cx="11" cy="8" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                </svg>
+                VR Mode
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" data-action="about">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <path d="M8 5v1M8 7v4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                </svg>
+                About
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item menu-item--danger" data-action="exit">
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                    <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M6 8h8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Exit
+            </button>
+        </div>
+    </div>
+
+    <!-- Content Frame - Rounded border for web content area -->
+    <div id="content-frame" class="content-frame">
+        <div class="content-frame__border"></div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- History Modal -->
+    <div id="modal-history" class="modal-overlay">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal__header">
+                <span class="modal__title">History</span>
+                <button class="modal__close" data-modal-close="history">&times;</button>
+            </div>
+            <div class="modal__body">
+                <!-- History Table Header -->
+                <div class="history-header">
+                    <span class="history-header__datetime">Date/Time</span>
+                    <span class="history-header__site">Site</span>
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- History items populated dynamically -->
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn" data-modal-close="history">Close</button>
+                <button class="btn btn--primary" data-action="clear-history">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Console Modal -->
+    <div id="modal-console" class="modal-overlay">
+        <div class="modal" style="max-width: 700px;">
+            <div class="modal__header">
+                <span class="modal__title">Console</span>
+                <button class="modal__close" data-modal-close="console">&times;</button>
+            </div>
+            <div class="modal__body">
+                <!-- Console Toolbar -->
+                <div class="console-toolbar">
+                    <div class="console-search">
+                        <svg class="console-search__icon" width="14" height="14" viewBox="0 0 16 16">
+                            <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <input type="text" class="console-search__input" id="console-search" placeholder="Search console..." autocomplete="off">
+                        <button class="console-search__clear" id="console-search-clear" data-action="clear-console-search" style="display: none;">&times;</button>
+                    </div>
+                    <div class="console-filters" id="console-filters">
+                        <label class="console-filter">
+                            <input type="checkbox" checked data-filter="error">
+                            <span class="console-filter__label console-filter__label--error">Errors</span>
+                        </label>
+                        <label class="console-filter">
+                            <input type="checkbox" checked data-filter="warn">
+                            <span class="console-filter__label console-filter__label--warn">Warnings</span>
+                        </label>
+                        <label class="console-filter">
+                            <input type="checkbox" checked data-filter="msg">
+                            <span class="console-filter__label console-filter__label--msg">Messages</span>
+                        </label>
+                        <label class="console-filter">
+                            <input type="checkbox" data-filter="debug">
+                            <span class="console-filter__label console-filter__label--debug">Debug</span>
+                        </label>
+                        <label class="console-filter">
+                            <input type="checkbox" data-filter="internal">
+                            <span class="console-filter__label console-filter__label--internal">Internal</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="console-output" class="console-output">
+                    <!-- Console lines populated dynamically -->
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn" data-action="clear-console">Clear</button>
+                <button class="btn" data-modal-close="console">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal" style="max-width: 550px;">
+            <div class="modal__header">
+                <span class="modal__title">Settings</span>
+                <button class="modal__close" data-modal-close="settings">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div id="settings-content">
+                    <!-- Appearance Section -->
+                    <div class="settings-section">
+                        <div class="settings-section__title">Appearance</div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-theme">Theme</label>
+                            <select id="setting-theme" class="settings-select" data-setting="theme">
+                                <option value="system">System Default</option>
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- General Section -->
+                    <div class="settings-section">
+                        <div class="settings-section__title">General</div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-home-url">Home URL</label>
+                            <input type="text" id="setting-home-url" class="settings-input settings-input--wide" placeholder="https://example.com/world.veml" data-setting="homeURL">
+                        </div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-world-load-timeout">World Load Timeout (seconds)</label>
+                            <input type="number" id="setting-world-load-timeout" class="settings-input settings-input--number" min="1" max="300" value="60" data-setting="worldLoadTimeout">
+                        </div>
+                    </div>
+
+                    <!-- Storage Section -->
+                    <div class="settings-section">
+                        <div class="settings-section__title">Storage</div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-storage-mode">Storage Mode</label>
+                            <select id="setting-storage-mode" class="settings-select" data-setting="storageMode">
+                                <option value="persistent">Persistent</option>
+                                <option value="cache">Cache</option>
+                            </select>
+                        </div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-max-storage-entries">Max Storage Entries</label>
+                            <input type="number" id="setting-max-storage-entries" class="settings-input settings-input--number" min="1" max="262143" value="1024" data-setting="maxStorageEntries">
+                        </div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-max-key-length">Max Storage Key Length</label>
+                            <input type="number" id="setting-max-key-length" class="settings-input settings-input--number" min="5" max="8191" value="256" data-setting="maxStorageKeyLength">
+                        </div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-max-entry-length">Max Storage Entry Length</label>
+                            <input type="number" id="setting-max-entry-length" class="settings-input settings-input--number" min="9" max="131071" value="4096" data-setting="maxStorageEntryLength">
+                        </div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-cache-directory">Cache Directory</label>
+                            <input type="text" id="setting-cache-directory" class="settings-input settings-input--wide" placeholder="/path/to/cache" data-setting="cacheDirectory">
+                        </div>
+                    </div>
+
+                    <!-- Cache Management Section -->
+                    <div class="settings-section">
+                        <div class="settings-section__title">Cache Management</div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-clear-cache">Clear Cache</label>
+                            <div class="settings-item__control">
+                                <select id="setting-clear-cache" class="settings-select" data-setting="clearCache">
+                                    <option value="">Select time range...</option>
+                                    <option value="5m">Last 5 minutes</option>
+                                    <option value="1h">Last hour</option>
+                                    <option value="24h">Last 24 hours</option>
+                                    <option value="all">All time</option>
+                                </select>
+                                <button class="btn btn--small" data-action="clear-cache">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn" data-modal-close="settings">Cancel</button>
+                <button class="btn btn--primary" data-action="save-settings">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="modal-about" class="modal-overlay">
+        <div class="modal">
+            <div class="modal__header">
+                <span class="modal__title">About</span>
+                <button class="modal__close" data-modal-close="about">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div class="about-content">
+                    <div class="about-logo">
+                        <img src="images/webverse-logo.png" alt="WebVerse" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span style="display:none; font-size: 48px;">🌐</span>
+                    </div>
+                    <div id="about-title" class="about-title">WebVerse</div>
+                    <div id="about-version" class="about-version">Version 3.0.0: "Terra Firma"</div>
+                    <div class="about-links">
+                        <a href="#" class="about-link" data-action="open-docs">Documentation</a>
+                        <a href="#" class="about-link" data-action="open-issues">Report an Issue</a>
+                    </div>
+                    <div class="about-links about-links--small">
+                        <a href="#" class="about-link" data-action="open-terms">Terms and Conditions</a>
+                        <a href="#" class="about-link" data-action="open-license">License</a>
+                        <a href="#" class="about-link" data-action="open-github">Open Source Project</a>
+                    </div>
+                    <div class="about-copyright">
+                        Copyright © 2026 Five Squared Interactive. All rights reserved.
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--primary" data-modal-close="about">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exit Modal -->
+    <div id="modal-exit" class="modal-overlay">
+        <div class="modal">
+            <div class="modal__header">
+                <span class="modal__title">Exit WebVerse</span>
+                <button class="modal__close" data-modal-close="exit">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div class="exit-warning">
+                    <div class="exit-warning__icon">⚠️</div>
+                    <div class="exit-warning__message">Are you sure you want to exit?</div>
+                    <div class="exit-warning__submessage">Any unsaved progress will be lost.</div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn" data-modal-close="exit">Cancel</button>
+                <button class="btn btn--danger" data-action="confirm-exit">Exit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats HUD Overlay -->
+    <div id="stats-hud" class="stats-hud" style="display: none;">
+        <div class="stats-hud__header">
+            <span class="stats-hud__title">Performance</span>
+            <button class="stats-hud__close" data-action="close-stats-hud" aria-label="Close">&times;</button>
+        </div>
+        <div class="stats-hud__content">
+            <div class="stats-hud__row">
+                <span class="stats-hud__label">FPS</span>
+                <span class="stats-hud__value" id="hud-fps">--</span>
+            </div>
+            <div class="stats-hud__row">
+                <span class="stats-hud__label">Frame</span>
+                <span class="stats-hud__value" id="hud-frame-time">-- ms</span>
+            </div>
+            <div class="stats-hud__row">
+                <span class="stats-hud__label">RAM</span>
+                <span class="stats-hud__value" id="hud-memory">-- MB</span>
+            </div>
+        </div>
+        <canvas id="hud-fps-graph" class="stats-hud__graph" width="120" height="30"></canvas>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="modal-stats" class="modal-overlay">
+        <div class="modal">
+            <div class="modal__header">
+                <span class="modal__title">Performance Stats</span>
+                <div class="stats-modal__controls">
+                    <button class="btn btn--small" data-action="toggle-stats-hud" title="Show HUD overlay">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="1" y="1" width="6" height="6" rx="1"/>
+                            <path d="M10 3h5M10 6h3M10 10h5M10 13h4M3 10v5M6 12v3"/>
+                        </svg>
+                        HUD
+                    </button>
+                    <button class="modal__close" data-modal-close="stats">&times;</button>
+                </div>
+            </div>
+            <div class="modal__body stats-modal__body">
+                <!-- Rendering Section -->
+                <div class="stats-section">
+                    <div class="stats-section__header">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="2" width="12" height="10" rx="1"/>
+                            <path d="M5 14h6"/>
+                        </svg>
+                        Rendering
+                    </div>
+                    <div class="stats-section__content">
+                        <div class="stats-grid">
+                            <div class="stats-card stats-card--primary">
+                                <div class="stats-card__label">FPS</div>
+                                <div class="stats-card__value" id="stats-fps">--</div>
+                                <canvas id="stats-fps-graph" class="stats-card__graph" width="100" height="24"></canvas>
+                            </div>
+                            <div class="stats-card">
+                                <div class="stats-card__label">Frame Time</div>
+                                <div class="stats-card__value"><span id="stats-frame-time">--</span> <small>ms</small></div>
+                            </div>
+                            <div class="stats-card">
+                                <div class="stats-card__label">GPU Memory</div>
+                                <div class="stats-card__value"><span id="stats-gpu-memory">--</span> <small>MB</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Section -->
+                <div class="stats-section">
+                    <div class="stats-section__header">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="4" width="12" height="8" rx="1"/>
+                            <path d="M5 4V2M11 4V2M5 12v2M11 12v2"/>
+                        </svg>
+                        System
+                    </div>
+                    <div class="stats-section__content">
+                        <div class="stats-bar-group">
+                            <div class="stats-bar">
+                                <div class="stats-bar__header">
+                                    <span class="stats-bar__label">Memory (RAM)</span>
+                                    <span class="stats-bar__value"><span id="stats-memory-used">--</span> / <span id="stats-memory-total">--</span> MB</span>
+                                </div>
+                                <div class="stats-bar__track">
+                                    <div class="stats-bar__fill" id="stats-memory-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="stats-bar">
+                                <div class="stats-bar__header">
+                                    <span class="stats-bar__label">Mono Heap</span>
+                                    <span class="stats-bar__value"><span id="stats-mono-used">--</span> / <span id="stats-mono-heap">--</span> MB</span>
+                                </div>
+                                <div class="stats-bar__track">
+                                    <div class="stats-bar__fill" id="stats-mono-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stats-grid stats-grid--small">
+                            <div class="stats-card stats-card--compact">
+                                <div class="stats-card__label">GC Memory</div>
+                                <div class="stats-card__value"><span id="stats-gc-memory">--</span> <small>MB</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Section -->
+                <div class="stats-section">
+                    <div class="stats-section__header">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="8" cy="12" r="2"/>
+                            <path d="M4 8a4 4 0 018 0M1 5a7 7 0 0114 0"/>
+                        </svg>
+                        Network
+                    </div>
+                    <div class="stats-section__content">
+                        <div class="stats-grid">
+                            <div class="stats-card">
+                                <div class="stats-card__label">Status</div>
+                                <div class="stats-card__value stats-card__value--status" id="stats-connection">
+                                    <span class="stats-status-dot"></span>
+                                    <span>--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- World Section -->
+                <div class="stats-section">
+                    <div class="stats-section__header">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="8" cy="8" r="6"/>
+                            <path d="M2 8h12M8 2c-2 2-2 10 0 12M8 2c2 2 2 10 0 12"/>
+                        </svg>
+                        World
+                    </div>
+                    <div class="stats-section__content">
+                        <div class="stats-grid stats-grid--small">
+                            <div class="stats-card stats-card--compact">
+                                <div class="stats-card__label">Entities</div>
+                                <div class="stats-card__value" id="stats-entities">--</div>
+                            </div>
+                            <div class="stats-card stats-card--compact">
+                                <div class="stats-card__label">Physics Bodies</div>
+                                <div class="stats-card__value" id="stats-physics">--</div>
+                            </div>
+                            <div class="stats-card stats-card--compact">
+                                <div class="stats-card__label">Audio Sources</div>
+                                <div class="stats-card__value" id="stats-audio">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn" data-action="toggle-stats-hud">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right: 4px;">
+                        <rect x="1" y="1" width="6" height="6" rx="1"/>
+                    </svg>
+                    Show HUD Overlay
+                </button>
+                <button class="btn btn--primary" data-modal-close="stats">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/bridge.js"></script>
+    <script src="scripts/ui.js"></script>
+</body>
+</html>

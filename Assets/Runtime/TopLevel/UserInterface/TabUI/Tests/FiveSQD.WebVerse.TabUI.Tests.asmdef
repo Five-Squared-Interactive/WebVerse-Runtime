@@ -1,0 +1,27 @@
+{
+    "name": "FiveSQD.WebVerse.TabUI.Tests",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b99f61c11f63dc04897456e22b3ace30",
+        "GUID:cadc04802aa07a046856a14dd4648e81",
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:0acc523941302664db1f4e527237feb3",
+        "GUID:75469ad4d38634e559750d17036d5f7c"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System;
 using UnityEngine;
@@ -242,10 +242,11 @@ namespace FiveSQD.StraightFour.Entity
             }
 
             Vector2 worldSize = new Vector2(parentRT.sizeDelta.x * targetSize.x, parentRT.sizeDelta.y * targetSize.y);
-            Vector3 worldPos = new Vector3(parentRT.sizeDelta.x * targetPosition.x + rt.sizeDelta.x / 2,
-                -1 * parentRT.sizeDelta.y * targetPosition.y - rt.sizeDelta.y / 2);
 
             rt.sizeDelta = worldSize;
+
+            Vector3 worldPos = new Vector3(parentRT.sizeDelta.x * targetPosition.x + worldSize.x / 2,
+                -1 * parentRT.sizeDelta.y * targetPosition.y - worldSize.y / 2);
             rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.localPosition = Vector3.zero;

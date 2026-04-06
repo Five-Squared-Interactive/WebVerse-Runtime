@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
@@ -39,6 +39,11 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         public XRController rightController;
 
         /// <summary>
+        /// Fired when either VR menu button is pressed (Started phase).
+        /// </summary>
+        public event Action OnMenuPressed;
+
+        /// <summary>
         /// Invoked on a left menu.
         /// </summary>
         /// <param name="context">Callback context.</param>
@@ -46,6 +51,8 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             if (context.phase == InputActionPhase.Started)
             {
+                Logging.Log($"[SteamVRInput] LeftMenu pressed. OnMenuPressed subscribers: {(OnMenuPressed != null ? OnMenuPressed.GetInvocationList().Length.ToString() : "0")}");
+                OnMenuPressed?.Invoke();
                 WebVerseRuntime.Instance.inputManager.LeftMenu();
                 WebVerseRuntime.Instance.inputManager.leftMenuValue = true;
                 if (WebVerseRuntime.Instance.inputManager.rightMenuValue == false)
@@ -79,6 +86,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
         {
             if (context.phase == InputActionPhase.Started)
             {
+                OnMenuPressed?.Invoke();
                 WebVerseRuntime.Instance.inputManager.RightMenu();
                 WebVerseRuntime.Instance.inputManager.rightMenuValue = true;
                 if (WebVerseRuntime.Instance.inputManager.leftMenuValue == false)
@@ -620,6 +628,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 {
                     WebVerseRuntime.Instance.inputManager.SecondaryPress();
                 }
+                OnMenuPressed?.Invoke();
             }
             else if (context.phase == InputActionPhase.Performed)
             {

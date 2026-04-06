@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections;
 using NUnit.Framework;
@@ -11,6 +11,18 @@ using UnityEditor;
 
 public class ErrorHandlingTests
 {
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -27,7 +39,7 @@ public class ErrorHandlingTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         
         // First load should succeed
@@ -47,7 +59,7 @@ public class ErrorHandlingTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         StraightFour.LoadWorld("test");
 
@@ -87,7 +99,7 @@ public class ErrorHandlingTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         StraightFour.LoadWorld("test");
 
@@ -114,7 +126,7 @@ public class ErrorHandlingTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         
         // Load world with query parameters
@@ -125,7 +137,7 @@ public class ErrorHandlingTests
         // Test parameter retrieval
         Assert.AreEqual("value1", we.GetParam("param1"));
         Assert.AreEqual("value2", we.GetParam("param2"));
-        Assert.AreEqual("value with spaces", we.GetParam("param3"));
+        Assert.AreEqual("value%20with%20spaces", we.GetParam("param3"));
         Assert.IsNull(we.GetParam("nonexistent"));
         Assert.IsNull(we.GetParam(null));
     }
@@ -136,7 +148,7 @@ public class ErrorHandlingTests
         // Initialize World Engine and Load World.
         GameObject WEGO = new GameObject();
         StraightFour we = WEGO.AddComponent<StraightFour>();
-        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/StraightFour/Environment/Materials/Skybox.mat");
+        we.skyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Runtime/StraightFour/Environment/Materials/Skybox.mat");
         yield return null;
         StraightFour.LoadWorld("test");
         

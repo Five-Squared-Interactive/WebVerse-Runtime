@@ -602,6 +602,66 @@ Environment.setBloomEnabled(true);
 Environment.setBloomIntensity(0.3);
 ```
 
+## Camera Control
+
+```javascript
+// Crosshair control
+Camera.EnableCrosshair();               // Enable the crosshair
+Camera.DisableCrosshair();              // Disable the crosshair
+var enabled = Camera.IsCrosshairEnabled(); // Check if crosshair is enabled
+
+// Camera attachment
+Camera.AttachToEntity(entity);          // Attach camera to an entity (or pass null to detach)
+
+// Camera positioning
+Camera.SetPosition(position, local);    // Set camera position (local: true for local space)
+var pos = Camera.GetPosition(local);    // Get camera position
+
+// Camera rotation
+Camera.SetRotation(rotation, local);    // Set camera rotation (Quaternion)
+var rot = Camera.GetRotation(local);    // Get camera rotation
+Camera.SetEulerRotation(rotation, local); // Set camera Euler rotation (Vector3)
+var euler = Camera.GetEulerRotation(local); // Get camera Euler rotation
+
+// Camera scale
+Camera.SetScale(scale);                 // Set camera scale (Vector3)
+var scale = Camera.GetScale();          // Get camera scale
+
+// Camera followers
+Camera.AddCameraFollower(entity);       // Add an entity that follows camera rotation
+Camera.RemoveCameraFollower(entity);    // Remove an entity from camera followers
+
+// Raycasting
+var hit = Camera.GetRaycast();          // Get raycast from camera (returns RaycastHitInfo or null)
+
+// Utility
+Camera.PlaceEntityInFrontOfCamera(entity, distance); // Position entity in front of camera
+```
+
+**Example Usage:**
+```javascript
+// Enable crosshair when entering first-person mode
+function enterFirstPersonMode() {
+    Camera.AttachToEntity(playerEntity);
+    Camera.EnableCrosshair();
+    Logging.Log("Crosshair enabled: " + Camera.IsCrosshairEnabled());
+}
+
+// Disable crosshair when entering menu
+function openMenu() {
+    Camera.DisableCrosshair();
+}
+
+// Toggle crosshair based on game state
+function updateHUD(isAiming) {
+    if (isAiming) {
+        Camera.EnableCrosshair();
+    } else {
+        Camera.DisableCrosshair();
+    }
+}
+```
+
 ## Input Handling
 
 ### Input Events

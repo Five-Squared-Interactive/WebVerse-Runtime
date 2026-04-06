@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -82,6 +82,7 @@ namespace X3D
             catch (Exception ex)
             {
                 Debug.LogError($"[X3DWorldBuilder] Error building world: {ex.Message}\n{ex.StackTrace}");
+                throw;
             }
         }
 

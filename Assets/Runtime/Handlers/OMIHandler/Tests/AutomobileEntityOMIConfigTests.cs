@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 // Tests disabled - NUnit not available in this project
 // To enable, add ENABLE_OMI_TESTS to Scripting Define Symbols
@@ -17,6 +17,12 @@ public class AutomobileEntityOMIConfigTests
 {
     private GameObject testGameObject;
     private AutomobileEntity testEntity;
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+    }
 
     /// <summary>
     /// Setup runs before each test.

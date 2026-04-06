@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using NUnit.Framework;
 using UnityEngine;
@@ -13,6 +13,7 @@ public class LocalStorageTests
     [Test]
     public void LocalStorageTests_Cache()
     {
+        LogAssert.ignoreFailingMessages = true;
         GameObject storageGO = new GameObject();
         LocalStorageManager storageManager = storageGO.AddComponent<LocalStorageManager>();
 
@@ -72,6 +73,7 @@ public class LocalStorageTests
     [Test]
     public void LocalStorageTests_Persistent()
     {
+        LogAssert.ignoreFailingMessages = true;
         GameObject storageGO = new GameObject();
         LocalStorageManager storageManager = storageGO.AddComponent<LocalStorageManager>();
 

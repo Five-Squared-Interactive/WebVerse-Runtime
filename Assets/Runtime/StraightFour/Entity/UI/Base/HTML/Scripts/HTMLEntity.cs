@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using FiveSQD.StraightFour.Utilities;
 using System;
@@ -53,6 +53,11 @@ namespace FiveSQD.StraightFour.Entity
         /// WebView Prefab instance.
         /// </summary>
         private WebViewPrefab webViewPrefab;
+
+        /// <summary>
+        /// Stored event handler for MessageEmitted to allow unsubscription.
+        /// </summary>
+        private EventHandler<EventArgs<string>> _messageEmittedHandler;
 #endif
         /// <summary>
         /// Sizer gameobject.
@@ -289,13 +294,15 @@ namespace FiveSQD.StraightFour.Entity
         {
 #if VUPLEX_INCLUDED
             webViewPrefab.WebView.PageLoadScripts.Add(messagingAPI);
-            webViewPrefab.WebView.MessageEmitted += (sender, e) =>
+            // Only subscribe once - handler is reused
+            if (_messageEmittedHandler == null)
             {
-                if (onWorldMessage != null)
+                _messageEmittedHandler = (sender, e) =>
                 {
-                    onWorldMessage.Invoke(e.Value);
-                }
-            };
+                    onWorldMessage?.Invoke(e.Value);
+                };
+                webViewPrefab.WebView.MessageEmitted += _messageEmittedHandler;
+            }
 #endif
         }
 
@@ -306,13 +313,7 @@ namespace FiveSQD.StraightFour.Entity
         {
 #if VUPLEX_INCLUDED
             webViewPrefab.WebView.PageLoadScripts.Add(messagePassingAPI);
-            webViewPrefab.WebView.MessageEmitted += (sender, e) =>
-            {
-                if (onWorldMessage != null)
-                {
-                    onWorldMessage.Invoke(e.Value);
-                }
-            };
+            // Don't subscribe again - SetUpMessagingAPI already handles MessageEmitted
 #endif
         }
 
@@ -338,6 +339,27 @@ namespace FiveSQD.StraightFour.Entity
                 SetUpMessagingAPI();
                 SetUpMessagePassingAPI();
                 webViewPrefab.WebView.LoadHtml(htmlToLoad);
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Clean up when entity is destroyed.
+        /// </summary>
+        private void OnDestroy()
+        {
+#if VUPLEX_INCLUDED
+            // Unsubscribe from WebView events
+            if (webViewPrefab?.WebView != null && _messageEmittedHandler != null)
+            {
+                webViewPrefab.WebView.MessageEmitted -= _messageEmittedHandler;
+                _messageEmittedHandler = null;
+            }
+
+            // Dispose the WebView properly
+            if (webViewPrefab != null)
+            {
+                webViewPrefab.Destroy();
             }
 #endif
         }

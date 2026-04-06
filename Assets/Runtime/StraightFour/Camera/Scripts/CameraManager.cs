@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -39,10 +39,18 @@ namespace FiveSQD.StraightFour.Camera
         {
             get
             {
+                if (StraightFour.ActiveWorld == null || StraightFour.ActiveWorld.crosshair == null)
+                {
+                    return false;
+                }
                 return StraightFour.ActiveWorld.crosshair.activeSelf;
             }
             set
             {
+                if (StraightFour.ActiveWorld == null || StraightFour.ActiveWorld.crosshair == null)
+                {
+                    return;
+                }
                 StraightFour.ActiveWorld.crosshair.SetActive(value);
             }
         }

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -1733,13 +1733,18 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
             try
             {
                 Logging.Log("[JSONEntityHandler->Terminate] Terminating JSON Entity Handler.");
-                
+
                 // Stop any running coroutines
                 StopAllCoroutines();
-                
+
+                // Clear static caches to prevent memory leaks
+                _lazyMaskGenerators.Clear();
+                _arrayPool.Clear();
+                Logging.Log("[JSONEntityHandler->Terminate] Cleared static caches.");
+
                 isInitialized = false;
                 base.Terminate();
-                
+
                 Logging.Log("[JSONEntityHandler->Terminate] JSON Entity Handler terminated successfully.");
             }
             catch (Exception ex)
@@ -3437,6 +3442,21 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                     {
                         System.Array.Clear(array[i], 0, array[i].Length);
                     }
+                }
+            }
+
+            /// <summary>
+            /// Clear all pooled arrays.
+            /// </summary>
+            public void Clear()
+            {
+                lock (_lock)
+                {
+                    foreach (var queue in _pool.Values)
+                    {
+                        queue.Clear();
+                    }
+                    _pool.Clear();
                 }
             }
         }
