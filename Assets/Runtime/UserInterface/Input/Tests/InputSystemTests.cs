@@ -1728,28 +1728,28 @@ public class InputSystemTests
     public void VRRig_PointerMode_None_HasValue0()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(0, (int)VRRig.PointerMode.None);
+        Assert.AreEqual(0, (int)FiveSQD.WebVerse.Input.VRRig.PointerMode.None);
     }
 
     [Test]
     public void VRRig_PointerMode_Teleport_HasValue1()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(1, (int)VRRig.PointerMode.Teleport);
+        Assert.AreEqual(1, (int)FiveSQD.WebVerse.Input.VRRig.PointerMode.Teleport);
     }
 
     [Test]
     public void VRRig_PointerMode_UI_HasValue2()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(2, (int)VRRig.PointerMode.UI);
+        Assert.AreEqual(2, (int)FiveSQD.WebVerse.Input.VRRig.PointerMode.UI);
     }
 
     [Test]
     public void VRRig_PointerMode_AllValues_CountIs3()
     {
         LogAssert.ignoreFailingMessages = true;
-        var values = Enum.GetValues(typeof(VRRig.PointerMode));
+        var values = Enum.GetValues(typeof(FiveSQD.WebVerse.Input.VRRig.PointerMode));
         Assert.AreEqual(3, values.Length);
     }
 
@@ -1757,28 +1757,28 @@ public class InputSystemTests
     public void VRRig_TurnLocomotionMode_None_HasValue0()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(0, (int)VRRig.TurnLocomotionMode.None);
+        Assert.AreEqual(0, (int)FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.None);
     }
 
     [Test]
     public void VRRig_TurnLocomotionMode_Smooth_HasValue1()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(1, (int)VRRig.TurnLocomotionMode.Smooth);
+        Assert.AreEqual(1, (int)FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.Smooth);
     }
 
     [Test]
     public void VRRig_TurnLocomotionMode_Snap_HasValue2()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(2, (int)VRRig.TurnLocomotionMode.Snap);
+        Assert.AreEqual(2, (int)FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.Snap);
     }
 
     [Test]
     public void VRRig_TurnLocomotionMode_AllValues_CountIs3()
     {
         LogAssert.ignoreFailingMessages = true;
-        var values = Enum.GetValues(typeof(VRRig.TurnLocomotionMode));
+        var values = Enum.GetValues(typeof(FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode));
         Assert.AreEqual(3, values.Length);
     }
 
@@ -1786,21 +1786,21 @@ public class InputSystemTests
     public void VRRig_RayInteractorType_Standard_HasValue0()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(0, (int)VRRig.RayInteractorType.Standard);
+        Assert.AreEqual(0, (int)FiveSQD.WebVerse.Input.VRRig.RayInteractorType.Standard);
     }
 
     [Test]
     public void VRRig_RayInteractorType_NearFar_HasValue1()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(1, (int)VRRig.RayInteractorType.NearFar);
+        Assert.AreEqual(1, (int)FiveSQD.WebVerse.Input.VRRig.RayInteractorType.NearFar);
     }
 
     [Test]
     public void VRRig_RayInteractorType_AllValues_CountIs2()
     {
         LogAssert.ignoreFailingMessages = true;
-        var values = Enum.GetValues(typeof(VRRig.RayInteractorType));
+        var values = Enum.GetValues(typeof(FiveSQD.WebVerse.Input.VRRig.RayInteractorType));
         Assert.AreEqual(2, values.Length);
     }
 
@@ -1811,7 +1811,7 @@ public class InputSystemTests
     {
         LogAssert.ignoreFailingMessages = true;
         GameObject go = new GameObject("VRRig");
-        VRRig rig = go.AddComponent<VRRig>();
+        FiveSQD.WebVerse.Input.VRRig rig = go.AddComponent<FiveSQD.WebVerse.Input.VRRig>();
         yield return null;
 
         Assert.IsFalse(rig.autoDetectPlatform);
@@ -1824,10 +1824,10 @@ public class InputSystemTests
     {
         LogAssert.ignoreFailingMessages = true;
         GameObject go = new GameObject("VRRig");
-        VRRig rig = go.AddComponent<VRRig>();
+        FiveSQD.WebVerse.Input.VRRig rig = go.AddComponent<FiveSQD.WebVerse.Input.VRRig>();
         yield return null;
 
-        Assert.AreEqual(VRRig.RayInteractorType.Standard, rig.rayInteractorType);
+        Assert.AreEqual(FiveSQD.WebVerse.Input.VRRig.RayInteractorType.Standard, rig.rayInteractorType);
 
         UnityEngine.Object.DestroyImmediate(go);
     }
@@ -1837,11 +1837,11 @@ public class InputSystemTests
     {
         LogAssert.ignoreFailingMessages = true;
         GameObject go = new GameObject("VRRig");
-        VRRig rig = go.AddComponent<VRRig>();
+        FiveSQD.WebVerse.Input.VRRig rig = go.AddComponent<FiveSQD.WebVerse.Input.VRRig>();
         yield return null;
 
-        Assert.AreEqual(VRRig.PointerMode.None, rig.leftPointerMode);
-        Assert.AreEqual(VRRig.PointerMode.None, rig.rightPointerMode);
+        Assert.AreEqual(FiveSQD.WebVerse.Input.VRRig.PointerMode.None, rig.leftPointerMode);
+        Assert.AreEqual(FiveSQD.WebVerse.Input.VRRig.PointerMode.None, rig.rightPointerMode);
 
         UnityEngine.Object.DestroyImmediate(go);
     }
@@ -1851,14 +1851,14 @@ public class InputSystemTests
     {
         LogAssert.ignoreFailingMessages = true;
         GameObject go = new GameObject("VRRig");
-        VRRig rig = go.AddComponent<VRRig>();
+        FiveSQD.WebVerse.Input.VRRig rig = go.AddComponent<FiveSQD.WebVerse.Input.VRRig>();
         yield return null;
 
         // Setting pointer modes without interactors should not throw.
-        rig.leftPointerMode = VRRig.PointerMode.UI;
-        rig.rightPointerMode = VRRig.PointerMode.Teleport;
-        rig.leftPointerMode = VRRig.PointerMode.None;
-        rig.rightPointerMode = VRRig.PointerMode.None;
+        rig.leftPointerMode = FiveSQD.WebVerse.Input.VRRig.PointerMode.UI;
+        rig.rightPointerMode = FiveSQD.WebVerse.Input.VRRig.PointerMode.Teleport;
+        rig.leftPointerMode = FiveSQD.WebVerse.Input.VRRig.PointerMode.None;
+        rig.rightPointerMode = FiveSQD.WebVerse.Input.VRRig.PointerMode.None;
 
         UnityEngine.Object.DestroyImmediate(go);
     }
