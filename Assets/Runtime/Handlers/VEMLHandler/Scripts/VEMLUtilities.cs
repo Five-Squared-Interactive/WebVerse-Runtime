@@ -195,6 +195,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -418,6 +419,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -641,6 +643,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -784,6 +787,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -902,6 +906,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1020,6 +1025,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1138,6 +1144,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1256,6 +1263,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1374,6 +1382,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }

@@ -179,6 +179,12 @@ namespace FiveSQD.StraightFour.World
         public string siteName { get; private set; }
 
         /// <summary>
+        /// Cached VR control flags from VEML, for restoration on tab switch.
+        /// Null if no control flags were specified.
+        /// </summary>
+        public Dictionary<string, string> CachedControlFlags { get; set; }
+
+        /// <summary>
         /// GameObject for the lite procedural sky.
         /// </summary>
         [Tooltip("GameObject for the lite procedural sky.")]

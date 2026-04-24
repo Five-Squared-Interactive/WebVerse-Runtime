@@ -105,6 +105,11 @@ namespace FiveSQD.WebVerse.WorldSync
         ConnectionTimeout,
 
         /// <summary>
+        /// Request timeout.
+        /// </summary>
+        RequestTimeout,
+
+        /// <summary>
         /// Reconnection failed.
         /// </summary>
         ReconnectionFailed,
@@ -225,6 +230,18 @@ namespace FiveSQD.WebVerse.WorldSync
             return new WorldSyncException(
                 WorldSyncErrorCode.ConnectionTimeout,
                 "Connection timed out"
+            );
+        }
+
+        /// <summary>
+        /// Create a RequestTimeout exception.
+        /// </summary>
+        public static WorldSyncException RequestTimeout(string operation)
+        {
+            return new WorldSyncException(
+                WorldSyncErrorCode.RequestTimeout,
+                $"Request timed out: {operation}",
+                new { operation }
             );
         }
 

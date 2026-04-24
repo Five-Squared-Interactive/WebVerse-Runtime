@@ -44,6 +44,118 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public bool IsVR { get => isVR; set => isVR = value; }
 
+        private bool isMobile;
+
+        /// <summary>
+        /// Set mobile mode before calling Initialize.
+        /// </summary>
+        public bool IsMobile { get => isMobile; set => isMobile = value; }
+
+        private bool isTablet;
+
+        /// <summary>
+        /// Set tablet mode before calling Initialize. Implies mobile.
+        /// </summary>
+        public bool IsTablet { get => isTablet; set => isTablet = value; }
+
+        /// <summary>
+        /// Returns the mode string based on current platform flags.
+        /// Priority: mobile/tablet > vr > desktop.
+        /// </summary>
+        public string GetModeString()
+        {
+            return isMobile
+                ? (isTablet ? "tablet" : "mobile")
+                : (isVR ? "vr" : "desktop");
+        }
+
+        /// <summary>
+        /// Chrome bar position: "top" or "bottom". Set before Initialize.
+        /// </summary>
+        public string ChromePosition { get; set; } = "bottom";
+
+        /// <summary>
+        /// Safe area insets in pixels from each screen edge.
+        /// </summary>
+        public struct SafeAreaInsets
+        {
+            public float top, bottom, left, right;
+        }
+
+        /// <summary>
+        /// Compute safe area insets from a safe area rect and screen dimensions.
+        /// </summary>
+        public static SafeAreaInsets GetSafeAreaInsets(Rect safeArea, int screenWidth, int screenHeight)
+        {
+            return new SafeAreaInsets
+            {
+                top = screenHeight - (safeArea.y + safeArea.height),
+                bottom = safeArea.y,
+                left = safeArea.x,
+                right = screenWidth - (safeArea.x + safeArea.width)
+            };
+        }
+
+        /// <summary>
+        /// Returns true if orientation has changed from cached value.
+        /// </summary>
+        public static bool HasOrientationChanged(ScreenOrientation cached, ScreenOrientation current)
+        {
+            return cached != current;
+        }
+
+        private ScreenOrientation cachedOrientation;
+        private Rect cachedSafeArea;
+        private bool cachedKeyboardVisible;
+        private int cachedKeyboardHeight;
+
+        /// <summary>
+        /// Formats a JavaScript call to setKeyboardState with the given visibility and height.
+        /// </summary>
+        public static string FormatKeyboardStateMessage(bool visible, int height)
+        {
+            string visibleStr = visible ? "true" : "false";
+            return $"window.tabUI?.setKeyboardState({{ visible: {visibleStr}, height: {height} }});";
+        }
+
+        /// <summary>
+        /// Extracts keyboard height in pixels from the keyboard area rect.
+        /// Returns 0 if keyboard is not visible.
+        /// </summary>
+        public static int GetKeyboardHeight(Rect keyboardArea)
+        {
+            if (keyboardArea.height <= 0) return 0;
+            return (int)keyboardArea.height;
+        }
+
+        /// <summary>
+        /// Determines if a tap at the given Y coordinate is within the edge zone
+        /// for chrome reactivation.
+        /// </summary>
+        public static bool IsEdgeTap(float tapY, int screenHeight, string chromePosition)
+        {
+            const float EDGE_ZONE = 20f;
+            if (chromePosition == "top" && tapY < EDGE_ZONE) return true;
+            if (chromePosition == "bottom" && tapY > (screenHeight - EDGE_ZONE)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Formats a JavaScript call to handleEdgeTap with the given coordinates.
+        /// </summary>
+        public static string FormatEdgeTapMessage(int tapY, int screenHeight)
+        {
+            return $"window.tabUI?.handleEdgeTap({tapY}, {screenHeight});";
+        }
+
+        /// <summary>
+        /// Format JavaScript call to set mobile tab limit.
+        /// </summary>
+        public static string FormatSetMobileTabLimitMessage(int limit)
+        {
+            return $"window.tabUI?.setMobileTabLimit({limit});";
+        }
+
         /// <summary>
         /// Parent transform for VR mode positioning.
         /// </summary>
@@ -138,6 +250,9 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             // Create and set up WebView
             SetupWebView();
+
+            // Subscribe to memory pressure events
+            Application.lowMemory += HandleMemoryPressure;
 
             isInitialized = true;
             Logging.Log("[TabUIController] Initialized.");
@@ -648,6 +763,15 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     if (inputFilter != null) inputFilter.allowFullScreenInput = false;
                     break;
 
+                case "acceptSessionRestore":
+                    HandleRestoreSessionAccepted();
+                    break;
+
+                case "declineSessionRestore":
+                    TabSessionSerializer.ClearSession();
+                    Logging.Log("[TabUIController] Saved session cleared by user.");
+                    break;
+
                 default:
                     Logging.LogWarning($"[TabUIController] Unknown message type: {message.type}");
                     break;
@@ -661,8 +785,10 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         {
             webViewReady = true;
 
-            // Send initial state
-            SendModeToWebView(isVR ? "vr" : "desktop");
+            // Send initial state — priority: mobile/tablet > vr > desktop
+            SendModeToWebView(GetModeString());
+            SendSafeAreaToWebView();
+            SendChromePositionToWebView();
             SyncAllTabsToWebView();
             UpdateNavStateInWebView();
 
@@ -672,7 +798,66 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 ExecuteJavaScript(pendingMessages.Dequeue());
             }
 
+            // Cache initial orientation, safe area, and keyboard state for change detection
+            cachedOrientation = Screen.orientation;
+            cachedSafeArea = Screen.safeArea;
+            cachedKeyboardVisible = false;
+            cachedKeyboardHeight = 0;
+            SendOrientationToWebView(cachedOrientation);
+
             Logging.Log("[TabUIController] UI ready, initial state synced.");
+
+            // Check for saved session from force-kill (AC4)
+            if (TabSessionSerializer.HasSavedSession())
+            {
+                Logging.Log("[TabUIController] Saved session detected, showing restore prompt.");
+                string js = "window.tabUI?.showRestorePrompt();";
+                ExecuteJavaScript(js);
+            }
+        }
+
+        /// <summary>
+        /// Handle user accepting session restore from prompt.
+        /// </summary>
+        private void HandleRestoreSessionAccepted()
+        {
+            if (!TabSessionSerializer.HasSavedSession()) return;
+
+            var session = TabSessionSerializer.LoadSession();
+            if (session.tabs == null || session.tabs.Count == 0)
+            {
+                TabSessionSerializer.ClearSession();
+                return;
+            }
+
+            // Recreate tabs via TabManager
+            foreach (var entry in session.tabs)
+            {
+                var tab = tabManager?.CreateTab(entry.url, makeActive: false);
+                if (tab != null && !string.IsNullOrEmpty(entry.displayName))
+                {
+                    tab.DisplayName = entry.displayName;
+                }
+            }
+
+            // Switch to the previously active tab
+            if (!string.IsNullOrEmpty(session.activeTabId))
+            {
+                // Find the restored tab by URL match (IDs are regenerated)
+                var activeEntry = session.tabs.Find(t => t.id == session.activeTabId);
+                if (activeEntry != null)
+                {
+                    var matchingTabs = tabManager?.FindTabsByUrl(activeEntry.url);
+                    var firstMatch = matchingTabs?.FirstOrDefault();
+                    if (firstMatch != null)
+                    {
+                        tabManager?.SwitchToTab(firstMatch.Id);
+                    }
+                }
+            }
+
+            TabSessionSerializer.ClearSession();
+            Logging.Log("[TabUIController] Session restored from saved state.");
         }
 
         /// <summary>
@@ -863,6 +1048,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 SendUrlToWebView(tab.WorldUrl);
             }
 
+            // If switched-to tab was evicted (Suspended), show toast — reload is
+            // handled by TabManager.SwitchToTab which initiates the load sequence.
+            if (tab != null && tab.LoadState == TabLoadState.Suspended)
+            {
+                ExecuteJavaScript("window.tabUI?.showReloadingToast();");
+            }
+
             // Clear navigation history for new tab context
             backHistory.Clear();
             forwardHistory.Clear();
@@ -994,6 +1186,212 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         {
             string js = $"window.tabUI?.setMode('{EscapeJs(mode)}');";
             ExecuteJavaScript(js);
+        }
+
+        /// <summary>
+        /// Send safe area insets to WebView as CSS custom properties.
+        /// </summary>
+        private void SendSafeAreaToWebView()
+        {
+            if (!isMobile) return;
+            var insets = GetSafeAreaInsets(Screen.safeArea, Screen.width, Screen.height);
+            string js = $"window.tabUI?.setSafeArea({{ top: {(int)insets.top}, bottom: {(int)insets.bottom}, left: {(int)insets.left}, right: {(int)insets.right} }});";
+            ExecuteJavaScript(js);
+        }
+
+        /// <summary>
+        /// Send chrome position preference to WebView.
+        /// </summary>
+        private void SendChromePositionToWebView()
+        {
+            if (!isMobile) return;
+            string js = $"window.tabUI?.setChromePosition('{EscapeJs(ChromePosition)}');";
+            ExecuteJavaScript(js);
+        }
+
+        /// <summary>
+        /// Send orientation string to WebView.
+        /// </summary>
+        private void SendOrientationToWebView(ScreenOrientation orientation)
+        {
+            if (!isMobile) return;
+            string orient = (orientation == ScreenOrientation.LandscapeLeft ||
+                             orientation == ScreenOrientation.LandscapeRight)
+                ? "landscape" : "portrait";
+            string js = $"window.tabUI?.setOrientation('{orient}');";
+            ExecuteJavaScript(js);
+        }
+
+        /// <summary>
+        /// Check for orientation and safe area changes each frame (mobile only).
+        /// </summary>
+        private void CheckOrientationAndSafeArea()
+        {
+            if (!isMobile || !webViewReady) return;
+
+            var currentOrientation = Screen.orientation;
+            var currentSafeArea = Screen.safeArea;
+
+            if (HasOrientationChanged(cachedOrientation, currentOrientation))
+            {
+                cachedOrientation = currentOrientation;
+                SendOrientationToWebView(currentOrientation);
+            }
+
+            if (cachedSafeArea != currentSafeArea)
+            {
+                cachedSafeArea = currentSafeArea;
+                SendSafeAreaToWebView();
+            }
+        }
+
+        /// <summary>
+        /// Send keyboard state to WebView.
+        /// </summary>
+        private void SendKeyboardStateToWebView(bool visible, int height)
+        {
+            if (!isMobile) return;
+            string js = FormatKeyboardStateMessage(visible, height);
+            ExecuteJavaScript(js);
+        }
+
+        /// <summary>
+        /// Sends startAutoHide message to the chrome WebView.
+        /// Call when world interaction begins (user touches 3D content).
+        /// </summary>
+        public void SendStartAutoHide()
+        {
+            if (!isMobile || !webViewReady) return;
+            ExecuteJavaScript("window.tabUI?.startAutoHideTimer();");
+        }
+
+        /// <summary>
+        /// Sends stopAutoHide message to the chrome WebView.
+        /// Call when chrome interaction resumes.
+        /// </summary>
+        public void SendStopAutoHide()
+        {
+            if (!isMobile || !webViewReady) return;
+            ExecuteJavaScript("window.tabUI?.stopAutoHideTimer();");
+        }
+
+        /// <summary>
+        /// Sends edge tap message to the chrome WebView for chrome reactivation.
+        /// </summary>
+        public void SendEdgeTap(int tapY, int screenHeight)
+        {
+            if (!isMobile || !webViewReady) return;
+            string js = FormatEdgeTapMessage(tapY, screenHeight);
+            ExecuteJavaScript(js);
+        }
+
+        /// <summary>
+        /// Check for keyboard visibility and height changes each frame (mobile only).
+        /// </summary>
+        private void CheckKeyboardState()
+        {
+            if (!isMobile || !webViewReady) return;
+
+            bool currentVisible = TouchScreenKeyboard.visible;
+            int currentHeight = 0;
+            if (currentVisible)
+            {
+                currentHeight = GetKeyboardHeight(TouchScreenKeyboard.area);
+            }
+
+            if (currentVisible != cachedKeyboardVisible || currentHeight != cachedKeyboardHeight)
+            {
+                cachedKeyboardVisible = currentVisible;
+                cachedKeyboardHeight = currentHeight;
+                SendKeyboardStateToWebView(currentVisible, currentHeight);
+            }
+        }
+
+        private void Update()
+        {
+            if (isMobile && webViewReady)
+            {
+                CheckOrientationAndSafeArea();
+                CheckKeyboardState();
+            }
+        }
+
+        /// <summary>
+        /// Handle app pause/resume lifecycle for mobile session persistence.
+        /// </summary>
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (!isInitialized || tabManager == null) return;
+
+            if (pauseStatus)
+            {
+                // App backgrounded — serialize and persist tab state
+                var entries = tabManager.Tabs.Select(t => new TabSessionSerializer.TabEntry
+                {
+                    id = t.Id,
+                    url = t.WorldUrl,
+                    displayName = t.GetDisplayName(),
+                    lastActiveAt = t.LastActiveAt.ToString("o")
+                }).ToList();
+
+                string chromePos = PlayerPrefs.GetString("TabUI_ChromePosition", "bottom");
+                var sessionData = new TabSessionSerializer.SessionData
+                {
+                    tabs = entries,
+                    activeTabId = tabManager.ActiveTab?.Id,
+                    chromePosition = chromePos,
+                    timestamp = DateTime.UtcNow.ToString("o")
+                };
+                TabSessionSerializer.SaveSession(sessionData);
+
+                Logging.Log("[TabUIController] Session saved on pause.");
+            }
+            else
+            {
+                // App foregrounded — check if world is still in memory
+                if (tabManager.ActiveTab != null && tabManager.ActiveTab.LoadState == TabLoadState.Suspended)
+                {
+                    // World was reclaimed — reload from stored URL
+                    Logging.Log("[TabUIController] Active tab suspended, reloading from URL.");
+                    ExecuteJavaScript("window.tabUI?.showReloadingToast();");
+
+                    tabManager.ActiveTab.LoadState = TabLoadState.Loading;
+                    tabManager.NotifyTabStateChanged(tabManager.ActiveTab);
+
+                    // Trigger reload of the active tab
+                    if (!string.IsNullOrEmpty(tabManager.ActiveTab.WorldUrl))
+                    {
+                        OnNavigateRequested?.Invoke(tabManager.ActiveTab.WorldUrl);
+                    }
+                }
+                // If world is still in memory, no action needed (AC2)
+            }
+        }
+
+        /// <summary>
+        /// Handle OS memory pressure by evicting the least-recently-used background tab.
+        /// </summary>
+        private void HandleMemoryPressure()
+        {
+            if (!isInitialized || tabManager == null) return;
+
+            var evictIds = MemoryPressureHandler.EvaluateEviction(
+                tabManager.Tabs, tabManager.ActiveTab?.Id);
+
+            foreach (var tabId in evictIds)
+            {
+                var tab = tabManager.Tabs.FirstOrDefault(t => t.Id == tabId);
+                if (tab != null)
+                {
+                    MemoryPressureHandler.ExecuteEviction(tab);
+                    tabManager.NotifyTabStateChanged(tab);
+                }
+            }
+
+            if (evictIds.Count > 0)
+            {
+                Logging.Log($"[TabUIController] Memory pressure: evicted {evictIds.Count} background tab(s)");
+            }
         }
 
         /// <summary>
@@ -1312,6 +1710,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public void Terminate()
         {
+            Application.lowMemory -= HandleMemoryPressure;
             UnsubscribeFromTabManager();
 
 #if VUPLEX_INCLUDED
@@ -1378,5 +1777,209 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Evaluates the correct back navigation action based on current state and platform.
+    /// </summary>
+    public static class MobileBackHandler
+    {
+        public enum BackAction
+        {
+            None,
+            NavigateBack,
+            HideChrome,
+            ShowExitDialog,
+            CloseOverlay
+        }
+
+        /// <summary>
+        /// Pure function: determines the back action based on current state.
+        /// Priority: close overlay → navigate back → hide chrome → exit dialog (Android) / none (iOS).
+        /// </summary>
+        public static BackAction EvaluateBackAction(bool hasHistory, bool chromeVisible, bool hasOverlay, string platform)
+        {
+            if (platform != "android" && platform != "ios")
+                return BackAction.None;
+
+            if (hasOverlay)
+                return BackAction.CloseOverlay;
+
+            if (hasHistory)
+                return BackAction.NavigateBack;
+
+            if (chromeVisible)
+                return BackAction.HideChrome;
+
+            if (platform == "android")
+                return BackAction.ShowExitDialog;
+
+            return BackAction.None;
+        }
+    }
+
+    /// <summary>
+    /// Pure helper for mobile tab limit logic.
+    /// </summary>
+    public static class MobileTabLimitHandler
+    {
+        /// <summary>
+        /// Returns true if a new tab should be blocked (at or over limit).
+        /// </summary>
+        public static bool ShouldBlockNewTab(int currentCount, int limit)
+        {
+            return currentCount >= limit;
+        }
+    }
+
+    /// <summary>
+    /// Serializes and persists tab session state for background/foreground and force-kill recovery.
+    /// </summary>
+    public static class TabSessionSerializer
+    {
+        private const string PlayerPrefsKey = "TabUI_Session";
+
+        public class TabEntry
+        {
+            public string id;
+            public string url;
+            public string displayName;
+            public string lastActiveAt;
+        }
+
+        public class SessionData
+        {
+            public List<TabEntry> tabs = new List<TabEntry>();
+            public string activeTabId;
+            public string chromePosition;
+            public string timestamp;
+        }
+
+        /// <summary>
+        /// Serializes tab data into a JSON string with metadata.
+        /// </summary>
+        public static string Serialize(List<TabEntry> tabs, string activeTabId, string chromePosition)
+        {
+            var data = new SessionData
+            {
+                tabs = tabs ?? new List<TabEntry>(),
+                activeTabId = activeTabId,
+                chromePosition = chromePosition,
+                timestamp = DateTime.UtcNow.ToString("o")
+            };
+            return JsonConvert.SerializeObject(data);
+        }
+
+        /// <summary>
+        /// Deserializes a JSON string into SessionData. Returns empty session on null, empty, or malformed input.
+        /// </summary>
+        public static SessionData Deserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return new SessionData();
+
+            try
+            {
+                var data = JsonConvert.DeserializeObject<SessionData>(json);
+                if (data == null)
+                    return new SessionData();
+                if (data.tabs == null)
+                    data.tabs = new List<TabEntry>();
+                return data;
+            }
+            catch
+            {
+                return new SessionData();
+            }
+        }
+
+        /// <summary>
+        /// Persists session data to PlayerPrefs.
+        /// </summary>
+        public static void SaveSession(SessionData data)
+        {
+            string json = JsonConvert.SerializeObject(data);
+            PlayerPrefs.SetString(PlayerPrefsKey, json);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// Loads session data from PlayerPrefs. Returns empty session if no data exists.
+        /// </summary>
+        public static SessionData LoadSession()
+        {
+            if (!PlayerPrefs.HasKey(PlayerPrefsKey))
+                return new SessionData();
+
+            string json = PlayerPrefs.GetString(PlayerPrefsKey);
+            return Deserialize(json);
+        }
+
+        /// <summary>
+        /// Returns true if a saved session exists in PlayerPrefs.
+        /// </summary>
+        public static bool HasSavedSession()
+        {
+            return PlayerPrefs.HasKey(PlayerPrefsKey);
+        }
+
+        /// <summary>
+        /// Deletes the saved session from PlayerPrefs.
+        /// </summary>
+        public static void ClearSession()
+        {
+            PlayerPrefs.DeleteKey(PlayerPrefsKey);
+            PlayerPrefs.Save();
+        }
+    }
+
+    /// <summary>
+    /// Evaluates and executes memory pressure eviction for background tabs using LRU ordering.
+    /// </summary>
+    public static class MemoryPressureHandler
+    {
+        /// <summary>
+        /// Evaluates which background tabs should be evicted under memory pressure.
+        /// Returns tab IDs in LRU order (oldest LastActiveAt first).
+        /// Excludes the active tab, already-Suspended tabs, and non-Loaded tabs.
+        /// </summary>
+        public static List<string> EvaluateEviction(IReadOnlyList<TabState> tabs, string activeTabId, int count = 1)
+        {
+            if (tabs == null || tabs.Count == 0)
+                return new List<string>();
+
+            return tabs
+                .Where(t => t.Id != activeTabId && t.LoadState == TabLoadState.Loaded)
+                .OrderBy(t => t.LastActiveAt)
+                .Take(count)
+                .Select(t => t.Id)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Executes eviction on a single tab by setting its LoadState to Suspended.
+        /// Preserves Id, WorldUrl, and DisplayName.
+        /// </summary>
+        public static void ExecuteEviction(TabState tab)
+        {
+            if (tab == null) return;
+            tab.LoadState = TabLoadState.Suspended;
+        }
+    }
+
+    /// <summary>
+    /// Pure helper for gesture conflict detection.
+    /// </summary>
+    public static class GestureConflictHandler
+    {
+        private const int EdgeZone = 20;
+
+        /// <summary>
+        /// Returns true if the swipe starts within the edge zone (reserved for iOS system gestures).
+        /// </summary>
+        public static bool ShouldSuppressSwipe(int startX, int screenWidth)
+        {
+            return startX < EdgeZone || startX > (screenWidth - EdgeZone);
+        }
     }
 }

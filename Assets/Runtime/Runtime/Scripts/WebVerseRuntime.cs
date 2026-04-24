@@ -9,6 +9,7 @@ using FiveSQD.WebVerse.Handlers.Image;
 using FiveSQD.WebVerse.Handlers.Javascript;
 #if USE_WEBINTERFACE
 using FiveSQD.WebVerse.VOSSynchronization;
+using FiveSQD.WebVerse.WorldSync;
 #endif
 using System.IO;
 using FiveSQD.WebVerse.Handlers.VEML;
@@ -142,6 +143,12 @@ namespace FiveSQD.WebVerse.Runtime
         public static WebVerseRuntime Instance;
 
         /// <summary>
+        /// Default avatar mode. "rigged" uses the animated mannequin,
+        /// "simple" uses original entity renderers.
+        /// </summary>
+        public string defaultAvatarMode = "rigged";
+
+        /// <summary>
         /// Current state of the WebVerse Runtime.
         /// </summary>
         public RuntimeState state { get; private set; }
@@ -212,6 +219,17 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The VOS Synchronization Manager.")]
         public VOSSynchronizationManager vosSynchronizationManager { get; private set; }
+
+        /// <summary>
+        /// WorldSync clients keyed by synchronizationservice id attribute from VEML.
+        /// </summary>
+        private Dictionary<string, WorldSyncClient> worldSyncClients = new Dictionary<string, WorldSyncClient>();
+
+        /// <summary>
+        /// WorldSync scene handlers keyed by synchronizationservice id.
+        /// </summary>
+        private Dictionary<string, Handlers.VEML.WorldSyncSceneHandler> worldSyncSceneHandlers
+            = new Dictionary<string, Handlers.VEML.WorldSyncSceneHandler>();
 #endif
 
         /// <summary>
@@ -831,6 +849,7 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 vosSynchronizationManager.Reset();
             }
+            ClearWorldSyncClients();
 #endif
             Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Resetting OMI Handler...");
 
@@ -1149,6 +1168,9 @@ namespace FiveSQD.WebVerse.Runtime
             // Terminate VOS Synchronization Manager.
             vosSynchronizationManager.Terminate();
             Destroy(vosSynchronizationManager.gameObject);
+
+            // Terminate WorldSync clients.
+            ClearWorldSyncClients();
 #endif
 
             // Terminate Handlers.
@@ -1262,5 +1284,87 @@ namespace FiveSQD.WebVerse.Runtime
             
             fileHandler.ClearCache(seconds);
         }
+
+#if USE_WEBINTERFACE
+        /// <summary>
+        /// Register a WorldSyncClient by synchronizer id.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <param name="client">The WorldSyncClient instance.</param>
+        public void RegisterWorldSyncClient(string id, WorldSyncClient client)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                Logging.LogWarning("[WebVerseRuntime->RegisterWorldSyncClient] Cannot register WorldSyncClient with null or empty id.");
+                return;
+            }
+            if (worldSyncClients.ContainsKey(id))
+            {
+                Logging.LogWarning("[WebVerseRuntime->RegisterWorldSyncClient] Replacing existing WorldSyncClient with id: " + id);
+                try { _ = worldSyncClients[id].DisconnectAsync(); } catch { }
+            }
+            worldSyncClients[id] = client;
+        }
+
+        /// <summary>
+        /// Get a WorldSyncClient by synchronizer id.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <returns>The WorldSyncClient, or null if not found.</returns>
+        public WorldSyncClient GetWorldSyncClient(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return null;
+            }
+            return worldSyncClients.TryGetValue(id, out var client) ? client : null;
+        }
+
+        /// <summary>
+        /// Register a WorldSync scene handler for inbound entity materialization.
+        /// </summary>
+        public void RegisterWorldSyncSceneHandler(string id, Handlers.VEML.WorldSyncSceneHandler handler)
+        {
+            if (string.IsNullOrEmpty(id) || handler == null) return;
+            if (worldSyncSceneHandlers.ContainsKey(id))
+            {
+                worldSyncSceneHandlers[id].Dispose();
+            }
+            worldSyncSceneHandlers[id] = handler;
+        }
+
+        /// <summary>
+        /// Disconnect and remove all WorldSync clients and scene handlers.
+        /// </summary>
+        public void ClearWorldSyncClients()
+        {
+            foreach (var kvp in worldSyncSceneHandlers)
+            {
+                try { kvp.Value.Dispose(); } catch { }
+            }
+            worldSyncSceneHandlers.Clear();
+
+            foreach (var kvp in worldSyncClients)
+            {
+                try { _ = kvp.Value.DisconnectAsync(); } catch { }
+            }
+            worldSyncClients.Clear();
+        }
+
+        /// <summary>
+        /// Remove a WorldSyncClient from the registry without disconnecting it.
+        /// Caller is responsible for disconnect ordering.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <returns>True if a client was removed, false if no client with that id was registered.</returns>
+        public bool UnregisterWorldSyncClient(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return false;
+            }
+            return worldSyncClients.Remove(id);
+        }
+#endif
     }
 }

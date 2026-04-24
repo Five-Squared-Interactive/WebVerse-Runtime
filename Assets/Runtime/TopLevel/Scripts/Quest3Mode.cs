@@ -8,6 +8,9 @@ using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.Input.Quest3;
 using FiveSQD.WebVerse.Interface.TabUI;
+using FiveSQD.WebVerse.Avatar;
+using FiveSQD.WebVerse.VR.Comfort;
+using FiveSQD.StraightFour.Entity;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Runtime
@@ -124,6 +127,35 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         private Quest3Input quest3InputComponent;
 
+        /// <summary>
+        /// Fade controller for world transition effects.
+        /// </summary>
+        private FadeController _fadeController;
+
+        /// <summary>
+        /// The FadeController instance for world transitions.
+        /// </summary>
+        public FadeController FadeController => _fadeController;
+
+        /// <summary>
+        /// Velocity tracker for comfort vignette.
+        /// </summary>
+        private VelocityTracker _velocityTracker;
+
+        /// <summary>
+        /// Vignette controller for comfort during locomotion.
+        /// </summary>
+        private VignetteController _vignetteController;
+
+        /// <summary>
+        /// Reference to the VR tracking wiring coroutine for cancellation.
+        /// </summary>
+        private Coroutine _vrTrackingCoroutine;
+
+        /// <summary>
+        /// Cached reference to the VR character entity for thumbstick forwarding.
+        /// </summary>
+        private CharacterEntity _vrCharacterEntity;
 
         private void Awake()
         {
@@ -267,10 +299,161 @@ namespace FiveSQD.WebVerse.Runtime
                 if (vrRigComponent != null)
                 {
                     vrRigComponent.Initialize();
+                    vrRigComponent.ApplyDefaultControlFlags();
                 }
             }
 
+            // Initialize fade controller for world transitions
+            if (vrCamera != null)
+            {
+                var fadeGO = new GameObject("FadeController");
+                fadeGO.transform.SetParent(transform, false);
+                _fadeController = fadeGO.AddComponent<FadeController>();
+                _fadeController.SetCamera(vrCamera);
+                Logging.Log("[Quest3Mode->InitializeVR] FadeController initialized.");
+
+                // Pass to TabUIIntegration for world load/tab switch integration
+                if (tabUIIntegration != null)
+                {
+                    tabUIIntegration.SetFadeController(_fadeController);
+                }
+
+                // Initialize velocity tracker for comfort vignette
+                var trackerGO = new GameObject("VelocityTracker");
+                trackerGO.transform.SetParent(transform, false);
+                _velocityTracker = trackerGO.AddComponent<VelocityTracker>();
+                _velocityTracker.SetTarget(vrCamera.transform);
+                Logging.Log("[Quest3Mode->InitializeVR] VelocityTracker initialized.");
+
+                // Initialize vignette controller for comfort during locomotion
+                var vignetteGO = new GameObject("VignetteController");
+                vignetteGO.transform.SetParent(transform, false);
+                _vignetteController = vignetteGO.AddComponent<VignetteController>();
+                _vignetteController.SetCamera(vrCamera);
+                _vignetteController.SetVelocityTracker(_velocityTracker);
+                Logging.Log("[Quest3Mode->InitializeVR] VignetteController initialized.");
+            }
+
             Logging.Log("[Quest3Mode->InitializeVR] Quest 3 VR initialized.");
+
+            // Start watching for character entity to wire VR tracking
+            _vrTrackingCoroutine = StartCoroutine(WireVRTrackingWhenCharacterAvailable());
+        }
+
+        /// <summary>
+        /// Waits for a CharacterEntity to become available in the active world,
+        /// then wires VR tracking sources to its AvatarRigController.
+        /// Note: Wires the first CharacterEntity found. For multiplayer with multiple
+        /// character entities, call SetupVRCharacter() directly for the local player.
+        /// </summary>
+        private IEnumerator WireVRTrackingWhenCharacterAvailable()
+        {
+            float timeout = 120f;
+            float elapsed = 0f;
+
+            // Wait for the active world to exist
+            while (StraightFour.StraightFour.ActiveWorld == null)
+            {
+                elapsed += Time.deltaTime;
+                if (elapsed >= timeout)
+                {
+                    Logging.LogWarning("[Quest3Mode] Timed out waiting for active world to wire VR tracking.");
+                    yield break;
+                }
+                yield return null;
+            }
+
+            // Wait for a CharacterEntity to be loaded (poll with timeout)
+            CharacterEntity characterEntity = null;
+            while (characterEntity == null)
+            {
+                foreach (BaseEntity entity in StraightFour.StraightFour.ActiveWorld.entityManager.GetAllEntities())
+                {
+                    if (entity is CharacterEntity ce)
+                    {
+                        characterEntity = ce;
+                        break;
+                    }
+                }
+                if (characterEntity == null)
+                {
+                    elapsed += 0.25f;
+                    if (elapsed >= timeout)
+                    {
+                        Logging.LogWarning("[Quest3Mode] Timed out waiting for CharacterEntity to wire VR tracking.");
+                        yield break;
+                    }
+                    yield return new WaitForSeconds(0.25f);
+                }
+            }
+
+            SetupVRCharacter(characterEntity);
+            _vrTrackingCoroutine = null;
+        }
+
+        /// <summary>
+        /// Configures a CharacterEntity for VR mode by enabling its AvatarRigController
+        /// and connecting VR tracking sources (headset + controllers).
+        /// </summary>
+        /// <param name="characterEntity">The character entity to wire for VR.</param>
+        public void SetupVRCharacter(CharacterEntity characterEntity)
+        {
+            if (characterEntity == null) return;
+
+            characterEntity.SetVRMode(true);
+
+            var vrRigComponent = vrRig != null ? vrRig.GetComponent<VRRig>() : null;
+            if (characterEntity.AvatarRigController != null && vrRigComponent != null && vrCamera != null)
+            {
+                characterEntity.AvatarRigController.SetTrackingSources(
+                    vrCamera.transform,
+                    vrRigComponent.leftController,
+                    vrRigComponent.rightController);
+                Logging.Log("[Quest3Mode->SetupVRCharacter] VR tracking sources wired to avatar.");
+            }
+
+            // Configure VR camera to exclude FirstPersonHidden layer
+            if (vrCamera != null)
+            {
+                AvatarRigController.SetupFirstPersonCamera(vrCamera);
+            }
+
+            // Store reference for per-frame thumbstick forwarding
+            _vrCharacterEntity = characterEntity;
+        }
+
+        /// <summary>
+        /// Triggers VR calibration by measuring headset height and controller arm span.
+        /// Can be re-called to recalibrate (e.g., from settings UI).
+        /// </summary>
+        public void TriggerCalibration()
+        {
+            if (_vrCharacterEntity == null || _vrCharacterEntity.AvatarRigController == null) return;
+
+            var vrRigComponent = vrRig != null ? vrRig.GetComponent<VRRig>() : null;
+            if (vrCamera == null || vrRigComponent == null) return;
+
+            float headsetHeight = vrCamera.transform.position.y;
+            float armSpan = Vector3.Distance(
+                vrRigComponent.leftController.position,
+                vrRigComponent.rightController.position);
+
+            // Guard against invalid measurements (user not standing or arms not extended)
+            if (headsetHeight <= 0.5f || armSpan <= 0.3f) return;
+
+            _vrCharacterEntity.AvatarRigController.Calibrate(headsetHeight, armSpan);
+            Logging.Log($"[Quest3Mode->TriggerCalibration] Calibrated: height={headsetHeight:F2}m, armSpan={armSpan:F2}m, scale={_vrCharacterEntity.AvatarRigController.HeightScale:F3}");
+        }
+
+        private void Update()
+        {
+            // Forward VR thumbstick input to avatar locomotion each frame
+            if (_vrCharacterEntity != null && _vrCharacterEntity.VRLocomotionBridge != null
+                && Runtime.WebVerseRuntime.Instance != null && Runtime.WebVerseRuntime.Instance.inputManager != null)
+            {
+                Vector2 thumbstick = Runtime.WebVerseRuntime.Instance.inputManager.leftTouchPadTouchLocation;
+                _vrCharacterEntity.VRLocomotionBridge.SetThumbstickInput(thumbstick);
+            }
         }
 
         /// <summary>
@@ -287,6 +470,9 @@ namespace FiveSQD.WebVerse.Runtime
 
             runtime.Initialize(LocalStorage.LocalStorageManager.LocalStorageMode.Cache,
                 maxEntries, maxEntryLength, maxKeyLength, filesDirectory, worldLoadTimeout);
+
+            runtime.defaultAvatarMode = nativeSettings.GetDefaultAvatar();
+            FiveSQD.WebVerse.Avatar.AvatarAnimationManager.DefaultAvatarMode = runtime.defaultAvatarMode;
         }
 
         /// <summary>
@@ -370,7 +556,8 @@ namespace FiveSQD.WebVerse.Runtime
                     { "maxStorageEntries", (int) nativeSettings.GetMaxStorageEntries() },
                     { "maxStorageKeyLength", (int) nativeSettings.GetMaxStorageKeyLength() },
                     { "maxStorageEntryLength", (int) nativeSettings.GetMaxStorageEntryLength() },
-                    { "cacheDirectory", nativeSettings.GetCacheDirectory() }
+                    { "cacheDirectory", nativeSettings.GetCacheDirectory() },
+                    { "defaultAvatar", nativeSettings.GetDefaultAvatar() }
                 };
             }
             catch (Exception ex)
@@ -421,6 +608,9 @@ namespace FiveSQD.WebVerse.Runtime
 
                 if (settings.TryGetValue("cacheDirectory", out object cacheDir))
                     nativeSettings.SetCacheDirectory(cacheDir?.ToString() ?? "");
+
+                if (settings.TryGetValue("defaultAvatar", out object defaultAvatar))
+                    nativeSettings.SetDefaultAvatar(defaultAvatar?.ToString() ?? "rigged");
 
                 Logging.Log("[Quest3Mode] Settings saved.");
             }
@@ -492,6 +682,36 @@ namespace FiveSQD.WebVerse.Runtime
 
         private void OnDestroy()
         {
+            // Destroy comfort components
+            if (_vignetteController != null)
+            {
+                Destroy(_vignetteController.gameObject);
+                _vignetteController = null;
+            }
+            if (_velocityTracker != null)
+            {
+                Destroy(_velocityTracker.gameObject);
+                _velocityTracker = null;
+            }
+            if (_fadeController != null)
+            {
+                Destroy(_fadeController.gameObject);
+                _fadeController = null;
+            }
+
+            // Restore VR camera culling mask
+            if (vrCamera != null)
+            {
+                AvatarRigController.RestoreCamera(vrCamera);
+            }
+
+            // Cancel VR tracking wiring coroutine if still running
+            if (_vrTrackingCoroutine != null)
+            {
+                StopCoroutine(_vrTrackingCoroutine);
+                _vrTrackingCoroutine = null;
+            }
+
             // Unsubscribe button events from Tab UI
             if (quest3InputComponent != null && tabUIIntegration != null)
             {

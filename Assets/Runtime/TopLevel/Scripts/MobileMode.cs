@@ -175,6 +175,9 @@ namespace FiveSQD.WebVerse.Runtime
 
             runtime.Initialize(storageMode, (int) maxEntries, (int) maxEntryLength, (int) maxKeyLength,
                 filesDirectory, worldLoadTimeout);
+
+            runtime.defaultAvatarMode = nativeSettings.GetDefaultAvatar();
+            FiveSQD.WebVerse.Avatar.AvatarAnimationManager.DefaultAvatarMode = runtime.defaultAvatarMode;
         }
 
         /// <summary>

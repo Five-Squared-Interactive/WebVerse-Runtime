@@ -1,0 +1,17 @@
+{
+    "name": "FiveSQD.WebVerse.Avatar",
+    "rootNamespace": "FiveSQD.WebVerse.Avatar",
+    "references": [
+        "glTFast",
+        "Unity.Animation.Rigging"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

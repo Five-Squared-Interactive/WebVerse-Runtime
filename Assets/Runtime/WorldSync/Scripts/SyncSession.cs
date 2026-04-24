@@ -77,6 +77,12 @@ namespace FiveSQD.WebVerse.WorldSync
         public event Action<EnvironmentState> OnEnvironmentChanged;
 
         /// <summary>
+        /// Event raised when a custom message is received.
+        /// Parameters: topic, senderId, payload.
+        /// </summary>
+        public event Action<string, string, string> OnCustomMessage;
+
+        /// <summary>
         /// Event raised when session is destroyed.
         /// </summary>
         public event Action<string> OnSessionDestroyed;
@@ -307,6 +313,15 @@ namespace FiveSQD.WebVerse.WorldSync
         }
 
         /// <summary>
+        /// Set entity highlight state.
+        /// </summary>
+        public void SetHighlight(string entityId, bool highlight)
+        {
+            EnsureValid();
+            _client.SetEntityHighlightAsync(this, entityId, highlight).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Get entities owned by a specific client.
         /// </summary>
         public List<SyncEntity> GetEntitiesByOwner(string ownerId)
@@ -334,13 +349,32 @@ namespace FiveSQD.WebVerse.WorldSync
         }
 
         /// <summary>
+        /// Send a custom message through the sync channel.
+        /// </summary>
+        /// <param name="topic">Application-specific message topic.</param>
+        /// <param name="payload">Message payload string.</param>
+        public void SendMessage(string topic, string payload)
+        {
+            EnsureValid();
+            _client.SendCustomMessageAsync(this, topic, payload).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Leave this session gracefully.
         /// </summary>
         public void Leave()
         {
             EnsureValid();
             _client.LeaveSessionAsync(this).GetAwaiter().GetResult();
-            Invalidate("left");
+        }
+
+        /// <summary>
+        /// Destroy this session (owner only).
+        /// </summary>
+        public void Destroy()
+        {
+            EnsureValid();
+            _client.DestroySessionAsync(this).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -412,6 +446,33 @@ namespace FiveSQD.WebVerse.WorldSync
         }
 
         /// <summary>
+        /// Handle non-transform entity state update from server (visibility, highlight, parent, interaction-state).
+        /// </summary>
+        internal void HandleEntityStateUpdate(string entityId, bool? visible, bool? highlight,
+            string parentId, string interactionState)
+        {
+            SyncEntity entity = null;
+            lock (_lock)
+            {
+                if (_entities.TryGetValue(entityId, out entity))
+                {
+                    if (visible.HasValue) entity.Visible = visible.Value;
+                    if (highlight.HasValue) entity.Highlight = highlight.Value;
+                    if (parentId != null) entity.ParentId = parentId;
+                    if (interactionState != null)
+                    {
+                        if (System.Enum.TryParse<InteractionState>(interactionState, true, out var state))
+                            entity.InteractionState = state;
+                    }
+                }
+            }
+            if (entity != null)
+            {
+                OnEntityStateChanged?.Invoke(entity);
+            }
+        }
+
+        /// <summary>
         /// Handle client joined event from server.
         /// </summary>
         internal void HandleClientJoined(SyncClient client)
@@ -433,6 +494,14 @@ namespace FiveSQD.WebVerse.WorldSync
                 _clients.Remove(clientId);
             }
             OnClientLeft?.Invoke(clientId, reason);
+        }
+
+        /// <summary>
+        /// Handle custom message from server.
+        /// </summary>
+        internal void HandleCustomMessage(string topic, string senderId, string payload)
+        {
+            OnCustomMessage?.Invoke(topic, senderId, payload);
         }
 
         /// <summary>

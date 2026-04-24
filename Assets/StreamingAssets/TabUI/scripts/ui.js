@@ -10,7 +10,14 @@
     const state = {
         tabs: [],
         activeTabId: null,
-        mode: 'desktop', // 'desktop' or 'vr'
+        mode: 'desktop', // 'desktop', 'vr', 'mobile', or 'tablet'
+        chromePosition: 'bottom', // 'top' or 'bottom' (mobile only)
+        orientation: 'portrait', // 'portrait' or 'landscape' (mobile only)
+        keyboardVisible: false,
+        keyboardHeight: 0,
+        autoHideTimerId: null,
+        platform: 'desktop', // 'android', 'ios', 'desktop'
+        mobileTabLimit: 5, // max tabs in mobile mode (default 5)
         chromeVisible: true,
         tabDropdownOpen: false,
         menuDropdownOpen: false,
@@ -49,6 +56,10 @@
     let forwardButtonPressTimer = null;
     let backButtonPressed = false;
     let forwardButtonPressed = false;
+    let tabLongPressTimer = null;
+
+    // Swipe-to-close threshold
+    const TAB_SWIPE_DISMISS_THRESHOLD = 80; // px
 
     // DOM Elements
     let elements = {};
@@ -541,6 +552,49 @@
 
         // Close dropdowns on outside click
         document.addEventListener('click', handleOutsideClick);
+
+        // Swipe detection on chrome element (mobile/tablet only)
+        bindChromeSwipeEvents();
+    }
+
+    // Swipe tracking state
+    var swipeStartX = 0;
+    var swipeStartY = 0;
+
+    /**
+     * Bind touch events on the chrome element for swipe-based tab switching.
+     * Only active in mobile/tablet mode.
+     */
+    function bindChromeSwipeEvents() {
+        var chrome = document.querySelector('.chrome');
+        if (!chrome) return;
+
+        chrome.addEventListener('touchstart', function(e) {
+            if (state.mode !== 'mobile' && state.mode !== 'tablet') return;
+            var touch = e.touches[0];
+            swipeStartX = touch.clientX;
+            swipeStartY = touch.clientY;
+        });
+
+        chrome.addEventListener('touchend', function(e) {
+            if (state.mode !== 'mobile' && state.mode !== 'tablet') return;
+            var touch = e.changedTouches[0];
+            var result = evaluateSwipe({
+                startX: swipeStartX,
+                startY: swipeStartY,
+                endX: touch.clientX,
+                endY: touch.clientY,
+                screenWidth: window.innerWidth
+            });
+            if (result.action === 'switch-tab') {
+                handleSwipeTabSwitch(result.direction);
+            }
+        });
+
+        chrome.addEventListener('touchcancel', function() {
+            swipeStartX = 0;
+            swipeStartY = 0;
+        });
     }
 
     /**
@@ -1050,6 +1104,10 @@
      * Handle new tab click
      */
     function handleNewTab() {
+        if (!canOpenNewTab()) {
+            showToast('Tab limit reached', 'warning');
+            return;
+        }
         closeTabDropdown();
         window.bridge.newTab();
     }
@@ -1143,14 +1201,377 @@
     }
 
     /**
-     * Set mode (desktop or vr)
+     * Set mode (desktop, vr, mobile, or tablet)
      */
     function setMode(mode) {
         state.mode = mode;
-        if (mode === 'vr') {
-            document.body.classList.add('vr-mode');
+        // Remove all mode and position classes first
+        document.body.classList.remove('vr-mode', 'mobile-mode', 'tablet-mode', 'chrome-top', 'chrome-bottom');
+        // Apply mode-specific classes
+        switch (mode) {
+            case 'vr':
+                document.body.classList.add('vr-mode');
+                break;
+            case 'mobile':
+                document.body.classList.add('mobile-mode');
+                applyChromePositionClass();
+                break;
+            case 'tablet':
+                document.body.classList.add('mobile-mode', 'tablet-mode');
+                applyChromePositionClass();
+                break;
+            // 'desktop' and default: no mode classes needed
+        }
+    }
+
+    /**
+     * Apply the current chrome position class to body.
+     * Only meaningful in mobile/tablet mode.
+     */
+    function applyChromePositionClass() {
+        document.body.classList.remove('chrome-top', 'chrome-bottom');
+        document.body.classList.add(state.chromePosition === 'top' ? 'chrome-top' : 'chrome-bottom');
+    }
+
+    /**
+     * Set safe area insets (pixel values from Unity's Screen.safeArea).
+     * Applied as CSS custom properties on :root for layout calculations.
+     */
+    function setSafeArea(insets) {
+        const top = (insets && insets.top) || 0;
+        const bottom = (insets && insets.bottom) || 0;
+        const left = (insets && insets.left) || 0;
+        const right = (insets && insets.right) || 0;
+        const root = document.documentElement;
+        root.style.setProperty('--safe-area-top', top + 'px');
+        root.style.setProperty('--safe-area-bottom', bottom + 'px');
+        root.style.setProperty('--safe-area-left', left + 'px');
+        root.style.setProperty('--safe-area-right', right + 'px');
+    }
+
+    /**
+     * Set chrome bar position ('top' or 'bottom').
+     * Updates body classes and persists in state.
+     */
+    function setChromePosition(position) {
+        state.chromePosition = (position === 'top') ? 'top' : 'bottom';
+        // Only apply class if currently in mobile/tablet mode
+        if (state.mode === 'mobile' || state.mode === 'tablet') {
+            applyChromePositionClass();
+        }
+    }
+
+    /**
+     * Set device orientation ('portrait' or 'landscape').
+     * State tracking only — layout updates happen via setSafeArea.
+     */
+    function setOrientation(orientation) {
+        state.orientation = (orientation === 'landscape') ? 'landscape' : 'portrait';
+    }
+
+    // Swipe detection constants
+    var SWIPE_THRESHOLD = 40;    // minimum horizontal travel (px)
+    var SWIPE_MAX_ANGLE = 30;    // maximum angle deviation from horizontal (degrees)
+    var EDGE_ZONE = 20;          // edge exclusion zone for iOS system gestures (px)
+
+    // Auto-hide constants
+    var AUTO_HIDE_DELAY = 3000;  // ms before chrome auto-hides
+
+    /**
+     * Evaluate a swipe gesture and return the intended action.
+     * Pure function — no side effects.
+     * @param {Object} opts - { startX, startY, endX, endY, screenWidth }
+     * @returns {{ action: string, direction?: string }}
+     */
+    function evaluateSwipe(opts) {
+        if (!opts || opts.startX == null || opts.endX == null || opts.screenWidth == null) {
+            return { action: 'none' };
+        }
+        var startX = opts.startX;
+        var startY = opts.startY || 0;
+        var endX = opts.endX;
+        var endY = opts.endY || 0;
+        var screenWidth = opts.screenWidth;
+
+        // Edge zone exclusion (iOS system gestures)
+        if (startX < EDGE_ZONE || startX > (screenWidth - EDGE_ZONE)) {
+            return { action: 'none' };
+        }
+
+        var dx = endX - startX;
+        var dy = endY - startY;
+
+        // Minimum threshold check
+        if (Math.abs(dx) < SWIPE_THRESHOLD) {
+            return { action: 'none' };
+        }
+
+        // Angle check — must be primarily horizontal
+        var angle = Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI;
+        if (angle > SWIPE_MAX_ANGLE) {
+            return { action: 'none' };
+        }
+
+        // dx < 0 = swipe left = next tab; dx > 0 = swipe right = previous tab
+        return { action: 'switch-tab', direction: dx < 0 ? 'next' : 'previous' };
+    }
+
+    /**
+     * Handle swipe-based tab switching.
+     * @param {string} direction - 'next' or 'previous'
+     */
+    function handleSwipeTabSwitch(direction) {
+        if (!state.tabs || state.tabs.length === 0) return;
+        var activeIndex = state.tabs.findIndex(function(t) { return t.id === state.activeTabId; });
+        if (activeIndex < 0) return;
+
+        if (direction === 'next' && activeIndex < state.tabs.length - 1) {
+            window.bridge.switchTab(state.tabs[activeIndex + 1].id);
+        } else if (direction === 'previous' && activeIndex > 0) {
+            window.bridge.switchTab(state.tabs[activeIndex - 1].id);
+        }
+    }
+
+    /**
+     * Start the auto-hide timer. After AUTO_HIDE_DELAY ms, hides the chrome.
+     * Does not start if keyboard is open.
+     */
+    function startAutoHideTimer() {
+        if (state.keyboardVisible) return;
+        stopAutoHideTimer();
+        state.autoHideTimerId = setTimeout(function() {
+            hideChrome();
+        }, AUTO_HIDE_DELAY);
+    }
+
+    /**
+     * Reset the auto-hide timer — cancels existing and starts new one.
+     */
+    function resetAutoHideTimer() {
+        stopAutoHideTimer();
+        startAutoHideTimer();
+    }
+
+    /**
+     * Stop (cancel) the auto-hide timer without restarting.
+     */
+    function stopAutoHideTimer() {
+        if (state.autoHideTimerId != null) {
+            clearTimeout(state.autoHideTimerId);
+            state.autoHideTimerId = null;
+        }
+    }
+
+    /**
+     * Check if a tap is within the edge zone for chrome reactivation.
+     * Pure function.
+     * @param {number} tapY - Y coordinate of tap
+     * @param {number} screenHeight - Total screen height
+     * @param {string} chromePosition - 'top' or 'bottom'
+     * @returns {boolean}
+     */
+    function isEdgeTap(tapY, screenHeight, chromePosition) {
+        if (chromePosition === 'top' && tapY < EDGE_ZONE) return true;
+        if (chromePosition === 'bottom' && tapY > (screenHeight - EDGE_ZONE)) return true;
+        return false;
+    }
+
+    /**
+     * Handle an edge tap — shows chrome if it's hidden and tap is at the correct edge.
+     * @param {number} tapY - Y coordinate of tap
+     * @param {number} screenHeight - Total screen height
+     */
+    function handleEdgeTap(tapY, screenHeight) {
+        if (!state.chromeVisible && isEdgeTap(tapY, screenHeight, state.chromePosition)) {
+            showChrome();
+            resetAutoHideTimer();
+        }
+    }
+
+    /**
+     * Set platform identifier.
+     * Valid values: 'android', 'ios', 'desktop'
+     */
+    function setPlatform(platform) {
+        if (platform === 'android' || platform === 'ios' || platform === 'desktop') {
+            state.platform = platform;
+        }
+    }
+
+    /**
+     * Evaluate back action — pure function.
+     * Priority: close overlay → navigate back → hide chrome → exit dialog (Android) / none (iOS/desktop)
+     */
+    function evaluateBackAction(opts) {
+        if (!opts || typeof opts !== 'object') {
+            return { action: 'none' };
+        }
+        var platform = opts.platform;
+        if (platform !== 'android' && platform !== 'ios') {
+            return { action: 'none' };
+        }
+        if (opts.hasOverlayOpen) {
+            return { action: 'close-overlay' };
+        }
+        if (opts.canGoBack) {
+            return { action: 'navigate-back' };
+        }
+        if (opts.chromeVisible) {
+            return { action: 'hide-chrome' };
+        }
+        if (platform === 'android') {
+            return { action: 'show-exit-dialog' };
+        }
+        return { action: 'none' };
+    }
+
+    /**
+     * Handle platform back button/gesture.
+     * Reads current state, evaluates action, dispatches.
+     */
+    function handlePlatformBack() {
+        var result = evaluateBackAction({
+            canGoBack: state.canGoBack,
+            chromeVisible: state.chromeVisible,
+            hasOverlayOpen: hasAnyOverlayOpen(),
+            platform: state.platform
+        });
+        switch (result.action) {
+            case 'close-overlay':
+                closeAllDropdowns();
+                break;
+            case 'navigate-back':
+                if (window.bridge && window.bridge.goBack) {
+                    window.bridge.goBack();
+                }
+                break;
+            case 'hide-chrome':
+                hideChrome();
+                break;
+            case 'show-exit-dialog':
+                if (window.bridge && window.bridge.showExitDialog) {
+                    window.bridge.showExitDialog();
+                }
+                break;
+        }
+    }
+
+    // ---- Mobile Tab Limit API ----
+
+    /**
+     * Set the mobile tab limit.
+     * @param {number} limit - Max number of tabs in mobile mode. Must be > 0, defaults to 5.
+     */
+    function setMobileTabLimit(limit) {
+        if (typeof limit !== 'number' || limit <= 0 || !isFinite(limit)) {
+            state.mobileTabLimit = 5;
         } else {
-            document.body.classList.remove('vr-mode');
+            state.mobileTabLimit = Math.floor(limit);
+        }
+    }
+
+    /**
+     * Get the current mobile tab limit.
+     * @returns {number}
+     */
+    function getMobileTabLimit() {
+        return state.mobileTabLimit;
+    }
+
+    /**
+     * Check if a new tab can be opened.
+     * Desktop/VR modes have no limit. Mobile/tablet enforces mobileTabLimit.
+     * @returns {boolean}
+     */
+    function canOpenNewTab() {
+        if (state.mode !== 'mobile' && state.mode !== 'tablet') {
+            return true;
+        }
+        return state.tabs.length < state.mobileTabLimit;
+    }
+
+    // ---- Swipe-to-Close API ----
+
+    /**
+     * Evaluate tab swipe dismiss — pure function.
+     * @param {Object} opts - { startX, endX, threshold }
+     * @returns {{ action: 'dismiss' | 'none' }}
+     */
+    function evaluateTabSwipeDismiss(opts) {
+        if (!opts || typeof opts !== 'object') {
+            return { action: 'none' };
+        }
+        var startX = opts.startX;
+        var endX = opts.endX;
+        if (typeof startX !== 'number' || typeof endX !== 'number') {
+            return { action: 'none' };
+        }
+        var dx = Math.abs(endX - startX);
+        var threshold = (typeof opts.threshold === 'number') ? opts.threshold : TAB_SWIPE_DISMISS_THRESHOLD;
+
+        // Angle check when Y coordinates provided (scroll vs swipe conflict prevention)
+        if (typeof opts.startY === 'number' && typeof opts.endY === 'number') {
+            var dy = Math.abs(opts.endY - opts.startY);
+            var angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            if (angle > SWIPE_MAX_ANGLE) {
+                return { action: 'none' };
+            }
+        }
+
+        if (dx >= threshold) {
+            return { action: 'dismiss' };
+        }
+        return { action: 'none' };
+    }
+
+    /**
+     * Handle tab swipe dismiss — calls bridge.closeTab.
+     * @param {string} tabId - The tab ID to close
+     */
+    function handleTabSwipeDismiss(tabId) {
+        if (window.bridge && window.bridge.closeTab) {
+            window.bridge.closeTab(tabId);
+        }
+    }
+
+    // ---- Long-Press Thumbnail API ----
+
+    /**
+     * Handle tab long-press — shows thumbnail preview after LONG_PRESS_DELAY.
+     * @param {string} tabId
+     * @param {HTMLElement} anchor
+     */
+    function handleTabLongPress(tabId, anchor) {
+        cancelTabLongPress();
+        tabLongPressTimer = setTimeout(function() {
+            showThumbnailPreview(tabId, anchor);
+        }, LONG_PRESS_DELAY);
+    }
+
+    /**
+     * Cancel a pending tab long-press timer.
+     */
+    function cancelTabLongPress() {
+        if (tabLongPressTimer) {
+            clearTimeout(tabLongPressTimer);
+            tabLongPressTimer = null;
+        }
+    }
+
+    /**
+     * Set on-screen keyboard state.
+     * Updates CSS variable and body class for chrome repositioning.
+     */
+    function setKeyboardState(opts) {
+        const visible = !!(opts && opts.visible);
+        const height = (visible && opts && opts.height) ? opts.height : 0;
+        state.keyboardVisible = visible;
+        state.keyboardHeight = height;
+        document.documentElement.style.setProperty('--keyboard-height', height + 'px');
+        if (visible) {
+            document.body.classList.add('keyboard-open');
+        } else {
+            document.body.classList.remove('keyboard-open');
         }
     }
 
@@ -1936,6 +2357,7 @@
 
         // Update each setting field
         const fieldMappings = {
+            defaultAvatar: 'setting-default-avatar',
             homeURL: 'setting-home-url',
             worldLoadTimeout: 'setting-world-load-timeout',
             storageMode: 'setting-storage-mode',
@@ -1967,6 +2389,10 @@
 
         // Theme
         values.theme = state.theme;
+
+        // Avatar
+        const defaultAvatar = document.getElementById('setting-default-avatar');
+        if (defaultAvatar) values.defaultAvatar = defaultAvatar.value;
 
         // Text and number inputs
         const homeUrl = document.getElementById('setting-home-url');
@@ -2058,9 +2484,15 @@
             div.classList.add('tab-item--loading');
         } else if (tab.loadState === 'error') {
             div.classList.add('tab-item--error');
+        } else if (tab.loadState === 'suspended') {
+            div.classList.add('tab-item--suspended');
         }
 
-        div.setAttribute('aria-label', tab.displayName || 'Tab');
+        var ariaLabel = tab.displayName || 'Tab';
+        if (tab.loadState === 'suspended') {
+            ariaLabel += ' (suspended)';
+        }
+        div.setAttribute('aria-label', ariaLabel);
         if (tab.id === state.activeTabId) {
             div.setAttribute('aria-current', 'true');
         }
@@ -2090,6 +2522,95 @@
             });
             div.addEventListener('mouseleave', () => {
                 hideThumbnailPreview();
+            });
+        }
+
+        // Mobile touch events: swipe-to-close and long-press
+        if (state.mode === 'mobile' || state.mode === 'tablet') {
+            var touchStartX = 0;
+            var touchStartY = 0;
+            var isSwiping = false;
+            var gestureDecided = false;
+
+            div.addEventListener('touchstart', function(e) {
+                var touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                isSwiping = false;
+                gestureDecided = false;
+                div.classList.remove('tab-item--snapping', 'tab-item--dismissing');
+                div.classList.add('tab-item--swiping');
+                handleTabLongPress(tab.id, div);
+            });
+
+            div.addEventListener('touchmove', function(e) {
+                var touch = e.touches[0];
+                var dx = touch.clientX - touchStartX;
+                var dy = touch.clientY - touchStartY;
+                var absDx = Math.abs(dx);
+                var absDy = Math.abs(dy);
+
+                // Once gesture type is decided, only update visuals if swiping
+                if (gestureDecided) {
+                    if (isSwiping) {
+                        div.style.transform = 'translateX(' + dx + 'px)';
+                        div.style.opacity = String(Math.max(0, 1 - absDx / TAB_SWIPE_DISMISS_THRESHOLD));
+                        e.preventDefault();
+                    }
+                    return;
+                }
+
+                // Determine gesture type once movement exceeds 10px dead zone
+                if (absDx > 10 || absDy > 10) {
+                    gestureDecided = true;
+                    cancelTabLongPress();
+                    var angle = Math.atan2(absDy, absDx) * 180 / Math.PI;
+                    if (angle < SWIPE_MAX_ANGLE && absDx > 10) {
+                        // Horizontal swipe mode — locked
+                        isSwiping = true;
+                        div.style.transform = 'translateX(' + dx + 'px)';
+                        div.style.opacity = String(Math.max(0, 1 - absDx / TAB_SWIPE_DISMISS_THRESHOLD));
+                        e.preventDefault();
+                    }
+                    // Vertical or diagonal — locked to scroll, don't start swipe
+                }
+            }, { passive: false });
+
+            div.addEventListener('touchend', function(e) {
+                cancelTabLongPress();
+                div.classList.remove('tab-item--swiping');
+                if (isSwiping) {
+                    var touch = e.changedTouches[0];
+                    var result = evaluateTabSwipeDismiss({
+                        startX: touchStartX,
+                        endX: touch.clientX,
+                        startY: touchStartY,
+                        endY: touch.clientY
+                    });
+                    if (result.action === 'dismiss') {
+                        div.classList.add('tab-item--dismissing');
+                        var direction = touch.clientX > touchStartX ? 1 : -1;
+                        div.style.transform = 'translateX(' + (direction * 300) + 'px)';
+                        div.style.opacity = '0';
+                        handleTabSwipeDismiss(tab.id);
+                    } else {
+                        // Snap back
+                        div.classList.add('tab-item--snapping');
+                        div.style.transform = '';
+                        div.style.opacity = '';
+                    }
+                }
+                isSwiping = false;
+            });
+
+            div.addEventListener('touchcancel', function() {
+                cancelTabLongPress();
+                isSwiping = false;
+                gestureDecided = false;
+                div.classList.remove('tab-item--swiping');
+                div.classList.add('tab-item--snapping');
+                div.style.transform = '';
+                div.style.opacity = '';
             });
         }
 
@@ -2135,6 +2656,71 @@
     // ===================
     // Utilities
     // ===================
+
+    // ===================
+    // Session Restore
+    // ===================
+
+    /**
+     * Restore a previous session — updates tabs and active tab from serialized data.
+     */
+    function restoreSession(data) {
+        if (!data) return;
+        var tabs = data.tabs || [];
+        updateTabs(tabs);
+        if (data.activeTabId && tabs.length > 0) {
+            setActiveTab(data.activeTabId);
+        }
+        if (data.hasReloadingTab && tabs.length > 0) {
+            showReloadingToast();
+        }
+    }
+
+    /**
+     * Show a prompt asking the user whether to restore their previous session.
+     */
+    function showRestorePrompt() {
+        // Remove any existing restore prompt
+        var existing = document.getElementById('restore-prompt');
+        if (existing) existing.remove();
+
+        var modal = document.createElement('div');
+        modal.id = 'restore-prompt';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-label', 'Restore session prompt');
+        modal.className = 'restore-prompt-overlay';
+        modal.innerHTML =
+            '<div class="restore-prompt-content">' +
+            '<h3>Restore session?</h3>' +
+            '<p>Your previous tabs can be restored.</p>' +
+            '<div class="restore-prompt-actions">' +
+            '<button data-action="accept" class="btn btn--primary">Restore</button>' +
+            '<button data-action="decline" class="btn btn--secondary">Start Fresh</button>' +
+            '</div>' +
+            '</div>';
+
+        document.body.appendChild(modal);
+
+        var acceptBtn = modal.querySelector('[data-action="accept"]');
+        var declineBtn = modal.querySelector('[data-action="decline"]');
+
+        acceptBtn.addEventListener('click', function() {
+            window.bridge?.acceptSessionRestore();
+            modal.remove();
+        });
+
+        declineBtn.addEventListener('click', function() {
+            window.bridge?.declineSessionRestore();
+            modal.remove();
+        });
+    }
+
+    /**
+     * Show a toast indicating a world is being reloaded after memory reclamation.
+     */
+    function showReloadingToast() {
+        showToast('Reloading world...', 'info', 5000);
+    }
 
     /**
      * Escape HTML to prevent XSS
@@ -2210,7 +2796,39 @@
         updateConsole,
         addConsoleLine,
         updateSettings,
-        updateAboutInfo
+        updateAboutInfo,
+        // Mobile API
+        setSafeArea,
+        setChromePosition,
+        setOrientation,
+        setKeyboardState,
+        // Swipe & auto-hide API
+        evaluateSwipe,
+        handleSwipeTabSwitch,
+        startAutoHideTimer,
+        resetAutoHideTimer,
+        stopAutoHideTimer,
+        isEdgeTap,
+        handleEdgeTap,
+        // Back navigation API
+        setPlatform,
+        evaluateBackAction,
+        handlePlatformBack,
+        // Tab limit API
+        setMobileTabLimit,
+        getMobileTabLimit,
+        canOpenNewTab,
+        handleNewTab,
+        // Swipe-to-close API
+        evaluateTabSwipeDismiss,
+        handleTabSwipeDismiss,
+        // Long-press thumbnail API
+        handleTabLongPress,
+        cancelTabLongPress,
+        // Session restore API
+        restoreSession,
+        showRestorePrompt,
+        showReloadingToast
     };
 
     // Initialize when DOM is ready

@@ -317,6 +317,11 @@ namespace FiveSQD.WebVerse.WebInterface.MQTT
         private Best.MQTT.MQTTClient mqttClient;
 
         /// <summary>
+        /// Client ID to use for the MQTT connection. If null, a random GUID is generated.
+        /// </summary>
+        private string _clientId;
+
+        /// <summary>
         /// Constructor for an MQTT client.
         /// </summary>
         /// <param name="host">Host.</param>
@@ -332,7 +337,7 @@ namespace FiveSQD.WebVerse.WebInterface.MQTT
             Action<MQTTClient> onConnected, Action<MQTTClient, byte, string> onDisconnected,
             Action<MQTTClient, ClientState, ClientState> onStateChanged,
             Action<MQTTClient, string> onError,
-            string path = "/mqtt")
+            string path = "/mqtt", string clientId = null)
         {
             ConnectionOptions connectionOptions = new ConnectionOptions();
             connectionOptions.Host = host;
@@ -345,6 +350,8 @@ namespace FiveSQD.WebVerse.WebInterface.MQTT
             connectionOptions.Transport = SupportedTransports.WebSocket;
 #endif
             connectionOptions.Path = path;
+
+            _clientId = clientId;
 
             mqttClient = new Best.MQTT.MQTTClient(connectionOptions);
 
@@ -489,8 +496,7 @@ namespace FiveSQD.WebVerse.WebInterface.MQTT
         /// <param name="builder">Builder.</param>
         private ConnectPacketBuilder ConnectPacketBuilderCallback(Best.MQTT.MQTTClient mqttClient, ConnectPacketBuilder builder)
         {
-            // TODO smarter tracking of client id and other options.
-            return builder.WithClientID(Guid.NewGuid().ToString());
+            return builder.WithClientID(_clientId ?? Guid.NewGuid().ToString());
         }
     }
 }

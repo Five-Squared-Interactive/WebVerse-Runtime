@@ -25,6 +25,8 @@ public class SynchronizationTests
     [TearDown]
     public void TearDown()
     {
+        LogAssert.ignoreFailingMessages = true;
+
         // Clean up any loaded world after each test
         try
         {

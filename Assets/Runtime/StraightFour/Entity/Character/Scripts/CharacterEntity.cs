@@ -6,6 +6,7 @@ using TMPro;
 using FiveSQD.StraightFour.Materials;
 using FiveSQD.StraightFour.Tags;
 using FiveSQD.StraightFour.Utilities;
+using FiveSQD.WebVerse.Avatar;
 using System.Collections.Generic;
 
 namespace FiveSQD.StraightFour.Entity
@@ -136,6 +137,46 @@ namespace FiveSQD.StraightFour.Entity
         private Vector3 currentVelocity = Vector3.zero;
 
         /// <summary>
+        /// Avatar animation manager for this character.
+        /// </summary>
+        private AvatarAnimationManager _avatarAnimationManager;
+
+        /// <summary>
+        /// Avatar rig controller for VR IK (null in desktop mode).
+        /// </summary>
+        private AvatarRigController _avatarRigController;
+
+        /// <summary>
+        /// VR locomotion bridge for thumbstick input (null in desktop mode).
+        /// </summary>
+        private VRLocomotionBridge _vrLocomotionBridge;
+
+        /// <summary>
+        /// Whether this character is in VR mode.
+        /// </summary>
+        private bool _isVRMode;
+
+        /// <summary>
+        /// The avatar rig controller for VR IK, or null in desktop mode.
+        /// </summary>
+        public AvatarRigController AvatarRigController => _avatarRigController;
+
+        /// <summary>
+        /// The VR locomotion bridge for thumbstick input, or null in desktop mode.
+        /// </summary>
+        public VRLocomotionBridge VRLocomotionBridge => _vrLocomotionBridge;
+
+        /// <summary>
+        /// The avatar animation manager for this character.
+        /// </summary>
+        public AvatarAnimationManager AvatarAnimationManager => _avatarAnimationManager;
+
+        /// <summary>
+        /// Whether this character is currently in VR mode.
+        /// </summary>
+        public bool IsVRMode => _isVRMode;
+
+        /// <summary>
         /// Get the character GameObject.
         /// </summary>
         /// <returns>The current character GameObject.</returns>
@@ -189,6 +230,20 @@ namespace FiveSQD.StraightFour.Entity
             if (oldCharacterGO != null)
             {
                 DestroyImmediate(oldCharacterGO);
+            }
+
+            // Update avatar subsystems with the new Animator
+            Animator newAnimator = characterGO.GetComponentInChildren<Animator>();
+            if (newAnimator != null)
+            {
+                if (_avatarAnimationManager != null)
+                {
+                    _avatarAnimationManager.SetAnimator(newAnimator);
+                }
+                if (_avatarRigController != null)
+                {
+                    _avatarRigController.UpdateAnimator(newAnimator);
+                }
             }
 
             GameObject characterLabel = Instantiate(StraightFour.ActiveWorld.entityManager.characterControllerLabelPrefab);
@@ -403,7 +458,179 @@ namespace FiveSQD.StraightFour.Entity
         /// <returns>Whether or not the setting was successful.</returns>
         public override bool Delete(bool synchronize = true)
         {
+            if (_vrLocomotionBridge != null)
+            {
+                _vrLocomotionBridge.Cleanup();
+            }
+            if (_avatarRigController != null)
+            {
+                _avatarRigController.Cleanup();
+            }
+            if (_avatarAnimationManager != null)
+            {
+                _avatarAnimationManager.Cleanup();
+            }
             return base.Delete(synchronize);
+        }
+
+        /// <summary>
+        /// Enable or disable VR mode. When enabled, creates and initializes
+        /// an AvatarRigController for IK-driven VR avatar embodiment.
+        /// </summary>
+        /// <param name="vrMode">True to enable VR mode, false for desktop.</param>
+        public void SetVRMode(bool vrMode)
+        {
+            _isVRMode = vrMode;
+
+            if (vrMode && _avatarRigController == null)
+            {
+                _avatarRigController = gameObject.AddComponent<AvatarRigController>();
+                _avatarRigController.Initialize(_avatarAnimationManager);
+
+                // Disable HeadTrackingDriver to prevent conflict with IK MultiAimConstraint
+                if (_avatarAnimationManager != null && _avatarAnimationManager.HeadTrackingDriver != null)
+                {
+                    _avatarAnimationManager.HeadTrackingDriver.SetEnabled(false);
+                }
+
+                // Enable first-person visibility (hide head from local VR camera)
+                _avatarRigController.SetFirstPersonMode(true);
+
+                // Create VRLocomotionBridge for thumbstick → LocomotionDriver forwarding
+                if (_vrLocomotionBridge == null && _avatarAnimationManager != null
+                    && _avatarAnimationManager.LocomotionDriver != null)
+                {
+                    _vrLocomotionBridge = gameObject.AddComponent<VRLocomotionBridge>();
+                    _vrLocomotionBridge.Initialize(_avatarAnimationManager.LocomotionDriver);
+                }
+            }
+            else if (!vrMode && _avatarRigController != null)
+            {
+                // Restore head visibility before disabling VR
+                _avatarRigController.SetFirstPersonMode(false);
+                _avatarRigController.SetRigWeight(0f);
+
+                // Re-enable HeadTrackingDriver for desktop mode
+                if (_avatarAnimationManager != null && _avatarAnimationManager.HeadTrackingDriver != null)
+                {
+                    _avatarAnimationManager.HeadTrackingDriver.SetEnabled(true);
+                }
+
+                // Cleanup and destroy VRLocomotionBridge
+                if (_vrLocomotionBridge != null)
+                {
+                    _vrLocomotionBridge.Cleanup();
+                    Destroy(_vrLocomotionBridge);
+                    _vrLocomotionBridge = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the current avatar state for serialization and sync broadcasting.
+        /// Orchestrates the distributed PopulateState pattern across all avatar drivers.
+        /// </summary>
+        /// <returns>An AvatarState struct with current animation, IK, and metadata.</returns>
+        public AvatarState GetCurrentState()
+        {
+            var state = default(AvatarState);
+
+            if (_avatarAnimationManager != null && _avatarAnimationManager.IsInitialized)
+            {
+                if (_avatarAnimationManager.LocomotionDriver != null)
+                {
+                    _avatarAnimationManager.LocomotionDriver.PopulateState(ref state);
+                }
+
+                if (_avatarAnimationManager.EmoteDriver != null)
+                {
+                    _avatarAnimationManager.EmoteDriver.PopulateState(ref state);
+                }
+
+                if (_avatarAnimationManager.HeadTrackingDriver != null)
+                {
+                    _avatarAnimationManager.HeadTrackingDriver.PopulateState(ref state);
+                }
+
+                if (_avatarAnimationManager.AvatarLoader != null)
+                {
+                    state.AvatarModelUri = _avatarAnimationManager.AvatarLoader.CurrentAvatarUri;
+                }
+            }
+
+            if (_isVRMode && _avatarRigController != null)
+            {
+                _avatarRigController.PopulateState(ref state);
+            }
+
+            return state;
+        }
+
+        /// <summary>
+        /// Apply a received avatar state to reconstruct animation on a remote avatar.
+        /// Sets locomotion, emote, head tracking, and IK target state.
+        /// </summary>
+        /// <param name="state">The AvatarState to apply.</param>
+        public void ApplyState(AvatarState state)
+        {
+            if (_avatarAnimationManager == null || !_avatarAnimationManager.IsInitialized)
+            {
+                return;
+            }
+
+            // Apply locomotion
+            if (_avatarAnimationManager.LocomotionDriver != null)
+            {
+                float radians = state.LocomotionDirection * Mathf.Deg2Rad;
+                Vector2 input = new Vector2(
+                    Mathf.Sin(radians),
+                    Mathf.Cos(radians)) * state.LocomotionSpeed;
+                _avatarAnimationManager.LocomotionDriver.SetMovementInput(input);
+            }
+
+            // Apply emote
+            if (_avatarAnimationManager.EmoteDriver != null)
+            {
+                if (!string.IsNullOrEmpty(state.ActiveEmote))
+                {
+                    if (state.ActiveEmote != _avatarAnimationManager.EmoteDriver.CurrentEmote)
+                    {
+                        _avatarAnimationManager.EmoteDriver.PlayEmote(state.ActiveEmote);
+                    }
+                }
+                else if (_avatarAnimationManager.EmoteDriver.IsPlayingEmote)
+                {
+                    _avatarAnimationManager.EmoteDriver.StopEmote();
+                }
+            }
+
+            // Apply head tracking
+            if (_avatarAnimationManager.HeadTrackingDriver != null)
+            {
+                _avatarAnimationManager.HeadTrackingDriver.SetHeadLookInput(state.HeadYaw, state.HeadPitch);
+            }
+
+            // Apply IK targets
+            if (state.IsVRMode && _avatarRigController != null)
+            {
+                if (_avatarRigController.HeadTarget != null)
+                {
+                    _avatarRigController.HeadTarget.position = state.HeadPosition;
+                    _avatarRigController.HeadTarget.rotation = state.HeadRotation;
+                }
+
+                if (_avatarRigController.LeftHandTarget != null)
+                {
+                    _avatarRigController.LeftHandTarget.position = state.LeftHandPosition;
+                    _avatarRigController.LeftHandTarget.rotation = state.LeftHandRotation;
+                }
+
+                if (_avatarRigController.RightHandTarget != null)
+                {
+                    _avatarRigController.RightHandTarget.position = state.RightHandPosition;
+                    _avatarRigController.RightHandTarget.rotation = state.RightHandRotation;
+                }
+            }
         }
 
         /// <summary>
@@ -657,16 +884,27 @@ namespace FiveSQD.StraightFour.Entity
         /// <returns>Whether or not the setting was successful.</returns>
         public override bool SetVisibility(bool visible, bool synchronize = true)
         {
-            // Use base functionality.
-            //return base.SetVisibility(visible);
-            if (meshes != null)
+            // When the rigged avatar is active, only toggle renderers on the avatar instance
+            // (not the original characterGO renderers, which the avatar system disabled).
+            if (_avatarAnimationManager != null && _avatarAnimationManager.IsInitialized
+                && _avatarAnimationManager.Animator != null
+                && _avatarAnimationManager.Animator.gameObject != gameObject)
             {
+                // Toggle rigged avatar renderers
+                foreach (MeshRenderer ms in _avatarAnimationManager.Animator.gameObject
+                    .GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    ms.enabled = visible;
+                }
+            }
+            else if (meshes != null)
+            {
+                // No rigged avatar — toggle original characterGO renderers
                 foreach (MeshRenderer ms in characterGO.gameObject.GetComponentsInChildren<MeshRenderer>(true))
                 {
                     ms.enabled = visible;
                 }
             }
-            //characterGO.gameObject.SetActive(visible);
             if (synchronizer != null && synchronize == true)
             {
                 synchronizer.SetVisibility(this, visible);
@@ -809,6 +1047,9 @@ namespace FiveSQD.StraightFour.Entity
             }
 
             SetController(characterController);
+
+            _avatarAnimationManager = gameObject.AddComponent<AvatarAnimationManager>();
+            _avatarAnimationManager.Initialize(AvatarAnimationManager.DefaultAvatarMode);
 
             MakeHidden();
             SetUpHighlightVolume();

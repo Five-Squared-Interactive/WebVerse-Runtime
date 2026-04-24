@@ -75,6 +75,88 @@
     right: var(--spacing-lg);
 }
 
+/* Mobile mode - shared chrome layout (full width, no radius) */
+.mobile-mode .chrome {
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    padding-left: calc(var(--bar-padding-h) + var(--safe-area-left));
+    padding-right: calc(var(--bar-padding-h) + var(--safe-area-right));
+    transition: top 200ms ease, bottom 200ms ease, padding 200ms ease, opacity 200ms ease;
+}
+
+/* Mobile mode - content frame transitions for orientation changes */
+.mobile-mode .content-frame {
+    transition: top 200ms ease, bottom 200ms ease;
+}
+
+/* Mobile mode - bottom-anchored chrome (default) */
+.mobile-mode.chrome-bottom .chrome {
+    top: auto;
+    bottom: var(--safe-area-bottom);
+}
+
+/* Mobile mode - top-anchored chrome */
+.mobile-mode.chrome-top .chrome {
+    bottom: auto;
+    top: var(--safe-area-top);
+}
+
+/* Mobile mode - content frame (bottom chrome) */
+.mobile-mode.chrome-bottom .content-frame {
+    top: 0;
+    bottom: calc(var(--bar-height) + var(--safe-area-bottom));
+}
+
+/* Mobile mode - content frame (top chrome) */
+.mobile-mode.chrome-top .content-frame {
+    top: calc(var(--bar-height) + var(--safe-area-top));
+    bottom: 0;
+}
+
+/* Mobile mode - keyboard open: reposition bottom chrome above keyboard */
+.mobile-mode.chrome-bottom.keyboard-open .chrome {
+    bottom: var(--keyboard-height);
+}
+
+/* Mobile mode - touch target minimums */
+.mobile-mode .nav-btn,
+.mobile-mode .tabs-button,
+.mobile-mode .menu-btn {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+}
+
+/* Mobile mode - tab item 56px height (MFR10) */
+.mobile-mode .tab-item {
+    min-width: var(--touch-target-min);
+    min-height: 56px;
+}
+
+/* Mobile mode - always-visible close button (no hover on touch) */
+.mobile-mode .tab-item__close {
+    opacity: 1;
+}
+
+/* Mobile mode - smaller thumbnail preview (MNFR11) */
+.mobile-mode .thumbnail-preview {
+    width: 128px;
+    height: 72px;
+}
+
+/* Mobile mode - swipe-to-close animation states */
+.tab-item--swiping {
+    transition: none;
+}
+
+.tab-item--snapping {
+    transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.tab-item--dismissing {
+    transition: transform 200ms ease, opacity 200ms ease;
+}
+
 /* Chrome visibility states */
 .chrome--hidden {
     opacity: 0;
@@ -329,6 +411,18 @@
     bottom: calc(100% + var(--spacing-sm));
 }
 
+/* Mobile mode - dropdowns expand upward (bottom-anchored chrome) */
+.mobile-mode.chrome-bottom .dropdown {
+    top: auto;
+    bottom: calc(100% + var(--spacing-sm));
+}
+
+/* Mobile mode - dropdowns expand downward (top-anchored chrome) */
+.mobile-mode.chrome-top .dropdown {
+    bottom: auto;
+    top: calc(100% + var(--spacing-sm));
+}
+
 /* Tab Dropdown */
 .tab-dropdown {
     left: 0;
@@ -457,6 +551,11 @@
     color: var(--color-error);
 }
 
+/* Tab suspended state (memory evicted) */
+.tab-item--suspended {
+    opacity: 0.6;
+}
+
 /* New Tab Button */
 .tab-item--new {
     width: 100%;
@@ -529,6 +628,34 @@
 .vr-mode .toast-container {
     bottom: auto;
     top: var(--spacing-lg);
+}
+
+/* Mobile mode - toast transition for orientation changes */
+.mobile-mode .toast-container {
+    transition: top 200ms ease, bottom 200ms ease;
+}
+
+/* Mobile mode - toasts above chrome bar (bottom chrome) */
+.mobile-mode.chrome-bottom .toast-container {
+    bottom: calc(var(--bar-height) + var(--safe-area-bottom) + var(--spacing-md));
+    top: auto;
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    transform: none;
+}
+
+/* Mobile mode - toasts above chrome bar when keyboard is open (bottom chrome) */
+.mobile-mode.chrome-bottom.keyboard-open .toast-container {
+    bottom: calc(var(--bar-height) + var(--keyboard-height) + var(--spacing-md));
+}
+
+/* Mobile mode - toasts below chrome bar (top chrome) */
+.mobile-mode.chrome-top .toast-container {
+    top: calc(var(--bar-height) + var(--safe-area-top) + var(--spacing-md));
+    bottom: auto;
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    transform: none;
 }
 
 .toast {
@@ -1204,6 +1331,11 @@
     bottom: auto;
 }
 
+.mobile-mode .stats-hud {
+    top: var(--spacing-md);
+    bottom: auto;
+}
+
 .stats-hud__header {
     display: flex;
     align-items: center;
@@ -1576,4 +1708,78 @@
 .thumbnail-preview__placeholder .spinner {
     width: 24px;
     height: 24px;
+}
+
+/* Session Restore Prompt */
+.restore-prompt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.restore-prompt-content {
+    background: var(--color-background);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 280px;
+    max-width: 360px;
+    box-shadow: var(--glass-shadow);
+    text-align: center;
+}
+
+.restore-prompt-content h3 {
+    margin: 0 0 8px 0;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-lg);
+    font-family: var(--font-family);
+}
+
+.restore-prompt-content p {
+    margin: 0 0 20px 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+}
+
+.restore-prompt-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.restore-prompt-actions .btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    cursor: pointer;
+    border: none;
+    transition: opacity 150ms ease;
+}
+
+.restore-prompt-actions .btn:hover {
+    opacity: 0.85;
+}
+
+.restore-prompt-actions .btn--primary {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.restore-prompt-actions .btn--secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: var(--glass-border);
 }

@@ -16,6 +16,7 @@ using System.Collections;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0;
 using FiveSQD.WebVerse.VOSSynchronization;
+using FiveSQD.WebVerse.WorldSync;
 using FiveSQD.StraightFour.Utilities;
 using FiveSQD.StraightFour.Entity;
 using System.Xml;
@@ -1049,6 +1050,38 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         WebVerseRuntime.Instance.vrRig.twoHandedGrabMoveEnabled = vemlDocument.metadata.controlflags.twohandedgrabmove;
                     }
 
+                    // Cache VR control flags for tab-switch restoration
+                    var cachedFlags = new System.Collections.Generic.Dictionary<string, string>();
+
+                    if (vemlDocument.metadata.controlflags.joystickmotionSpecified)
+                        cachedFlags["joystickmotion"] = vemlDocument.metadata.controlflags.joystickmotion.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.leftgrabmoveSpecified)
+                        cachedFlags["leftgrabmove"] = vemlDocument.metadata.controlflags.leftgrabmove.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.rightgrabmoveSpecified)
+                        cachedFlags["rightgrabmove"] = vemlDocument.metadata.controlflags.rightgrabmove.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.lefthandinteractionSpecified)
+                        cachedFlags["lefthandinteraction"] = vemlDocument.metadata.controlflags.lefthandinteraction.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.righthandinteractionSpecified)
+                        cachedFlags["righthandinteraction"] = vemlDocument.metadata.controlflags.righthandinteraction.ToString().ToLower();
+                    if (!string.IsNullOrEmpty(vemlDocument.metadata.controlflags.leftvrpointer))
+                        cachedFlags["leftvrpointer"] = vemlDocument.metadata.controlflags.leftvrpointer.ToLower().Replace("\"", "");
+                    if (!string.IsNullOrEmpty(vemlDocument.metadata.controlflags.rightvrpointer))
+                        cachedFlags["rightvrpointer"] = vemlDocument.metadata.controlflags.rightvrpointer.ToLower().Replace("\"", "");
+                    if (vemlDocument.metadata.controlflags.leftvrpokerSpecified)
+                        cachedFlags["leftvrpoker"] = vemlDocument.metadata.controlflags.leftvrpoker.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.rightvrpokerSpecified)
+                        cachedFlags["rightvrpoker"] = vemlDocument.metadata.controlflags.rightvrpoker.ToString().ToLower();
+                    if (!string.IsNullOrEmpty(vemlDocument.metadata.controlflags.turnlocomotion))
+                        cachedFlags["turnlocomotion"] = vemlDocument.metadata.controlflags.turnlocomotion.ToLower().Replace("\"", "");
+                    if (vemlDocument.metadata.controlflags.twohandedgrabmoveSpecified)
+                        cachedFlags["twohandedgrabmove"] = vemlDocument.metadata.controlflags.twohandedgrabmove.ToString().ToLower();
+
+                    if (cachedFlags.Count > 0 && StraightFour.StraightFour.ActiveWorld != null)
+                    {
+                        StraightFour.StraightFour.ActiveWorld.CachedControlFlags = cachedFlags;
+                        Logging.Log("[VEMLHandler] Cached " + cachedFlags.Count + " VR control flags");
+                    }
+
                     // Set up desktop control flags.
                     if (WebVerseRuntime.Instance.platformInput is Input.Desktop.DesktopInput)
                     {
@@ -1176,6 +1209,62 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                             WebVerseRuntime.Instance.vosSynchronizationManager.AddSynchronizerAndSession(
                                 synchronizationservice.id, parts[0], int.Parse(parts[1]), tls, WebInterface.MQTT.MQTTClient.Transports.TCP,
                                 Vector3.zero, synchronizationservice.session);
+#endif
+                            break;
+
+                        case "wsync":
+#if USE_WEBINTERFACE
+                            bool wsyncTls = false;
+                            string wsyncHostPortSection = "";
+                            if (synchronizationservice.address.StartsWith("wsync://"))
+                            {
+                                wsyncTls = false;
+                                wsyncHostPortSection = synchronizationservice.address.Substring(8);
+                            }
+                            else if (synchronizationservice.address.StartsWith("wsyncs://"))
+                            {
+                                wsyncTls = true;
+                                wsyncHostPortSection = synchronizationservice.address.Substring(9);
+                            }
+                            else
+                            {
+                                wsyncHostPortSection = synchronizationservice.address;
+                            }
+                            string[] wsyncParts = wsyncHostPortSection.Split(':');
+                            if (wsyncParts.Length != 2)
+                            {
+                                Logging.LogWarning("[VEMLHandler->ProcessSynchronizers] VEML document contains invalid WorldSync address: "
+                                    + synchronizationservice.address);
+                                break;
+                            }
+                            string wsyncHost = wsyncParts[0];
+                            if (!int.TryParse(wsyncParts[1], out int wsyncPort))
+                            {
+                                Logging.LogWarning("[VEMLHandler->ProcessSynchronizers] VEML document contains invalid WorldSync port: "
+                                    + synchronizationservice.address);
+                                break;
+                            }
+                            string wsyncTag = synchronizationservice.tag;
+                            string wsyncSession = synchronizationservice.session;
+                            string wsyncId = synchronizationservice.id;
+
+                            try
+                            {
+                                var wsyncConfig = WorldSyncConfig.Builder()
+                                    .WithHost(wsyncHost)
+                                    .WithPort(wsyncPort)
+                                    .WithTls(wsyncTls)
+                                    .WithClientTag(wsyncTag ?? wsyncId)
+                                    .Build();
+                                var wsyncClient = new WorldSyncClient(wsyncConfig);
+                                WebVerseRuntime.Instance.RegisterWorldSyncClient(wsyncId, wsyncClient);
+                                _ = ConnectAndCreateSessionAsync(wsyncClient, wsyncTag, wsyncSession, wsyncId);
+                                Logging.Log($"[VEMLHandler->ProcessSynchronizers] WorldSync client created: id={wsyncId}, host={wsyncHost}, port={wsyncPort}, tls={wsyncTls}, tag={wsyncTag}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logging.LogWarning($"[VEMLHandler->ProcessSynchronizers] Failed to create WorldSync client for id={wsyncId}: {ex.Message}");
+                            }
 #endif
                             break;
 
@@ -4132,5 +4221,44 @@ namespace FiveSQD.WebVerse.Handlers.VEML
 
             return true;
         }
+
+#if USE_WEBINTERFACE
+        /// <summary>
+        /// Asynchronously connect a WorldSyncClient and create or join a session.
+        /// Fire-and-forget from ProcessSynchronizers (which is synchronous).
+        /// </summary>
+        private async System.Threading.Tasks.Task ConnectAndCreateSessionAsync(
+            WorldSyncClient client, string tag, string session, string id)
+        {
+            try
+            {
+                await client.ConnectAsync();
+                if (!string.IsNullOrEmpty(session))
+                {
+                    await client.JoinSessionAsync(session);
+                }
+                else
+                {
+                    await client.CreateSessionAsync(tag ?? id);
+                }
+
+                // Attach scene handler for inbound entity materialization
+                if (client.CurrentSession != null)
+                {
+                    var sceneHandler = new WorldSyncSceneHandler(
+                        client.CurrentSession, client.Config.ClientId);
+                    WebVerseRuntime.Instance.RegisterWorldSyncSceneHandler(id, sceneHandler);
+                    Logging.Log($"[VEMLHandler->ProcessSynchronizers] WorldSync scene handler attached: id={id}");
+                }
+
+                Logging.Log($"[VEMLHandler->ProcessSynchronizers] WorldSync client connected: id={id}");
+            }
+            catch (Exception ex)
+            {
+                Logging.LogWarning($"[VEMLHandler->ProcessSynchronizers] WorldSync connection failed for id={id}: {ex.Message}");
+            }
+        }
+#endif
     }
+
 }

@@ -2803,4 +2803,982 @@ public class TabUITests
     }
 
     #endregion
+
+    #region Mobile Mode Tests
+
+    [Test]
+    public void TabUIController_IsMobile_DefaultsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestMobileMode");
+        var controller = go.AddComponent<TabUIController>();
+
+        Assert.IsFalse(controller.IsMobile);
+        Assert.IsFalse(controller.IsTablet);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_IsMobile_CanBeSet()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestMobileMode");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        Assert.IsTrue(controller.IsMobile);
+
+        controller.IsTablet = true;
+        Assert.IsTrue(controller.IsTablet);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_IsMobile_IndependentOfIsVR()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestMobileMode");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        controller.IsVR = true;
+
+        // Both can be set independently
+        Assert.IsTrue(controller.IsMobile);
+        Assert.IsTrue(controller.IsVR);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_MobileMode_Initialize_DoesNotThrow()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestMobileMode");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        Assert.DoesNotThrow(() => controller.Initialize(null, null));
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_TabletMode_Initialize_DoesNotThrow()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestTabletMode");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        controller.IsTablet = true;
+        Assert.DoesNotThrow(() => controller.Initialize(null, null));
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_GetModeString_DefaultsToDesktop()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestModeString");
+        var controller = go.AddComponent<TabUIController>();
+
+        Assert.AreEqual("desktop", controller.GetModeString());
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_GetModeString_ReturnsMobileWhenIsMobile()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestModeString");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        Assert.AreEqual("mobile", controller.GetModeString());
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_GetModeString_ReturnsTabletWhenIsTablet()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestModeString");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        controller.IsTablet = true;
+        Assert.AreEqual("tablet", controller.GetModeString());
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_GetModeString_ReturnsVrWhenIsVR()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestModeString");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsVR = true;
+        Assert.AreEqual("vr", controller.GetModeString());
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_GetModeString_MobileTakesPriorityOverVR()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestModeString");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        controller.IsVR = true;
+        Assert.AreEqual("mobile", controller.GetModeString());
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_ChromePosition_DefaultsToBottom()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestChromePosition");
+        var controller = go.AddComponent<TabUIController>();
+
+        Assert.AreEqual("bottom", controller.ChromePosition);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_ChromePosition_CanBeSetToTop()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestChromePosition");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.ChromePosition = "top";
+        Assert.AreEqual("top", controller.ChromePosition);
+
+        controller.ChromePosition = "bottom";
+        Assert.AreEqual("bottom", controller.ChromePosition);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void TabUIController_GetSafeAreaInsets_ReturnsZeroWhenFullScreen()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // When safeArea equals full screen, all insets should be 0
+        var insets = TabUIController.GetSafeAreaInsets(
+            new Rect(0, 0, 1080, 2400), 1080, 2400);
+
+        Assert.AreEqual(0f, insets.top);
+        Assert.AreEqual(0f, insets.bottom);
+        Assert.AreEqual(0f, insets.left);
+        Assert.AreEqual(0f, insets.right);
+
+    }
+
+    [Test]
+    public void TabUIController_GetSafeAreaInsets_ReturnsCorrectInsets()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Simulate a device with notch (top 132px) and home indicator (bottom 102px)
+        // safeArea: x=0, y=102, width=1080, height=2166  (total=2400)
+        var insets = TabUIController.GetSafeAreaInsets(
+            new Rect(0, 102, 1080, 2166), 1080, 2400);
+
+        Assert.AreEqual(132f, insets.top);   // 2400 - (102 + 2166) = 132
+        Assert.AreEqual(102f, insets.bottom);
+        Assert.AreEqual(0f, insets.left);
+        Assert.AreEqual(0f, insets.right);
+    }
+
+    [Test]
+    public void TabUIController_SafeAreaAndChromePosition_Initialize_DoesNotThrow()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        GameObject go = new GameObject("TestSafeArea");
+        var controller = go.AddComponent<TabUIController>();
+
+        controller.IsMobile = true;
+        controller.ChromePosition = "top";
+        Assert.DoesNotThrow(() => controller.Initialize(null, null));
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    #endregion
+
+    #region Orientation Monitoring Tests
+
+    [Test]
+    public void TabUIController_GetSafeAreaInsets_ReturnsLandscapeInsets()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Landscape on a notched device: notch on left side
+        // Screen 2400x1080, safeArea: x=132, y=0, width=2136, height=1080
+        var insets = TabUIController.GetSafeAreaInsets(
+            new Rect(132, 0, 2136, 1080), 2400, 1080);
+        Assert.AreEqual(0f, insets.top);
+        Assert.AreEqual(0f, insets.bottom);
+        Assert.AreEqual(132f, insets.left);
+        Assert.AreEqual(132f, insets.right); // 2400 - (132 + 2136) = 132
+    }
+
+    [Test]
+    public void TabUIController_GetSafeAreaInsets_PortraitVsLandscapeDiffer()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Portrait: notch top, home indicator bottom
+        var portrait = TabUIController.GetSafeAreaInsets(
+            new Rect(0, 102, 1080, 2166), 1080, 2400);
+        // Landscape: notch on left
+        var landscape = TabUIController.GetSafeAreaInsets(
+            new Rect(132, 0, 2136, 1080), 2400, 1080);
+
+        // Portrait has top/bottom insets, landscape has left/right
+        Assert.AreNotEqual(portrait.top, landscape.top);
+        Assert.AreNotEqual(portrait.left, landscape.left);
+    }
+
+    [Test]
+    public void TabUIController_DetectOrientationChange_ReturnsTrueWhenChanged()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Test the static detection helper
+        Assert.IsTrue(TabUIController.HasOrientationChanged(
+            ScreenOrientation.Portrait, ScreenOrientation.LandscapeLeft));
+    }
+
+    [Test]
+    public void TabUIController_DetectOrientationChange_ReturnsFalseWhenSame()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        Assert.IsFalse(TabUIController.HasOrientationChanged(
+            ScreenOrientation.Portrait, ScreenOrientation.Portrait));
+    }
+
+    #endregion
+
+    #region Keyboard State Tests
+
+    [Test]
+    public void TabUIController_FormatKeyboardStateMessage_VisibleTrue()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        string js = TabUIController.FormatKeyboardStateMessage(true, 300);
+        Assert.IsTrue(js.Contains("setKeyboardState"));
+        Assert.IsTrue(js.Contains("true"));
+        Assert.IsTrue(js.Contains("300"));
+    }
+
+    [Test]
+    public void TabUIController_FormatKeyboardStateMessage_VisibleFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        string js = TabUIController.FormatKeyboardStateMessage(false, 0);
+        Assert.IsTrue(js.Contains("setKeyboardState"));
+        Assert.IsTrue(js.Contains("false"));
+        Assert.IsTrue(js.Contains("0"));
+    }
+
+    [Test]
+    public void TabUIController_GetKeyboardHeight_ReturnsHeightFromRect()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Keyboard area: y=800, height=280
+        int height = TabUIController.GetKeyboardHeight(new Rect(0, 800, 1080, 280));
+        Assert.AreEqual(280, height);
+    }
+
+    [Test]
+    public void TabUIController_GetKeyboardHeight_ReturnsZeroWhenNoKeyboard()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // No keyboard: area is zero rect
+        int height = TabUIController.GetKeyboardHeight(new Rect(0, 0, 0, 0));
+        Assert.AreEqual(0, height);
+    }
+
+    #endregion
+
+    #region Edge Tap and Auto-Hide Tests
+
+    [Test]
+    public void TabUIController_IsEdgeTap_ReturnsTrueForTopEdge()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = TabUIController.IsEdgeTap(10f, 800, "top");
+        Assert.IsTrue(result);
+    }
+
+    [Test]
+    public void TabUIController_IsEdgeTap_ReturnsTrueForBottomEdge()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = TabUIController.IsEdgeTap(790f, 800, "bottom");
+        Assert.IsTrue(result);
+    }
+
+    [Test]
+    public void TabUIController_IsEdgeTap_ReturnsFalseForCenterScreen()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = TabUIController.IsEdgeTap(400f, 800, "bottom");
+        Assert.IsFalse(result);
+    }
+
+    [Test]
+    public void TabUIController_FormatEdgeTapMessage_ReturnsCorrectJsString()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        string js = TabUIController.FormatEdgeTapMessage(10, 800);
+        Assert.IsTrue(js.Contains("handleEdgeTap"));
+        Assert.IsTrue(js.Contains("10"));
+        Assert.IsTrue(js.Contains("800"));
+    }
+
+    #endregion
+
+    #region Mobile Back Handler Tests
+
+    [Test]
+    public void MobileBackHandler_EvaluateBackAction_AndroidWithHistory_ReturnsNavigateBack()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var result = MobileBackHandler.EvaluateBackAction(hasHistory: true, chromeVisible: true, hasOverlay: false, "android");
+        Assert.AreEqual(MobileBackHandler.BackAction.NavigateBack, result);
+    }
+
+    [Test]
+    public void MobileBackHandler_EvaluateBackAction_AndroidNoHistoryChromeVisible_ReturnsHideChrome()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var result = MobileBackHandler.EvaluateBackAction(hasHistory: false, chromeVisible: true, hasOverlay: false, "android");
+        Assert.AreEqual(MobileBackHandler.BackAction.HideChrome, result);
+    }
+
+    [Test]
+    public void MobileBackHandler_EvaluateBackAction_AndroidNoHistoryChromeHidden_ReturnsShowExitDialog()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var result = MobileBackHandler.EvaluateBackAction(hasHistory: false, chromeVisible: false, hasOverlay: false, "android");
+        Assert.AreEqual(MobileBackHandler.BackAction.ShowExitDialog, result);
+    }
+
+    [Test]
+    public void MobileBackHandler_EvaluateBackAction_IOSNoHistoryChromeHidden_ReturnsNone()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var result = MobileBackHandler.EvaluateBackAction(hasHistory: false, chromeVisible: false, hasOverlay: false, "ios");
+        Assert.AreEqual(MobileBackHandler.BackAction.None, result);
+    }
+
+    [Test]
+    public void MobileBackHandler_EvaluateBackAction_OverlayOpen_ReturnsCloseOverlay()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var result = MobileBackHandler.EvaluateBackAction(hasHistory: true, chromeVisible: true, hasOverlay: true, "android");
+        Assert.AreEqual(MobileBackHandler.BackAction.CloseOverlay, result);
+    }
+
+    #endregion
+
+    #region Mobile Tab Limit Tests
+
+    [Test]
+    public void FormatSetMobileTabLimitMessage_WithLimit5_ReturnsCorrectJSString()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        string js = TabUIController.FormatSetMobileTabLimitMessage(5);
+        Assert.AreEqual("window.tabUI?.setMobileTabLimit(5);", js);
+    }
+
+    [Test]
+    public void FormatSetMobileTabLimitMessage_WithLimit0_StillSendsValue()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        string js = TabUIController.FormatSetMobileTabLimitMessage(0);
+        Assert.AreEqual("window.tabUI?.setMobileTabLimit(0);", js);
+    }
+
+    [Test]
+    public void MobileTabLimitHandler_ShouldBlockNewTab_AtLimit_ReturnsTrue()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = MobileTabLimitHandler.ShouldBlockNewTab(currentCount: 5, limit: 5);
+        Assert.IsTrue(result);
+    }
+
+    [Test]
+    public void MobileTabLimitHandler_ShouldBlockNewTab_UnderLimit_ReturnsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = MobileTabLimitHandler.ShouldBlockNewTab(currentCount: 4, limit: 5);
+        Assert.IsFalse(result);
+    }
+
+    #endregion
+
+    #region Gesture Conflict Handler Tests
+
+    [Test]
+    public void GestureConflictHandler_ShouldSuppressSwipe_InsideLeftEdgeZone_ReturnsTrue()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = GestureConflictHandler.ShouldSuppressSwipe(startX: 10, screenWidth: 390);
+        Assert.IsTrue(result);
+    }
+
+    [Test]
+    public void GestureConflictHandler_ShouldSuppressSwipe_OutsideEdgeZone_ReturnsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        bool result = GestureConflictHandler.ShouldSuppressSwipe(startX: 25, screenWidth: 390);
+        Assert.IsFalse(result);
+    }
+
+    [Test]
+    public void GestureConflictHandler_ShouldSuppressSwipe_InsideRightEdgeZone_ReturnsTrue()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // screenWidth=390, EdgeZone=20 → startX > 370 is suppressed
+        bool result = GestureConflictHandler.ShouldSuppressSwipe(startX: 380, screenWidth: 390);
+        Assert.IsTrue(result);
+    }
+
+    [Test]
+    public void GestureConflictHandler_ShouldSuppressSwipe_LeftBoundaryExact_ReturnsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // startX=20, EdgeZone=20 → check is startX < 20, so 20 is NOT suppressed
+        bool result = GestureConflictHandler.ShouldSuppressSwipe(startX: 20, screenWidth: 390);
+        Assert.IsFalse(result);
+    }
+
+    [Test]
+    public void GestureConflictHandler_ShouldSuppressSwipe_RightBoundaryExact_ReturnsFalse()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // screenWidth=390, EdgeZone=20 → boundary is 370; check is startX > 370, so 370 is NOT suppressed
+        bool result = GestureConflictHandler.ShouldSuppressSwipe(startX: 370, screenWidth: 390);
+        Assert.IsFalse(result);
+    }
+
+    #endregion
+
+    #region TabSessionSerializer Tests
+
+    [Test]
+    public void TabSessionSerializer_Serialize_WithTwoTabs_ReturnsValidJsonWithBothTabs()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var tabs = new List<TabSessionSerializer.TabEntry>
+        {
+            new TabSessionSerializer.TabEntry { id = "tab-1", url = "http://world1.com", displayName = "World 1", lastActiveAt = "2026-04-15T10:00:00Z" },
+            new TabSessionSerializer.TabEntry { id = "tab-2", url = "http://world2.com", displayName = "World 2", lastActiveAt = "2026-04-15T10:05:00Z" }
+        };
+
+        // Act
+        string json = TabSessionSerializer.Serialize(tabs, "tab-1", "bottom");
+
+        // Assert
+        Assert.IsNotNull(json);
+        var data = TabSessionSerializer.Deserialize(json);
+        Assert.AreEqual(2, data.tabs.Count);
+        Assert.AreEqual("tab-1", data.tabs[0].id);
+        Assert.AreEqual("http://world1.com", data.tabs[0].url);
+        Assert.AreEqual("World 1", data.tabs[0].displayName);
+        Assert.AreEqual("tab-2", data.tabs[1].id);
+        Assert.AreEqual("http://world2.com", data.tabs[1].url);
+        Assert.AreEqual("World 2", data.tabs[1].displayName);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Deserialize_RoundTrip_ReturnsEquivalentData()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var tabs = new List<TabSessionSerializer.TabEntry>
+        {
+            new TabSessionSerializer.TabEntry { id = "tab-a", url = "http://alpha.com", displayName = "Alpha", lastActiveAt = "2026-04-15T12:00:00Z" },
+            new TabSessionSerializer.TabEntry { id = "tab-b", url = "http://beta.com", displayName = "Beta", lastActiveAt = "2026-04-15T12:30:00Z" }
+        };
+        string json = TabSessionSerializer.Serialize(tabs, "tab-b", "top");
+
+        // Act
+        var result = TabSessionSerializer.Deserialize(json);
+
+        // Assert
+        Assert.AreEqual(2, result.tabs.Count);
+        Assert.AreEqual("tab-b", result.activeTabId);
+        Assert.AreEqual("top", result.chromePosition);
+        Assert.AreEqual("tab-a", result.tabs[0].id);
+        Assert.AreEqual("http://alpha.com", result.tabs[0].url);
+        Assert.AreEqual("tab-b", result.tabs[1].id);
+        Assert.AreEqual("http://beta.com", result.tabs[1].url);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Serialize_WithEmptyTabList_ReturnsValidJsonWithEmptyArray()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var tabs = new List<TabSessionSerializer.TabEntry>();
+
+        // Act
+        string json = TabSessionSerializer.Serialize(tabs, "", "bottom");
+
+        // Assert
+        Assert.IsNotNull(json);
+        var data = TabSessionSerializer.Deserialize(json);
+        Assert.AreEqual(0, data.tabs.Count);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Deserialize_WithNull_ReturnsEmptySession()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Act
+        var result = TabSessionSerializer.Deserialize(null);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(0, result.tabs.Count);
+        Assert.IsNull(result.activeTabId);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Deserialize_WithEmptyString_ReturnsEmptySession()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Act
+        var result = TabSessionSerializer.Deserialize("");
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(0, result.tabs.Count);
+        Assert.IsNull(result.activeTabId);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Deserialize_WithMalformedJson_ReturnsEmptySession()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Act
+        var result = TabSessionSerializer.Deserialize("{not valid json!!!");
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(0, result.tabs.Count);
+        Assert.IsNull(result.activeTabId);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Serialize_IncludesActiveTabId()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var tabs = new List<TabSessionSerializer.TabEntry>
+        {
+            new TabSessionSerializer.TabEntry { id = "tab-1", url = "http://world1.com", displayName = "World 1" },
+            new TabSessionSerializer.TabEntry { id = "tab-2", url = "http://world2.com", displayName = "World 2" }
+        };
+
+        // Act
+        string json = TabSessionSerializer.Serialize(tabs, "tab-2", "bottom");
+        var data = TabSessionSerializer.Deserialize(json);
+
+        // Assert
+        Assert.AreEqual("tab-2", data.activeTabId);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Serialize_IncludesChromePosition()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var tabs = new List<TabSessionSerializer.TabEntry>
+        {
+            new TabSessionSerializer.TabEntry { id = "tab-1", url = "http://world1.com", displayName = "World 1" }
+        };
+
+        // Act
+        string json = TabSessionSerializer.Serialize(tabs, "tab-1", "top");
+        var data = TabSessionSerializer.Deserialize(json);
+
+        // Assert
+        Assert.AreEqual("top", data.chromePosition);
+    }
+
+    [Test]
+    public void TabSessionSerializer_Serialize_IncludesTimestamp()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var tabs = new List<TabSessionSerializer.TabEntry>
+        {
+            new TabSessionSerializer.TabEntry { id = "tab-1", url = "http://world1.com", displayName = "World 1" }
+        };
+
+        // Act
+        string json = TabSessionSerializer.Serialize(tabs, "tab-1", "bottom");
+        var data = TabSessionSerializer.Deserialize(json);
+
+        // Assert
+        Assert.IsNotNull(data.timestamp);
+        Assert.IsNotEmpty(data.timestamp);
+        // Verify it's a valid ISO 8601 timestamp
+        DateTime parsed;
+        bool isValid = DateTime.TryParse(data.timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out parsed);
+        Assert.IsTrue(isValid, "Timestamp should be valid ISO 8601");
+    }
+
+    #endregion
+
+    #region TabSessionSerializer Persistence Tests
+
+    [Test]
+    public void TabSessionSerializer_SaveSession_WritesToPlayerPrefs()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var sessionData = new TabSessionSerializer.SessionData
+        {
+            tabs = new List<TabSessionSerializer.TabEntry>
+            {
+                new TabSessionSerializer.TabEntry { id = "tab-1", url = "http://world1.com", displayName = "World 1" }
+            },
+            activeTabId = "tab-1",
+            chromePosition = "bottom",
+            timestamp = DateTime.UtcNow.ToString("o")
+        };
+
+        // Act
+        TabSessionSerializer.SaveSession(sessionData);
+
+        // Assert
+        Assert.IsTrue(PlayerPrefs.HasKey("TabUI_Session"));
+        string stored = PlayerPrefs.GetString("TabUI_Session");
+        Assert.IsNotNull(stored);
+        Assert.IsNotEmpty(stored);
+        var deserialized = TabSessionSerializer.Deserialize(stored);
+        Assert.AreEqual("tab-1", deserialized.activeTabId);
+
+        // Cleanup
+        PlayerPrefs.DeleteKey("TabUI_Session");
+    }
+
+    [Test]
+    public void TabSessionSerializer_LoadSession_ReadsFromPlayerPrefs()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        var sessionData = new TabSessionSerializer.SessionData
+        {
+            tabs = new List<TabSessionSerializer.TabEntry>
+            {
+                new TabSessionSerializer.TabEntry { id = "tab-x", url = "http://test.com", displayName = "Test" }
+            },
+            activeTabId = "tab-x",
+            chromePosition = "top",
+            timestamp = DateTime.UtcNow.ToString("o")
+        };
+        TabSessionSerializer.SaveSession(sessionData);
+
+        // Act
+        var loaded = TabSessionSerializer.LoadSession();
+
+        // Assert
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual(1, loaded.tabs.Count);
+        Assert.AreEqual("tab-x", loaded.activeTabId);
+        Assert.AreEqual("top", loaded.chromePosition);
+
+        // Cleanup
+        PlayerPrefs.DeleteKey("TabUI_Session");
+    }
+
+    [Test]
+    public void TabSessionSerializer_HasSavedSession_ReturnsTrueWhenKeyExists()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        PlayerPrefs.SetString("TabUI_Session", "{}");
+        PlayerPrefs.Save();
+
+        // Act & Assert
+        Assert.IsTrue(TabSessionSerializer.HasSavedSession());
+
+        // Cleanup
+        PlayerPrefs.DeleteKey("TabUI_Session");
+    }
+
+    [Test]
+    public void TabSessionSerializer_HasSavedSession_ReturnsFalseWhenKeyMissing()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        PlayerPrefs.DeleteKey("TabUI_Session");
+
+        // Act & Assert
+        Assert.IsFalse(TabSessionSerializer.HasSavedSession());
+    }
+
+    [Test]
+    public void TabSessionSerializer_ClearSession_DeletesPlayerPrefsKey()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        PlayerPrefs.SetString("TabUI_Session", "{\"tabs\":[]}");
+        PlayerPrefs.Save();
+        Assert.IsTrue(PlayerPrefs.HasKey("TabUI_Session"));
+
+        // Act
+        TabSessionSerializer.ClearSession();
+
+        // Assert
+        Assert.IsFalse(PlayerPrefs.HasKey("TabUI_Session"));
+    }
+
+    #endregion
+
+    #region MemoryPressureHandler Tests
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_WithThreeBackgroundTabs_ReturnsOldestTabId()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange — 3 background tabs, tab-1 is oldest
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Loaded, new DateTime(2026, 4, 1)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Loaded, new DateTime(2026, 4, 3)),
+            CreateTabWithState("tab-3", "http://c.com", TabLoadState.Loaded, new DateTime(2026, 4, 2))
+        };
+
+        // Act
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-2");
+
+        // Assert — tab-1 is oldest by LastActiveAt
+        Assert.AreEqual(1, evicted.Count);
+        Assert.AreEqual("tab-1", evicted[0]);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_WithActiveTabOnly_ReturnsEmptyList()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Loaded, new DateTime(2026, 4, 1))
+        };
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-1");
+
+        Assert.AreEqual(0, evicted.Count);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_WithAllSuspended_ReturnsEmptyList()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Suspended, new DateTime(2026, 4, 1)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Suspended, new DateTime(2026, 4, 2))
+        };
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-2");
+
+        Assert.AreEqual(0, evicted.Count);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_NeverIncludesActiveTab()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Active tab is the oldest, but should never be evicted
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Loaded, new DateTime(2026, 4, 1)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Loaded, new DateTime(2026, 4, 3))
+        };
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-1");
+
+        Assert.AreEqual(1, evicted.Count);
+        Assert.AreEqual("tab-2", evicted[0]);
+        Assert.IsFalse(evicted.Contains("tab-1"));
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_ReturnsOldestByLastActiveAt_NotCreationOrder()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // tab-2 was created second but accessed earlier than tab-1
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Loaded, new DateTime(2026, 4, 5)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Loaded, new DateTime(2026, 4, 2))
+        };
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "active-tab");
+
+        Assert.AreEqual(1, evicted.Count);
+        Assert.AreEqual("tab-2", evicted[0]);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_WithCountTwo_ReturnsTwoOldestTabs()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Loaded, new DateTime(2026, 4, 1)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Loaded, new DateTime(2026, 4, 3)),
+            CreateTabWithState("tab-3", "http://c.com", TabLoadState.Loaded, new DateTime(2026, 4, 2)),
+            CreateTabWithState("tab-4", "http://d.com", TabLoadState.Loaded, new DateTime(2026, 4, 4))
+        };
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-4", 2);
+
+        Assert.AreEqual(2, evicted.Count);
+        Assert.AreEqual("tab-1", evicted[0]); // oldest
+        Assert.AreEqual("tab-3", evicted[1]); // second oldest
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_WithEmptyTabList_ReturnsEmptyList()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tabs = new List<TabState>();
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "any-id");
+
+        Assert.AreEqual(0, evicted.Count);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_SkipsSuspendedTabs()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // tab-1 is oldest but already suspended, tab-2 is next oldest and loaded
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Suspended, new DateTime(2026, 4, 1)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Loaded, new DateTime(2026, 4, 2)),
+            CreateTabWithState("tab-3", "http://c.com", TabLoadState.Loaded, new DateTime(2026, 4, 3))
+        };
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-3");
+
+        Assert.AreEqual(1, evicted.Count);
+        Assert.AreEqual("tab-2", evicted[0]);
+    }
+
+    #endregion
+
+    #region MemoryPressureHandler Eviction Execution Tests
+
+    [Test]
+    public void MemoryPressureHandler_ExecuteEviction_SetsLoadStateToSuspended()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tab = new TabState("http://example.com", "Test");
+        tab.LoadState = TabLoadState.Loaded;
+
+        MemoryPressureHandler.ExecuteEviction(tab);
+
+        Assert.AreEqual(TabLoadState.Suspended, tab.LoadState);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_ExecuteEviction_PreservesUrlAndDisplayName()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tab = new TabState("http://example.com", "My World");
+        tab.LoadState = TabLoadState.Loaded;
+
+        MemoryPressureHandler.ExecuteEviction(tab);
+
+        Assert.AreEqual("http://example.com", tab.WorldUrl);
+        Assert.AreEqual("My World", tab.GetDisplayName());
+    }
+
+    [Test]
+    public void MemoryPressureHandler_ExecuteEviction_PreservesTabId()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tab = new TabState("http://example.com", "Test");
+        tab.LoadState = TabLoadState.Loaded;
+        string originalId = tab.Id;
+
+        MemoryPressureHandler.ExecuteEviction(tab);
+
+        Assert.AreEqual(originalId, tab.Id);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_WithNullTabs_ReturnsEmptyList()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        var evicted = MemoryPressureHandler.EvaluateEviction(null, "any-id");
+
+        Assert.AreEqual(0, evicted.Count);
+    }
+
+    [Test]
+    public void MemoryPressureHandler_ExecuteEviction_WithNullTab_DoesNotThrow()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        Assert.DoesNotThrow(() => MemoryPressureHandler.ExecuteEviction(null));
+    }
+
+    [Test]
+    public void MemoryPressureHandler_EvaluateEviction_CountExceedsEligible_ReturnsOnlyAvailable()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        var tabs = new List<TabState>
+        {
+            CreateTabWithState("tab-1", "http://a.com", TabLoadState.Loaded, new DateTime(2026, 4, 1)),
+            CreateTabWithState("tab-2", "http://b.com", TabLoadState.Loaded, new DateTime(2026, 4, 2))
+        };
+
+        // Request 5 evictions but only 2 eligible (active tab excluded = 1 eligible if tab-2 is active)
+        var evicted = MemoryPressureHandler.EvaluateEviction(tabs, "tab-2", 5);
+
+        Assert.AreEqual(1, evicted.Count);
+        Assert.AreEqual("tab-1", evicted[0]);
+    }
+
+    #endregion
+
+    #region Test Helpers
+
+    private TabState CreateTabWithState(string id, string url, TabLoadState loadState, DateTime lastActiveAt)
+    {
+        var tab = new TabState(url);
+        // Use reflection to set Id since it's normally auto-generated
+        typeof(TabState).GetProperty("Id")?.SetValue(tab, id);
+        Assert.AreEqual(id, tab.Id, "CreateTabWithState: reflection failed to set Id");
+        tab.LoadState = loadState;
+        tab.LastActiveAt = lastActiveAt;
+        return tab;
+    }
+
+    #endregion
 }

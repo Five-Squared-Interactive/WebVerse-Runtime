@@ -85,6 +85,37 @@
     --spacing-md: 24px;
 }
 
+/* Mobile Mode - Touch-optimized targets */
+.mobile-mode {
+    --bar-height: 56px;
+    --bar-padding-h: 16px;
+    --bar-padding-v: 8px;
+    --bar-radius: 0px;
+    --tabs-button-size: 48px;
+    --nav-btn-size: 44px;
+    --tab-icon-size: 28px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --spacing-md: 12px;
+    --touch-target-min: 44px;
+    --safe-area-top: 0px;
+    --safe-area-bottom: 0px;
+    --safe-area-left: 0px;
+    --safe-area-right: 0px;
+    --keyboard-height: 0px;
+}
+
+/* Tablet Mode - Wider spacing on larger screens */
+.mobile-mode.tablet-mode {
+    --bar-height: 56px;
+    --bar-padding-h: 24px;
+    --bar-padding-v: 10px;
+    --tabs-button-size: 52px;
+    --nav-btn-size: 48px;
+    --spacing-md: 16px;
+    --touch-target-min: 48px;
+}
+
 /* Light Mode */
 .light-mode {
     --color-background: rgba(255, 255, 255, 0.85);

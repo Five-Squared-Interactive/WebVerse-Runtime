@@ -129,6 +129,11 @@ namespace FiveSQD.WebVerse.Handlers.Javascript
             new System.Tuple<string, System.Type>("VOSSynchronization", typeof(APIs.VOSSynchronization.VOSSynchronization)),
             new System.Tuple<string, System.Type>("VSSTransport",
                 typeof(APIs.VOSSynchronization.VOSSynchronization.Transport)),
+
+            // WorldSync (wsync) — parallel JS API to VOSSynchronization for the wsync stack.
+            new System.Tuple<string, System.Type>("WorldSync", typeof(APIs.WorldSync.WorldSync)),
+            new System.Tuple<string, System.Type>("WSyncTransport",
+                typeof(APIs.WorldSync.WorldSync.Transport)),
 #endif
 
             // Environment.

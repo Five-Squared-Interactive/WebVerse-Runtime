@@ -96,9 +96,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
         /// <returns>True if capture started successfully.</returns>
         public bool StartCapture()
         {
-#if UNITY_WEBGL
-            return false;
-#else
             if (_disposed)
             {
                 throw new ObjectDisposedException(nameof(VoiceInputEntity));
@@ -156,7 +153,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
                 throw new VoiceException(VoiceErrorCode.VOICE_ENCODING_ERROR,
                     $"Failed to start microphone: {ex.Message}", ex);
             }
-#endif
         }
 
         /// <summary>
@@ -164,9 +160,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
         /// </summary>
         public void StopCapture()
         {
-#if UNITY_WEBGL
-            
-#else
             if (!IsCapturing)
             {
                 return;
@@ -204,7 +197,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
             }
 
             Logging.Log("[VoiceInputEntity] Stopped capture.");
-#endif
         }
 
         /// <summary>
@@ -217,8 +209,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
                 UnityEngine.Android.Permission.Microphone);
 #elif UNITY_IOS && !UNITY_EDITOR
             return Application.HasUserAuthorization(UserAuthorization.Microphone);
-#elif UNITY_WEBGL && !UNITY_EDITOR
-            return false;
 #else
             // On desktop/WebGL, assume permission is available if devices exist
             return Microphone.devices.Length > 0;
@@ -246,8 +236,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
                 UnityEngine.Android.Permission.Microphone, callbacks);
 #elif UNITY_IOS && !UNITY_EDITOR
             StartCoroutine(RequestIOSMicrophonePermission(callback));
-#elif UNITY_WEBGL
-
 #else
             callback?.Invoke(HasMicrophonePermission());
 #endif
@@ -266,11 +254,7 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
         /// </summary>
         public string[] GetAvailableDevices()
         {
-#if UNITY_WEBGL
-            return new string[]{};
-#else
             return Microphone.devices;
-#endif
         }
 
         private void Update()
@@ -285,7 +269,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
 
         private void ProcessMicrophoneData()
         {
-#if !UNITY_WEBGL
             int currentPosition = Microphone.GetPosition(DeviceName);
 
             if (currentPosition < 0)
@@ -334,7 +317,6 @@ namespace FiveSQD.WebVerse.Handlers.Voice.Entities
 
                 ProcessFrame(frameSamples);
             }
-#endif
         }
 
         private void ProcessFrame(float[] frameSamples)

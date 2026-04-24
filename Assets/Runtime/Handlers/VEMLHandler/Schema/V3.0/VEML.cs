@@ -3820,6 +3820,8 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
 
         private string sessionField;
 
+        private string tagField;
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string type
@@ -3873,6 +3875,20 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
             set
             {
                 this.sessionField = value;
+            }
+        }
+
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string tag
+        {
+            get
+            {
+                return this.tagField;
+            }
+            set
+            {
+                this.tagField = value;
             }
         }
     }
