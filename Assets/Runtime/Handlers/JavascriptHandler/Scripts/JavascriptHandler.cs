@@ -3,6 +3,7 @@
 using Jint;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.StraightFour.Utilities;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.WorldTypes;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking;
@@ -158,6 +159,11 @@ namespace FiveSQD.WebVerse.Handlers.Javascript
         /// Reference to the JS engine instance.
         /// </summary>
         private Engine engine;
+
+        /// <summary>
+        /// Public accessor for the Jint engine, used by event system to create JsValue objects.
+        /// </summary>
+        public Engine Engine => engine;
 
         /// <summary>
         /// Pending scripts to be run and the remaining milliseconds left before running.
@@ -571,6 +577,56 @@ namespace FiveSQD.WebVerse.Handlers.Javascript
             foreach (System.Tuple<string, System.Type> api in apis)
             {
                 RegisterAPI(api.Item1, api.Item2);
+            }
+
+            RegisterEventsConstants();
+        }
+
+        /// <summary>
+        /// Register the Events constants as a plain JS object with nested structure.
+        /// Jint's SetValue(typeof()) does not expose nested static classes as navigable
+        /// JS properties, so we build the object structure directly in JavaScript.
+        /// </summary>
+        private void RegisterEventsConstants()
+        {
+            if (engine == null)
+            {
+                LogSystem.LogError("[JavascriptHandler->RegisterEventsConstants] No engine reference.");
+                return;
+            }
+
+            try
+            {
+                // Build Events as a frozen JS object with nested structure.
+                // Values are sourced from the C# Events constants to maintain single source of truth.
+                engine.Execute(@"
+                    var Events = Object.freeze({
+                        World: Object.freeze({
+                            Load: '" + Events.World.Load + @"',
+                            Ready: '" + Events.World.Ready + @"',
+                            Error: '" + Events.World.Error + @"'
+                        }),
+                        Entity: Object.freeze({
+                            Spawn: '" + Events.Entity.Spawn + @"',
+                            Destroy: '" + Events.Entity.Destroy + @"',
+                            Position: '" + Events.Entity.Position + @"',
+                            Rotation: '" + Events.Entity.Rotation + @"',
+                            Scale: '" + Events.Entity.Scale + @"',
+                            Visibility: '" + Events.Entity.Visibility + @"'
+                        }),
+                        Collision: Object.freeze({
+                            Enter: '" + Events.Collision.Enter + @"',
+                            Exit: '" + Events.Collision.Exit + @"'
+                        })
+                    });
+                ");
+
+                // Expose IsValid as a global function for dev-mode event name checking.
+                engine.SetValue("EventsIsValid", new System.Func<object, bool>(Events.IsValid));
+            }
+            catch (System.Exception e)
+            {
+                LogSystem.LogError("[JavascriptHandler->RegisterEventsConstants] " + e);
             }
         }
 
