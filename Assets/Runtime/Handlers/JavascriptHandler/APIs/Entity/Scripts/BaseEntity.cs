@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.WorldTypes;
 using FiveSQD.WebVerse.Utilities;
 
@@ -10,7 +11,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
     /// <summary>
     /// Class for a base entity.
     /// </summary>
-    public class BaseEntity
+    public class BaseEntity : IEventEmitter
     {
         /// <summary>
         /// ID of the entity.
@@ -314,8 +315,16 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
 
-            return internalEntity.SetPosition(new UnityEngine.Vector3(position.x, position.y, position.z),
+            bool result = internalEntity.SetPosition(new UnityEngine.Vector3(position.x, position.y, position.z),
                 local, synchronizeChange);
+
+            // Emit position change event if listeners are registered
+            if (result && Listeners.ContainsKey(Core.Events.Entity.Position))
+            {
+                ((Core.IEventEmitter)this).Emit(Core.Events.Entity.Position);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -350,8 +359,15 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
 
-            return internalEntity.SetRotation(new UnityEngine.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
+            bool result = internalEntity.SetRotation(new UnityEngine.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
                 local, synchronizeChange);
+
+            if (result && Listeners.ContainsKey(Core.Events.Entity.Rotation))
+            {
+                ((Core.IEventEmitter)this).Emit(Core.Events.Entity.Rotation);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -386,8 +402,15 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
 
-            return internalEntity.SetEulerRotation(new UnityEngine.Vector3(eulerRotation.x, eulerRotation.y, eulerRotation.z),
+            bool result = internalEntity.SetEulerRotation(new UnityEngine.Vector3(eulerRotation.x, eulerRotation.y, eulerRotation.z),
                 local, synchronizeChange);
+
+            if (result && Listeners.ContainsKey(Core.Events.Entity.Rotation))
+            {
+                ((Core.IEventEmitter)this).Emit(Core.Events.Entity.Rotation);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -421,7 +444,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
 
-            return internalEntity.SetScale(new UnityEngine.Vector3(scale.x, scale.y, scale.z), synchronizeChange);
+            bool result = internalEntity.SetScale(new UnityEngine.Vector3(scale.x, scale.y, scale.z), synchronizeChange);
+
+            if (result && Listeners.ContainsKey(Core.Events.Entity.Scale))
+            {
+                ((Core.IEventEmitter)this).Emit(Core.Events.Entity.Scale);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -487,7 +517,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return false;
             }
 
-            return internalEntity.SetVisibility(visible, synchronize);
+            bool result = internalEntity.SetVisibility(visible, synchronize);
+
+            if (result && Listeners.ContainsKey(Core.Events.Entity.Visibility))
+            {
+                ((Core.IEventEmitter)this).Emit(Core.Events.Entity.Visibility);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -542,6 +579,11 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// </summary>
         /// <param name="synchronizeChange">Whether or not to synchronize the setting.</param>
         /// <returns>Whether or not the operation was successful.</returns>
+        /// <summary>
+        /// Guard flag to prevent re-entrant Delete() calls from destroy listeners.
+        /// </summary>
+        private bool _isDeleting = false;
+
         public bool Delete(bool synchronizeChange = true)
         {
             if (IsValid() == false)
@@ -549,6 +591,24 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 Logging.LogWarning("[BaseEntity:Delete] Unknown entity.");
                 return false;
             }
+
+            // Re-entrancy guard — prevent double-delete if a destroy listener calls Delete()
+            if (_isDeleting)
+            {
+                Logging.LogWarning("[BaseEntity:Delete] Re-entrant Delete() detected. Skipping.");
+                return false;
+            }
+            _isDeleting = true;
+
+            // Emit destroy event — listeners can still access entity properties
+            ((Core.IEventEmitter)this).Emit(Core.Events.Entity.Destroy);
+
+            // Clean up all event listeners and mark as disposed
+            DisposeEvents();
+
+            // Deregister from entity mapping (fixes pre-existing leak where
+            // RemoveEntityMapping was never called during entity destruction)
+            EntityAPIHelper.RemoveEntityMapping(internalEntity);
 
             return internalEntity.Delete(synchronizeChange);
         }
@@ -1417,5 +1477,100 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
 
             return true;
         }
+
+        #region IEventEmitter Implementation
+
+        /// <summary>
+        /// Event listener storage for this entity instance.
+        /// Lazy-initialized to avoid heap allocation for entities that never use events.
+        /// </summary>
+        private Dictionary<string, List<Jint.Native.JsValue>> _listeners;
+
+        /// <inheritdoc/>
+        public Dictionary<string, List<Jint.Native.JsValue>> Listeners
+            => _listeners ??= new Dictionary<string, List<Jint.Native.JsValue>>();
+
+        /// <summary>
+        /// Tracks callbacks registered via Once() for auto-removal after first fire.
+        /// Lazy-initialized to avoid heap allocation for entities that never use events.
+        /// </summary>
+        private HashSet<Jint.Native.JsValue> _onceListeners;
+
+        /// <inheritdoc/>
+        public HashSet<Jint.Native.JsValue> OnceListeners
+            => _onceListeners ??= new HashSet<Jint.Native.JsValue>();
+
+        /// <summary>
+        /// Tracks event names currently being emitted for re-entrancy protection.
+        /// Lazy-initialized to avoid heap allocation for entities that never use events.
+        /// </summary>
+        private HashSet<string> _emittingEvents;
+
+        /// <inheritdoc/>
+        public HashSet<string> EmittingEvents
+            => _emittingEvents ??= new HashSet<string>();
+
+        /// <summary>
+        /// Whether this entity's event system has been disposed.
+        /// </summary>
+        private bool _isDisposed = false;
+
+        /// <inheritdoc/>
+        public bool IsDisposed => _isDisposed;
+
+        /// <summary>
+        /// Dispose all event listeners and mark entity as disposed.
+        /// Called by EntityManager during entity destruction, after the destroy event fires.
+        /// Idempotent — safe to call multiple times.
+        /// </summary>
+        public void DisposeEvents()
+        {
+            if (_isDisposed) return;
+            ((IEventEmitter)this).DisposeAllListeners();
+            _isDisposed = true;
+        }
+
+        #endregion
+
+        #region Debug
+
+        /// <summary>
+        /// Debug introspection for entity event listeners.
+        /// </summary>
+        private EntityDebug _debug;
+
+        /// <summary>
+        /// Debug utilities for this entity's event system.
+        /// </summary>
+        public EntityDebug debug => _debug ??= new EntityDebug(this);
+
+        /// <summary>
+        /// Debug helper class for entity event introspection.
+        /// </summary>
+        public class EntityDebug
+        {
+            private readonly BaseEntity _entity;
+
+            public EntityDebug(BaseEntity entity)
+            {
+                _entity = entity;
+            }
+
+            /// <summary>
+            /// List all active event listeners on this entity.
+            /// Returns an array of objects with event name and listener count.
+            /// </summary>
+            public object[] listListeners()
+            {
+                var result = new System.Collections.Generic.List<object>();
+                foreach (var kvp in _entity.Listeners)
+                {
+                    result.Add(new { @event = kvp.Key, count = kvp.Value.Count });
+                }
+                return result.ToArray();
+            }
+        }
+
+        #endregion
     }
 }

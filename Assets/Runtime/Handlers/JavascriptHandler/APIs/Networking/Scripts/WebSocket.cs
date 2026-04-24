@@ -1,5 +1,8 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using System;
+using System.Collections.Generic;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 
@@ -87,7 +90,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
     /// <summary>
     /// Class for a WebSocket.
     /// </summary>
-    public class WebSocket
+    public class WebSocket : IEventEmitter
     {
         /// <summary>
         /// Reference to the internal WebSocket.
@@ -215,6 +218,35 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
             internalWebSocket.Send(dataToSend);
             return true;
         }
+
+        #region IEventEmitter Implementation
+
+        private Dictionary<string, List<Jint.Native.JsValue>> _listeners;
+        public Dictionary<string, List<Jint.Native.JsValue>> Listeners
+            => _listeners ??= new Dictionary<string, List<Jint.Native.JsValue>>();
+
+        private HashSet<Jint.Native.JsValue> _onceListeners;
+        public HashSet<Jint.Native.JsValue> OnceListeners
+            => _onceListeners ??= new HashSet<Jint.Native.JsValue>();
+
+        private HashSet<string> _emittingEvents;
+        public HashSet<string> EmittingEvents
+            => _emittingEvents ??= new HashSet<string>();
+
+        private bool _isDisposed = false;
+        public bool IsDisposed => _isDisposed;
+
+        /// <summary>
+        /// Dispose all event listeners on this WebSocket instance.
+        /// </summary>
+        public void DisposeEvents()
+        {
+            if (_isDisposed) return;
+            ((IEventEmitter)this).DisposeAllListeners();
+            _isDisposed = true;
+        }
+
+        #endregion
     }
 #endif
 }

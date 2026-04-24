@@ -1,5 +1,6 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
@@ -196,6 +197,9 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return;
             }
             loadedEntities.Add(internalEntity, publicEntity);
+
+            // Emit spawn event — entity is now in loadedEntities and accessible via Entity.Get()
+            ((IEventEmitter)publicEntity).Emit(Events.Entity.Spawn);
         }
 
         /// <summary>

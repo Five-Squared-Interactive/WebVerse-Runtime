@@ -1,5 +1,9 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.WorldTypes;
@@ -949,5 +953,144 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
             Logging.LogWarning("[Input->SetRigOffset] Desktop rig not available.");
             return false;
         }
+
+        #region Event System
+
+        /// <summary>
+        /// Event listener storage for Input events.
+        /// </summary>
+        private static Dictionary<string, List<Jint.Native.JsValue>> _listeners
+            = new Dictionary<string, List<Jint.Native.JsValue>>();
+
+        private static HashSet<Jint.Native.JsValue> _onceListeners
+            = new HashSet<Jint.Native.JsValue>();
+
+        private static HashSet<string> _emittingEvents
+            = new HashSet<string>();
+
+        /// <summary>
+        /// Register an input event listener.
+        /// </summary>
+        /// <param name="eventName">Input event name (e.g., "keydown", "mousedown", "mousemove").</param>
+        /// <param name="callback">The function to invoke when the input event fires.</param>
+        /// <returns>An unsubscribe function.</returns>
+        public static Func<bool> on(string eventName, Jint.Native.JsValue callback)
+        {
+            if (string.IsNullOrEmpty(eventName))
+            {
+                Logging.LogError("[EventSystem] Event name cannot be null or empty.");
+                return () => false;
+            }
+
+            if (callback == null || callback.IsUndefined() || callback.IsNull())
+            {
+                Logging.LogError($"[EventSystem] Callback for Input '{eventName}' is null or undefined.");
+                return () => false;
+            }
+
+            if (!_listeners.ContainsKey(eventName))
+                _listeners[eventName] = new List<Jint.Native.JsValue>();
+
+            _listeners[eventName].Add(callback);
+
+            bool unsubscribed = false;
+            return () =>
+            {
+                if (unsubscribed) return false;
+                unsubscribed = true;
+                off(eventName, callback);
+                return true;
+            };
+        }
+
+        /// <summary>
+        /// Register a one-time input event listener.
+        /// </summary>
+        public static Func<bool> once(string eventName, Jint.Native.JsValue callback)
+        {
+            var unsub = on(eventName, callback);
+            if (!string.IsNullOrEmpty(eventName)
+                && _listeners.ContainsKey(eventName)
+                && _listeners[eventName].Contains(callback))
+            {
+                _onceListeners.Add(callback);
+            }
+            return unsub;
+        }
+
+        /// <summary>
+        /// Remove a specific input event listener.
+        /// </summary>
+        public static void off(string eventName, Jint.Native.JsValue callback)
+        {
+            if (string.IsNullOrEmpty(eventName) || !_listeners.ContainsKey(eventName))
+                return;
+            bool removed = _listeners[eventName].Remove(callback);
+            if (removed) _onceListeners.Remove(callback);
+            if (_listeners[eventName].Count == 0) _listeners.Remove(eventName);
+        }
+
+        /// <summary>
+        /// Remove all listeners for an input event.
+        /// </summary>
+        public static void off(string eventName)
+        {
+            if (string.IsNullOrEmpty(eventName) || !_listeners.ContainsKey(eventName))
+                return;
+            foreach (var cb in _listeners[eventName]) _onceListeners.Remove(cb);
+            _listeners.Remove(eventName);
+        }
+
+        /// <summary>
+        /// Emit an input event. Called from InputManager when input events fire.
+        /// </summary>
+        internal static void Emit(string eventName, params Jint.Native.JsValue[] args)
+        {
+            if (string.IsNullOrEmpty(eventName) || !_listeners.ContainsKey(eventName))
+                return;
+            if (!_emittingEvents.Add(eventName))
+            {
+                Logging.LogWarning($"[EventSystem] Re-entrant Emit for Input '{eventName}'. Skipping.");
+                return;
+            }
+            try
+            {
+                var toRemove = new List<Jint.Native.JsValue>();
+                foreach (var callback in _listeners[eventName].ToList())
+                {
+                    try
+                    {
+                        callback.Call(Jint.Native.JsValue.Undefined, args);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Logging.LogError($"[EventSystem] Input listener error for '{eventName}': {ex.Message}");
+                    }
+                    if (_onceListeners.Contains(callback)) toRemove.Add(callback);
+                }
+                foreach (var cb in toRemove)
+                {
+                    _onceListeners.Remove(cb);
+                    if (_listeners.ContainsKey(eventName))
+                    {
+                        _listeners[eventName].Remove(cb);
+                        if (_listeners[eventName].Count == 0) _listeners.Remove(eventName);
+                    }
+                }
+            }
+            finally { _emittingEvents.Remove(eventName); }
+        }
+
+        /// <summary>
+        /// Clear all input event listeners.
+        /// </summary>
+        internal static void DisposeAllInputListeners()
+        {
+            _listeners.Clear();
+            _onceListeners.Clear();
+            _emittingEvents.Clear();
+        }
+
+        #endregion
     }
 }

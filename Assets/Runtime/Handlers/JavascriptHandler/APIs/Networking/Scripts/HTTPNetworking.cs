@@ -1,5 +1,7 @@
 // Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using System.Linq;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 using System;
@@ -346,5 +348,73 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
             httpReq.Send();
 #endif
         }
+
+        #region Event System
+
+        private static Dictionary<string, List<Jint.Native.JsValue>> _listeners
+            = new Dictionary<string, List<Jint.Native.JsValue>>();
+        private static HashSet<Jint.Native.JsValue> _onceListeners
+            = new HashSet<Jint.Native.JsValue>();
+        private static HashSet<string> _emittingEvents
+            = new HashSet<string>();
+
+        public static Func<bool> on(string eventName, Jint.Native.JsValue callback)
+        {
+            if (string.IsNullOrEmpty(eventName) || callback == null || callback.IsUndefined() || callback.IsNull())
+                return () => false;
+            if (!_listeners.ContainsKey(eventName))
+                _listeners[eventName] = new List<Jint.Native.JsValue>();
+            _listeners[eventName].Add(callback);
+            bool unsubscribed = false;
+            return () => { if (unsubscribed) return false; unsubscribed = true; off(eventName, callback); return true; };
+        }
+
+        public static Func<bool> once(string eventName, Jint.Native.JsValue callback)
+        {
+            var unsub = on(eventName, callback);
+            if (!string.IsNullOrEmpty(eventName) && _listeners.ContainsKey(eventName) && _listeners[eventName].Contains(callback))
+                _onceListeners.Add(callback);
+            return unsub;
+        }
+
+        public static void off(string eventName, Jint.Native.JsValue callback)
+        {
+            if (string.IsNullOrEmpty(eventName) || !_listeners.ContainsKey(eventName)) return;
+            bool removed = _listeners[eventName].Remove(callback);
+            if (removed) _onceListeners.Remove(callback);
+            if (_listeners[eventName].Count == 0) _listeners.Remove(eventName);
+        }
+
+        public static void off(string eventName)
+        {
+            if (string.IsNullOrEmpty(eventName) || !_listeners.ContainsKey(eventName)) return;
+            foreach (var cb in _listeners[eventName]) _onceListeners.Remove(cb);
+            _listeners.Remove(eventName);
+        }
+
+        internal static void Emit(string eventName, params Jint.Native.JsValue[] args)
+        {
+            if (string.IsNullOrEmpty(eventName) || !_listeners.ContainsKey(eventName)) return;
+            if (!_emittingEvents.Add(eventName)) return;
+            try
+            {
+                var toRemove = new List<Jint.Native.JsValue>();
+                foreach (var cb in _listeners[eventName].ToList())
+                {
+                    try { cb.Call(Jint.Native.JsValue.Undefined, args); }
+                    catch (Exception ex) { Logging.LogError($"[EventSystem] HTTP listener error for '{eventName}': {ex.Message}"); }
+                    if (_onceListeners.Contains(cb)) toRemove.Add(cb);
+                }
+                foreach (var cb in toRemove) { _onceListeners.Remove(cb); if (_listeners.ContainsKey(eventName)) { _listeners[eventName].Remove(cb); if (_listeners[eventName].Count == 0) _listeners.Remove(eventName); } }
+            }
+            finally { _emittingEvents.Remove(eventName); }
+        }
+
+        internal static void DisposeAllHTTPListeners()
+        {
+            _listeners.Clear(); _onceListeners.Clear(); _emittingEvents.Clear();
+        }
+
+        #endregion
     }
 }

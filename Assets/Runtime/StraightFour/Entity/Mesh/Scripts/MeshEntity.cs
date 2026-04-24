@@ -315,6 +315,14 @@ namespace FiveSQD.StraightFour.Entity
             }
             SetRigidbody(rb);
 
+            // Attach collision emitter for World API collision events
+            CollisionEmitter collisionEmitter = gameObject.GetComponent<CollisionEmitter>();
+            if (collisionEmitter == null)
+            {
+                collisionEmitter = gameObject.AddComponent<CollisionEmitter>();
+            }
+            collisionEmitter.ownerEntity = this;
+
             List<Mesh> ms = new List<Mesh>();
             foreach (MeshFilter filt in gameObject.GetComponentsInChildren<MeshFilter>())
             {
@@ -718,7 +726,14 @@ namespace FiveSQD.StraightFour.Entity
             if (rbody)
             {
                 Destroy(rbody);
-            }    
+            }
+
+            // Strip CollisionEmitter from preview clone to prevent ghost events
+            CollisionEmitter emitter = previewObject.GetComponent<CollisionEmitter>();
+            if (emitter)
+            {
+                Destroy(emitter);
+            }
 
             foreach (MeshRenderer rend in previewObject.GetComponentsInChildren<MeshRenderer>())
             {

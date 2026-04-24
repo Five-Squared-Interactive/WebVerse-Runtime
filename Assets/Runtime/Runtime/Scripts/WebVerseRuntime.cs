@@ -17,6 +17,7 @@ using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.WebInterface.HTTP;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Data;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.WebView;
 using FiveSQD.WebVerse.Output;
@@ -671,6 +672,11 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 x3dHandler.GetX3DTitle(baseURL, (title) =>
                 {
+                    // Emit load event BEFORE dispose so previous world's listeners
+                    // get notified that a new world is loading (acts as "beforeunload").
+                    // Then dispose clears all listeners for a clean slate.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
@@ -682,10 +688,15 @@ namespace FiveSQD.WebVerse.Runtime
                             reflectionProbe.enabled = true;
                             reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                             state = RuntimeState.LoadedWorld;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                         }
                         else
                         {
                             state = RuntimeState.Error;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                                Jint.Native.JsValue.FromObject(
+                                    WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                    new { message = "World loading failed (X3D)" }));
                         }
 
                         if (onLoaded != null)
@@ -700,6 +711,9 @@ namespace FiveSQD.WebVerse.Runtime
                 // Load glTF/GLB as OMI world
                 omiHandler.GetWorldTitle(baseURL, (title) =>
                 {
+                    // Emit load before dispose — previous world listeners get notified.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
@@ -711,10 +725,15 @@ namespace FiveSQD.WebVerse.Runtime
                             reflectionProbe.enabled = true;
                             reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                             state = RuntimeState.LoadedWorld;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                         }
                         else
                         {
                             state = RuntimeState.Error;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                                Jint.Native.JsValue.FromObject(
+                                    WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                    new { message = "World loading failed (OMI)" }));
                         }
 
                         if (onLoaded != null)
@@ -734,10 +753,15 @@ namespace FiveSQD.WebVerse.Runtime
                         reflectionProbe.enabled = true;
                         reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                         state = RuntimeState.LoadedWorld;
+                        Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                     }
                     else
                     {
                         state = RuntimeState.Error;
+                        Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                            Jint.Native.JsValue.FromObject(
+                                WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                new { message = "World loading failed (VEML)" }));
                     }
 
                     if (onLoaded != null)
@@ -748,6 +772,9 @@ namespace FiveSQD.WebVerse.Runtime
 
                 Action<string> onFound = (title) =>
                 {
+                    // Emit load before dispose — previous world listeners get notified.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.Utilities.LoggingConfig loggingConfig = new StraightFour.Utilities.LoggingConfig()
