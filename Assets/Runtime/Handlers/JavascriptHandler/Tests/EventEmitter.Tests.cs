@@ -33,7 +33,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
     public class EventEmitterTests
     {
         private Engine _engine;
-        private TestEventEmitter _emitter;
+        private IEventEmitter _emitter;
 
         [SetUp]
         public void SetUp()
@@ -118,7 +118,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnRejectsRegistrationOnDisposedEmitter()
         {
-            _emitter.IsDisposed = true;
+            ((TestEventEmitter)_emitter).IsDisposed = true;
             var callback = CreateJsFunction("function() { return 1; }");
             var unsub = _emitter.On(Events.Entity.Spawn, callback);
 
@@ -364,7 +364,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnceDoesNotLeakOnceListenersWhenOnFails()
         {
-            _emitter.IsDisposed = true;
+            ((TestEventEmitter)_emitter).IsDisposed = true;
             var callback = CreateJsFunction("function() { return 1; }");
             _emitter.Once(Events.Entity.Spawn, callback);
 

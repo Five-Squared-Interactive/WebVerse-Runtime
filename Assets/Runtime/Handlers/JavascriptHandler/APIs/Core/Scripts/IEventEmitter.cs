@@ -89,7 +89,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Core
                 return () => false;
             }
 
-            if (callback == null || callback.IsUndefined() || callback.IsNull())
+            if (callback == null || callback == Jint.Native.JsValue.Undefined || callback == Jint.Native.JsValue.Null)
             {
                 Logging.LogError($"[EventSystem] Callback for '{eventName}' is null or undefined.");
                 return () => false;
@@ -217,7 +217,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Core
                 {
                     try
                     {
-                        callback.Call(Jint.Native.JsValue.Undefined, args);
+                        Runtime.WebVerseRuntime.Instance.javascriptHandler.Engine.Call(callback, Jint.Native.JsValue.Undefined, args);
                     }
                     catch (Exception ex)
                     {

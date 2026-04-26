@@ -1,16 +1,15 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
+using System;
 using UnityEngine;
-using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
-using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
-using FiveSQD.WebVerse.Runtime;
-using FiveSQD.WebVerse.Utilities;
 
 namespace FiveSQD.StraightFour.Entity
 {
     /// <summary>
     /// MonoBehaviour component that detects Unity collision and trigger events
-    /// and emits them as World API events on the owning entity's IEventEmitter.
+    /// and forwards them via C# Action callbacks. The owning layer (e.g. the
+    /// Javascript handler) subscribes to OnCollisionEnterEvent / OnCollisionExitEvent
+    /// to bridge into its own event system.
     /// Attach to entity GameObjects that have Rigidbody and Collider components.
     /// </summary>
     public class CollisionEmitter : MonoBehaviour
@@ -22,98 +21,44 @@ namespace FiveSQD.StraightFour.Entity
         internal BaseEntity ownerEntity;
 
         /// <summary>
-        /// Cleanup on destruction — prevent stale ownerEntity reference.
+        /// Fired on collision/trigger enter. Parameters: ownerEntity, otherGameObject.
         /// </summary>
+        public Action<BaseEntity, GameObject> OnCollisionEnterEvent;
+
+        /// <summary>
+        /// Fired on collision/trigger exit. Parameters: ownerEntity, otherGameObject.
+        /// </summary>
+        public Action<BaseEntity, GameObject> OnCollisionExitEvent;
+
         private void OnDestroy()
         {
             ownerEntity = null;
+            OnCollisionEnterEvent = null;
+            OnCollisionExitEvent = null;
         }
 
-        /// <summary>
-        /// Handle physics collision enter.
-        /// </summary>
         private void OnCollisionEnter(Collision collision)
         {
-            EmitCollisionEvent(Events.Collision.Enter, collision.gameObject);
+            if (ownerEntity != null)
+                OnCollisionEnterEvent?.Invoke(ownerEntity, collision.gameObject);
         }
 
-        /// <summary>
-        /// Handle physics collision exit.
-        /// </summary>
         private void OnCollisionExit(Collision collision)
         {
-            EmitCollisionEvent(Events.Collision.Exit, collision.gameObject);
+            if (ownerEntity != null)
+                OnCollisionExitEvent?.Invoke(ownerEntity, collision.gameObject);
         }
 
-        /// <summary>
-        /// Handle trigger enter (for trigger colliders).
-        /// </summary>
         private void OnTriggerEnter(Collider other)
         {
-            EmitCollisionEvent(Events.Collision.Enter, other.gameObject);
+            if (ownerEntity != null)
+                OnCollisionEnterEvent?.Invoke(ownerEntity, other.gameObject);
         }
 
-        /// <summary>
-        /// Handle trigger exit (for trigger colliders).
-        /// </summary>
         private void OnTriggerExit(Collider other)
         {
-            EmitCollisionEvent(Events.Collision.Exit, other.gameObject);
-        }
-
-        /// <summary>
-        /// Emit a collision event on the owning entity's JS API wrapper.
-        /// Only emits if the entity has listeners for the collision event type.
-        /// </summary>
-        /// <param name="eventName">The collision event name (Events.Collision.Enter or Exit).</param>
-        /// <param name="otherGameObject">The other GameObject involved in the collision.</param>
-        private void EmitCollisionEvent(string eventName, GameObject otherGameObject)
-        {
-            if (ownerEntity == null) return;
-
-            // Look up the JS API wrapper for the owning entity
-            var ownerPublic = EntityAPIHelper.GetPublicEntity(ownerEntity);
-            if (ownerPublic == null) return;
-
-            // Performance guard: only proceed if entity has listeners for this collision event
-            // This avoids Jint overhead for entities without collision handlers
-            if (!ownerPublic.Listeners.ContainsKey(eventName)) return;
-
-            // Find the other entity involved in the collision
-            var otherInternal = otherGameObject.GetComponentInParent<BaseEntity>();
-            Jint.Native.JsValue otherJsValue = Jint.Native.JsValue.Null;
-
-            if (otherInternal != null)
-            {
-                var otherPublic = EntityAPIHelper.GetPublicEntity(otherInternal);
-                if (otherPublic != null)
-                {
-                    try
-                    {
-                        var engine = WebVerseRuntime.Instance?.javascriptHandler?.Engine;
-                        if (engine != null)
-                        {
-                            otherJsValue = Jint.Native.JsValue.FromObject(engine, otherPublic);
-                        }
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Logging.LogError(
-                            $"[EventSystem] Failed to convert other entity to JsValue: {ex.Message}");
-                    }
-                }
-            }
-
-            // Emit the collision event on the owning entity
-            try
-            {
-                ((IEventEmitter)ownerPublic).Emit(eventName, otherJsValue);
-            }
-            catch (System.Exception ex)
-            {
-                Logging.LogError(
-                    $"[EventSystem] Collision emit error for '{eventName}': {ex.Message}");
-            }
+            if (ownerEntity != null)
+                OnCollisionExitEvent?.Invoke(ownerEntity, other.gameObject);
         }
     }
 }

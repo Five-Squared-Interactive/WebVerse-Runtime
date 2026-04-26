@@ -18,7 +18,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
     {
         private Engine _engine;
         private List<string> _results;
-        private TestEventEmitter _emitter;
+        private IEventEmitter _emitter;
 
         [SetUp]
         public void SetUp()

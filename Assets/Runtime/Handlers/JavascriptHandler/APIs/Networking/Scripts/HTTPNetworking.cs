@@ -360,7 +360,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
 
         public static Func<bool> on(string eventName, Jint.Native.JsValue callback)
         {
-            if (string.IsNullOrEmpty(eventName) || callback == null || callback.IsUndefined() || callback.IsNull())
+            if (string.IsNullOrEmpty(eventName) || callback == null || callback == Jint.Native.JsValue.Undefined || callback == Jint.Native.JsValue.Null)
                 return () => false;
             if (!_listeners.ContainsKey(eventName))
                 _listeners[eventName] = new List<Jint.Native.JsValue>();
@@ -401,7 +401,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
                 var toRemove = new List<Jint.Native.JsValue>();
                 foreach (var cb in _listeners[eventName].ToList())
                 {
-                    try { cb.Call(Jint.Native.JsValue.Undefined, args); }
+                    try { Runtime.WebVerseRuntime.Instance.javascriptHandler.Engine.Call(cb, Jint.Native.JsValue.Undefined, args); }
                     catch (Exception ex) { Logging.LogError($"[EventSystem] HTTP listener error for '{eventName}': {ex.Message}"); }
                     if (_onceListeners.Contains(cb)) toRemove.Add(cb);
                 }

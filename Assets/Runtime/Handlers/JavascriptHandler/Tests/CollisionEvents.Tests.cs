@@ -65,7 +65,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
             emitter.Emit(Events.Collision.Enter, otherValue);
 
             Assert.AreEqual(1, argsReceived.Count);
-            Assert.IsFalse(argsReceived[0].IsNull());
+            Assert.AreNotEqual(JsValue.Null, argsReceived[0]);
         }
 
         [Test]
@@ -84,7 +84,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
             emitter.Emit(Events.Collision.Enter, JsValue.Null);
 
             Assert.AreEqual(1, argsReceived.Count);
-            Assert.IsTrue(argsReceived[0].IsNull());
+            Assert.AreEqual(JsValue.Null, argsReceived[0]);
         }
 
         // --- Collision Exit Event ---

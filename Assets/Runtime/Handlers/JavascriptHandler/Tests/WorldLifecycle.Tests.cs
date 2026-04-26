@@ -259,8 +259,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
 
             Assert.AreEqual(1, argsReceived.Count);
             // Verify the arg was delivered (non-null, non-undefined)
-            Assert.IsFalse(argsReceived[0].IsNull());
-            Assert.IsFalse(argsReceived[0].IsUndefined());
+            Assert.AreNotEqual(JsValue.Null, argsReceived[0]);
+            Assert.AreNotEqual(JsValue.Undefined, argsReceived[0]);
         }
 
         [Test]
