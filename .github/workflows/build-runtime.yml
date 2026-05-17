@@ -732,6 +732,110 @@ jobs:
             exit $EXIT_CODE
           fi
 
+      - name: Install Mac Developer ID Certificate
+        id: install-mac-cert
+        env:
+          MAC_CERTIFICATE_BASE64: ${{ secrets.MAC_CERTIFICATE_BASE64 }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CERTIFICATE_BASE64" ]; then
+            echo "No Mac certificate provided, skipping notarization"
+            echo "MAC_NOTARIZATION_AVAILABLE=false" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/mac-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          CERT_PATH="$RUNNER_TEMP/mac-cert.p12"
+          echo "$MAC_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+          security import "$CERT_PATH" -P "$MAC_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          echo "MAC_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "MAC_NOTARIZATION_AVAILABLE=true" >> $GITHUB_ENV
+          echo "Certificate installed"
+
+      - name: Sign, Notarize, and Staple Mac App
+        if: env.MAC_NOTARIZATION_AVAILABLE == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          # Locate the .app bundle (Unity may name it various things)
+          APP_PATH=$(find "$PROJECT_PATH/Builds/Mac-Desktop" -maxdepth 2 -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::Could not locate .app bundle in Builds/Mac-Desktop"
+            exit 1
+          fi
+          echo "Found app: $APP_PATH"
+
+          # Find the Developer ID Application identity
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$SIGNING_IDENTITY" ]; then
+            echo "::error::No Developer ID Application identity found in keychain"
+            exit 1
+          fi
+          echo "Using signing identity: $SIGNING_IDENTITY"
+
+          # Use entitlements file if present
+          ENTITLEMENTS_FLAG=""
+          if [ -f "$PROJECT_PATH/Entitlements.plist" ]; then
+            ENTITLEMENTS_FLAG="--entitlements $PROJECT_PATH/Entitlements.plist"
+            echo "Using entitlements: $PROJECT_PATH/Entitlements.plist"
+          fi
+
+          # Deep-sign the app with Hardened Runtime
+          codesign --deep --force --verify --verbose \
+            --sign "$SIGNING_IDENTITY" \
+            --options runtime \
+            $ENTITLEMENTS_FLAG \
+            --timestamp \
+            "$APP_PATH"
+
+          # Verify signature
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          # Zip for notarization submission (ditto preserves Mac metadata)
+          SUBMIT_ZIP="$RUNNER_TEMP/WebVerse-notarize.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$SUBMIT_ZIP"
+
+          # Submit for notarization and wait
+          echo "Submitting for notarization..."
+          SUBMISSION_OUTPUT=$(xcrun notarytool submit "$SUBMIT_ZIP" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait \
+            --output-format json)
+          echo "$SUBMISSION_OUTPUT"
+
+          SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          STATUS=$(echo "$SUBMISSION_OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])")
+          echo "Submission ID: $SUBMISSION_ID"
+          echo "Status: $STATUS"
+
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed with status: $STATUS"
+            echo "=== Notarization log ==="
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD"
+            exit 1
+          fi
+
+          # Staple the notarization ticket to the app
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          echo "Notarization complete and ticket stapled"
+
       - name: Create archive
         run: |
           mkdir -p "$PROJECT_PATH/Artifacts"
@@ -739,7 +843,8 @@ jobs:
             cd "$PROJECT_PATH/Builds/Mac-Desktop"
             find . -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
             find . -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
-            zip -r "$PROJECT_PATH/Artifacts/Mac-Desktop-$BUILD_ID.zip" .
+            # Use ditto instead of zip to preserve notarization staple and extended attributes
+            ditto -c -k --keepParent . "$PROJECT_PATH/Artifacts/Mac-Desktop-$BUILD_ID.zip"
           fi
 
       - name: Upload to S3
@@ -767,6 +872,14 @@ jobs:
         run: |
           CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
           [ -d "$PROJECT_PATH/Library" ] && rsync -a --delete "$PROJECT_PATH/Library/" "$CACHE_LOCATION/"
+
+      - name: Cleanup Mac Keychain
+        if: always()
+        run: |
+          if [ -n "$MAC_KEYCHAIN_PATH" ] && [ -f "$MAC_KEYCHAIN_PATH" ]; then
+            security delete-keychain "$MAC_KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+          rm -f "$RUNNER_TEMP/mac-cert.p12" "$RUNNER_TEMP/WebVerse-notarize.zip" 2>/dev/null || true
 
       - name: Cleanup
         if: always()
