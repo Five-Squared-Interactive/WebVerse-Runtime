@@ -671,13 +671,19 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         /// <param name="url">URL containing the world to load.</param>
         /// <param name="onLoaded">Action to perform on load. Provides string containing loaded world name.</param>
-        public void LoadWorld(string url, Action<string> onLoaded)
+        /// <param name="requireScript">Optional. Either inline JavaScript logic or a URI ending in ".js"
+        /// pointing to a script resource. The script is prepended to the world's script list and runs in
+        /// the same JINT engine as the world's own scripts. Only honored for VEML worlds; a warning is
+        /// logged and the script is ignored for x3d and glTF worlds.</param>
+        public void LoadWorld(string url, Action<string> onLoaded, string requireScript = null)
         {
             if (straightFour == null)
             {
                 Logging.LogError("[WebVerseRuntime->LoadWorld] World Engine not initialized.");
                 return;
             }
+
+            currentURL = url;
 
             if (StraightFour.StraightFour.ActiveWorld != null)
             {
@@ -690,6 +696,14 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 baseURL = url.Substring(0, url.IndexOf('?'));
                 queryParams = url.Substring(url.IndexOf('?') + 1);
+            }
+
+            if (!string.IsNullOrEmpty(requireScript)
+                && (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv")
+                    || baseURL.EndsWith(".glb") || baseURL.EndsWith(".gltf")))
+            {
+                Logging.LogWarning("[WebVerseRuntime->LoadWorld] requireScript is only supported for "
+                    + "VEML worlds; ignoring for " + baseURL);
             }
 
             if (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv"))
@@ -783,11 +797,46 @@ namespace FiveSQD.WebVerse.Runtime
                         enableDefault = Logging.GetConfiguration().enableDefault
                     };
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
-                    vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete);
+                    vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete, requireScript);
                 };
                 
                 vemlHandler.GetWorldName(baseURL, onFound);
             }
+        }
+
+        /// <summary>
+        /// Dry-run validation of a world's VEML document without switching to it. Downloads and
+        /// parses the VEML, downloads (but does not execute) referenced scripts, and HEAD-requests
+        /// referenced asset URIs. Does not unload the active world, mutate currentURL, change runtime
+        /// state, or touch the JINT engine.
+        /// </summary>
+        /// <param name="url">URL of the VEML world to test.</param>
+        /// <param name="onTestComplete">Invoked with (success, errorMessage, title). errorMessage is
+        /// null on success; on failure it is a newline-separated list of issues. title is the parsed
+        /// metadata.title if the document parsed, otherwise null.</param>
+        public void TestLoadWorld(string url, Action<bool, string, string> onTestComplete)
+        {
+            if (vemlHandler == null)
+            {
+                onTestComplete.Invoke(false, "VEML handler not initialized.", null);
+                return;
+            }
+
+            string baseURL = url;
+            if (url.Contains("?"))
+            {
+                baseURL = url.Substring(0, url.IndexOf('?'));
+            }
+
+            if (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv")
+                || baseURL.EndsWith(".glb") || baseURL.EndsWith(".gltf"))
+            {
+                onTestComplete.Invoke(false,
+                    "TestLoadWorld currently supports VEML worlds only.", null);
+                return;
+            }
+
+            vemlHandler.TestVEMLDocument(baseURL, onTestComplete);
         }
 
         /// <summary>
@@ -876,6 +925,7 @@ namespace FiveSQD.WebVerse.Runtime
         /// <param name="onLoaded">Action to perform on load. Provides string indicating web page.</param>
         public void LoadWebPage(string url, Action<string> onLoaded)
         {
+            currentURL = url;
             state = RuntimeState.WebPage;
             webverseWebView.Show();
             webverseWebView.LoadURL(url);
