@@ -358,7 +358,6 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             if (ent is Schema.V3_0.mesh m) meshResources = m.meshresource;
             else if (ent is Schema.V3_0.airplane a) meshResources = a.meshresource;
             else if (ent is Schema.V3_0.automobile au) meshResources = au.meshresource;
-            else if (ent is Schema.V3_0.water w) meshResources = w.meshresource;
             else if (ent is Schema.V3_0.character c) meshResources = c.meshresource;
 
             if (meshResources != null)
