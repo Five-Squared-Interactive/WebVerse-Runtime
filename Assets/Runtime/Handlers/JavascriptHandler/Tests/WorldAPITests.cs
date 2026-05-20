@@ -7,6 +7,7 @@ using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.LocalStorage;
 using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using WorldAPI = FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities.World;
 
 /// <summary>
@@ -107,6 +108,10 @@ public class WorldAPITests
     {
         const string url = "https://example.test/page.html";
 
+        // The placeholder WebView in this test context isn't fully set up, so LoadURL on it
+        // intentionally errors. We only care that currentURL was assigned at the top of LoadWebPage
+        // before the WebView call ran.
+        LogAssert.Expect(LogType.Error, "[WebVerseWebView->LoadURL] WebVerse WebView not set up.");
         try { runtime.LoadWebPage(url, null); } catch { }
 
         Assert.AreEqual(url, WorldAPI.GetWorldURL());
