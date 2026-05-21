@@ -785,7 +785,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         }
 
         /// <summary>
-        /// Whether or not gravity is enabled for desktop input.
+        /// Whether or not gravity is enabled. Routes to whichever rig is active: DesktopRig for
+        /// desktop/mobile, VRRig for VR (via the ContinuousMoveProvider on the XR Origin).
         /// </summary>
         public static bool gravityEnabled
         {
@@ -795,6 +796,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 {
                     WebVerseRuntime.Instance.inputManager.desktopRig.gravityEnabled = value;
                 }
+                if (WebVerseRuntime.Instance.vrRig != null)
+                {
+                    WebVerseRuntime.Instance.vrRig.gravityEnabled = value;
+                }
             }
 
             get
@@ -802,6 +807,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
                 {
                     return WebVerseRuntime.Instance.inputManager.desktopRig.gravityEnabled;
+                }
+                if (WebVerseRuntime.Instance.vrRig != null)
+                {
+                    return WebVerseRuntime.Instance.vrRig.gravityEnabled;
                 }
                 return false;
             }
@@ -923,7 +932,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
         }
 
         /// <summary>
-        /// Set the avatar entity by tag for desktop input.
+        /// Set the avatar entity by tag. Routes to whichever rig is active so worlds don't need
+        /// platform-specific setup.
         /// </summary>
         /// <param name="entityTag">The tag of the entity to use as the avatar.</param>
         /// <returns>Whether or not the operation was successful.</returns>
@@ -935,14 +945,23 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 return false;
             }
 
+            bool any = false;
             if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
             {
                 WebVerseRuntime.Instance.inputManager.desktopRig.SetAvatarEntityByTag(entityTag);
-                return true;
+                any = true;
             }
-
-            Logging.LogWarning("[Input->SetAvatarEntityByTag] Desktop rig not available.");
-            return false;
+            if (WebVerseRuntime.Instance.vrRig != null)
+            {
+                WebVerseRuntime.Instance.vrRig.SetAvatarEntityByTag(entityTag);
+                any = true;
+            }
+            if (!any)
+            {
+                Logging.LogWarning("[Input->SetAvatarEntityByTag] No rig available.");
+                return false;
+            }
+            return true;
         }
 
         /// <summary>

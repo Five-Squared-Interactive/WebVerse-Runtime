@@ -533,6 +533,35 @@ namespace FiveSQD.WebVerse.Input
             set { if (dynamicMoveProvider != null) dynamicMoveProvider.enabled = value; }
         }
 
+        /// <summary>
+        /// Whether or not gravity is applied to the VR rig's locomotion. The rig is the single
+        /// authority for VR avatar position (see CharacterEntity.externalPositionControl), so
+        /// gravity must live on the rig's move provider, not on the avatar entity itself. Uses
+        /// reflection on the dynamicMoveProvider's "useGravity" property so this compiles across
+        /// XR Interaction Toolkit versions where the move provider's exact class name may differ.
+        /// </summary>
+        public bool gravityEnabled
+        {
+            get
+            {
+                if (dynamicMoveProvider == null) return false;
+                var prop = dynamicMoveProvider.GetType().GetProperty("useGravity",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (prop == null || !prop.CanRead) return false;
+                return (bool)prop.GetValue(dynamicMoveProvider);
+            }
+            set
+            {
+                if (dynamicMoveProvider == null) return;
+                var prop = dynamicMoveProvider.GetType().GetProperty("useGravity",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (prop != null && prop.CanWrite)
+                {
+                    prop.SetValue(dynamicMoveProvider, value);
+                }
+            }
+        }
+
         public bool leftGrabMoveEnabled
         {
             get => leftGrabMoveProvider != null && leftGrabMoveProvider.enabled;
@@ -591,10 +620,87 @@ namespace FiveSQD.WebVerse.Input
             if (leftHandFollowers == null) leftHandFollowers = new List<BaseEntity>();
             if (rightHandFollowers == null) rightHandFollowers = new List<BaseEntity>();
 
+            // Auto-discover a CharacterEntity tagged "avatar" if one exists in the active world.
+            // This matches DesktopRig behavior and means world authors don't need to manually call
+            // Input.AddRigFollower from a script.
+            TryAutoAttachAvatar();
+
             // Set up platform-specific controller models
             SetupPlatformControllerModels();
 
             Logging.Log($"[VRRig] Initialized. RayType={rayInteractorType}, HandTracking={enableHandTracking}");
+        }
+
+        /// <summary>
+        /// Find a CharacterEntity with the given tag in the active world and make it follow the rig.
+        /// Removes any previously-attached avatar from rigFollowers and clears its
+        /// externalPositionControl. Mirrors DesktopRig.SetAvatarEntityByTag so worlds work the same
+        /// way on both platforms.
+        /// </summary>
+        public void SetAvatarEntityByTag(string entityTag)
+        {
+            if (string.IsNullOrEmpty(entityTag) || StraightFour.StraightFour.ActiveWorld == null)
+            {
+                return;
+            }
+
+            CharacterEntity found = null;
+            foreach (var entity in StraightFour.StraightFour.ActiveWorld.entityManager.GetAllEntities())
+            {
+                if (entity is CharacterEntity characterEntity && entity.entityTag == entityTag)
+                {
+                    found = characterEntity;
+                    break;
+                }
+            }
+
+            if (found == null)
+            {
+                Logging.LogWarning($"[VRRig->SetAvatarEntityByTag] Could not find character entity with tag: {entityTag}");
+                return;
+            }
+
+            // Detach any previously-attached avatar entities (clear their externalPositionControl).
+            if (rigFollowers != null)
+            {
+                foreach (var existing in rigFollowers)
+                {
+                    if (existing is CharacterEntity prevAvatar && prevAvatar != found)
+                    {
+                        prevAvatar.externalPositionControl = false;
+                    }
+                }
+                rigFollowers.RemoveAll(e => e is CharacterEntity && e != found);
+                if (!rigFollowers.Contains(found))
+                {
+                    rigFollowers.Add(found);
+                }
+            }
+            else
+            {
+                rigFollowers = new List<BaseEntity> { found };
+            }
+
+            // Rig is now the sole position writer for this entity.
+            found.externalPositionControl = true;
+        }
+
+        /// <summary>
+        /// Try to auto-attach an avatar entity (tagged "avatar") if no avatar is currently attached
+        /// to the rig. Called from Initialize and can be called again after world load.
+        /// </summary>
+        private void TryAutoAttachAvatar()
+        {
+            if (StraightFour.StraightFour.ActiveWorld == null) return;
+            // If a CharacterEntity is already a rig follower, leave it alone.
+            if (rigFollowers != null)
+            {
+                foreach (var existing in rigFollowers)
+                {
+                    if (existing is CharacterEntity) return;
+                }
+            }
+            SetAvatarEntityByTag("avatar");
         }
 
         /// <summary>
