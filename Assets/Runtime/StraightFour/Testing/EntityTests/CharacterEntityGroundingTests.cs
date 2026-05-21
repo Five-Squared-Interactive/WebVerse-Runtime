@@ -111,7 +111,18 @@ public class CharacterEntityGroundingTests
 
         CharacterEntity ce = StraightFour.ActiveWorld.entityManager.FindEntity(charId) as CharacterEntity;
         Assert.IsNotNull(ce, "CharacterEntity failed to load within 5s.");
+
+        // Initialize() leaves the character in Hidden state (gameObject.SetActive(false)) so
+        // FixedUpdate doesn't run. Switch to Physical to match the live VR scenario.
+        ce.SetInteractionState(BaseEntity.InteractionState.Physical);
         ce.fixHeight = false; // Disable rescue warp so we observe raw grounding behavior.
+
+        // Re-apply spawn position after going Physical, in case prior state changed transform.
+        ce.SetPosition(spawnPosition, local: true, synchronize: false);
+
+        // Give one fixed tick for the controller to register.
+        yield return new WaitForFixedUpdate();
+
         callback(ce);
     }
 
