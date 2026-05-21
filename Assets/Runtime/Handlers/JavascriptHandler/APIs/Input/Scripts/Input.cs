@@ -623,6 +623,13 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                     WebVerseRuntime.Instance.vrRig.rigFollowers.Add(entityToFollowRig.internalEntity);
                 }
             }
+
+            // The rig is now the sole writer of this entity's position. Suppress the entity's own
+            // motion (gravity, Move) so the two systems don't fight and produce avatar ghosting.
+            if (entityToFollowRig.internalEntity is StraightFour.Entity.CharacterEntity ce)
+            {
+                ce.externalPositionControl = true;
+            }
             return true;
         }
 
@@ -709,6 +716,12 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 {
                     WebVerseRuntime.Instance.vrRig.rigFollowers.Remove(entityToFollowRig.internalEntity);
                 }
+            }
+
+            // Restore entity-owned motion now that the rig no longer drives this entity's position.
+            if (entityToFollowRig.internalEntity is StraightFour.Entity.CharacterEntity ce)
+            {
+                ce.externalPositionControl = false;
             }
             return true;
         }
