@@ -202,23 +202,36 @@ public class CharacterEntityGroundingTests
     public IEnumerator CharacterEntity_IsOnSurface_TrueAtSmallGapAboveFloor()
     {
         CharacterEntity ce = null;
-        // Spawn somewhere generic; we'll reposition once we know the actual controller height.
         yield return BuildSceneAndCharacter(new Vector3(0, 5f, 0), buildFloor: true, c => ce = c);
 
         // Disable gravity so the position holds while we measure.
         Rigidbody rb = ce.GetComponent<Rigidbody>();
         if (rb != null) rb.useGravity = false;
 
-        // Place foot 0.05 m above floor — well within the new skinWidth+0.1 raycast or cc.isGrounded.
-        ce.SetPosition(new Vector3(0, TransformYForFoot(ce, 0.05f), 0),
-            local: true, synchronize: false);
+        CharacterController cc = ce.GetComponent<CharacterController>();
+        float targetY = TransformYForFoot(ce, 0.05f);
+        Debug.Log($"[Test] BEFORE placement: transform.y={ce.transform.position.y:F4} " +
+                  $"cc.height={cc.height} cc.center={cc.center} target transform.y={targetY:F4}");
+
+        // CharacterController locks transform during simulation in some Unity versions. Disable it,
+        // teleport, re-enable. Direct transform.position assignment bypasses BaseEntity.SetPosition
+        // and any worldOffset adjustment.
+        cc.enabled = false;
+        ce.transform.position = new Vector3(0, targetY, 0);
+        cc.enabled = true;
+
+        Debug.Log($"[Test] AFTER direct teleport: transform.y={ce.transform.position.y:F4}");
+
         yield return new WaitForFixedUpdate();
         yield return new WaitForFixedUpdate();
 
+        Debug.Log($"[Test] AFTER two fixed updates: transform.y={ce.transform.position.y:F4} " +
+                  $"FootY={FootY(ce):F4} cc.isGrounded={cc.isGrounded} IsOnSurface={ce.IsOnSurface()}");
+
         Assert.IsTrue(ce.IsOnSurface(),
-            $"IsOnSurface returned false when foot was only 0.05 m above floor. " +
-            $"Foot y={FootY(ce):F4}, transform y={ce.transform.position.y:F4}. " +
-            "Raycast distance or grounding fallback is still too strict.");
+            $"IsOnSurface returned false when foot was 0.05 m above floor. " +
+            $"Foot y={FootY(ce):F4}, transform y={ce.transform.position.y:F4}, " +
+            $"cc.isGrounded={cc.isGrounded}.");
     }
 
     /// <summary>
@@ -231,19 +244,22 @@ public class CharacterEntityGroundingTests
         CharacterEntity ce = null;
         yield return BuildSceneAndCharacter(new Vector3(0, 5f, 0), buildFloor: true, c => ce = c);
 
-        // Disable gravity so the character holds the test position.
         Rigidbody rb = ce.GetComponent<Rigidbody>();
         if (rb != null) rb.useGravity = false;
 
-        // Foot 1.5 m above floor — well above any reasonable grounding margin.
-        ce.SetPosition(new Vector3(0, TransformYForFoot(ce, 1.5f), 0),
-            local: true, synchronize: false);
+        CharacterController cc = ce.GetComponent<CharacterController>();
+        float targetY = TransformYForFoot(ce, 1.5f);
+
+        cc.enabled = false;
+        ce.transform.position = new Vector3(0, targetY, 0);
+        cc.enabled = true;
+
         yield return new WaitForFixedUpdate();
 
         Assert.IsFalse(ce.IsOnSurface(),
-            $"IsOnSurface returned true at a 1.5 m gap. Foot y={FootY(ce):F4}. " +
-            "Either the raycast is too long, or it's hitting something other than the floor " +
-            "(the character's own collider?).");
+            $"IsOnSurface returned true at a 1.5 m gap. Foot y={FootY(ce):F4}, " +
+            $"transform y={ce.transform.position.y:F4}, cc.isGrounded={cc.isGrounded}. " +
+            "Either the raycast is too long, or it's hitting something other than the floor.");
     }
 
     // ---------------------------------------------------------------------------------------------
