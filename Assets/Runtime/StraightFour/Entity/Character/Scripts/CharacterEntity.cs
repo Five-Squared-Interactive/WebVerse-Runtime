@@ -131,9 +131,17 @@ namespace FiveSQD.StraightFour.Entity
         private GameObject highlightCube;
 
         /// <summary>
-        /// The current applied velocity.
+        /// The current horizontal displacement applied this tick (x and z). Resets after each
+        /// FixedUpdate. y is unused; vertical motion lives in verticalVelocity.
         /// </summary>
         private Vector3 currentVelocity = Vector3.zero;
+
+        /// <summary>
+        /// Vertical velocity in meters/second. Integrated by gravity each FixedUpdate; displacement
+        /// is verticalVelocity * Time.deltaTime applied via CharacterController.Move. Jump() and the
+        /// y component of Move(amount) treat this as velocity (m/s), not per-frame displacement.
+        /// </summary>
+        private float verticalVelocity = 0f;
 
         /// <summary>
         /// Get the character GameObject.
@@ -313,7 +321,8 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            currentVelocity = new Vector3(currentVelocity.x + amount.x, currentVelocity.y + amount.y, currentVelocity.z + amount.z);
+            currentVelocity.x += amount.x;
+            currentVelocity.z += amount.z;
             characterController.Move(amount);
 
             if (synchronizer != null && synchronize == true)
@@ -347,7 +356,7 @@ namespace FiveSQD.StraightFour.Entity
 
             if (IsOnSurface() || !discardIfFalling)
             {
-                currentVelocity.y += amount;
+                verticalVelocity += amount;
             }
 
             if (synchronizer != null && synchronize == true)
@@ -376,7 +385,16 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2, 0), Vector3.down, 0.25f);
+            // CharacterController.isGrounded is the canonical signal; it's updated each Move() with
+            // the controller's internal slope/penetration logic and accounts for skinWidth.
+            if (characterController.isGrounded) return true;
+
+            // Fallback raycast for the pre-first-Move case and as a small-gap safety net.
+            // Distance is skinWidth + a small margin so we catch the "just barely above floor"
+            // state without falsely reporting grounded at large gaps.
+            float rayDistance = characterController.skinWidth + 0.1f;
+            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2f, 0),
+                Vector3.down, rayDistance);
         }
 
         public bool IsAboveGround()
@@ -1049,16 +1067,22 @@ namespace FiveSQD.StraightFour.Entity
                 return;
             }
 
-            if (IsOnSurface() && currentVelocity.y < 0)
+            // Reset vertical velocity when grounded and falling — prevents gravity from compounding
+            // while on a surface, and zeroes any tiny residual downward velocity from prior ticks.
+            if (IsOnSurface() && verticalVelocity < 0)
             {
-                currentVelocity.y = 0f;
+                verticalVelocity = 0f;
             }
 
             if (rigidBody.useGravity)
             {
-                currentVelocity.y += -9.81f * Time.deltaTime; // TODO: Magic number, tie into larger gravity system.
+                verticalVelocity += -9.81f * Time.deltaTime; // TODO: tie into larger gravity system.
             }
-            characterController.Move(currentVelocity);
+
+            // currentVelocity.x/z are per-frame displacement (legacy semantics callers depend on).
+            // verticalVelocity is in m/s — multiply by dt to convert to displacement-this-tick.
+            characterController.Move(new Vector3(
+                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z));
             currentVelocity.x = currentVelocity.z = 0;
 
             if (fixHeight)
