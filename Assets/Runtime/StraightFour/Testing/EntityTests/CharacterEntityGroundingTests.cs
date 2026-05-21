@@ -30,7 +30,15 @@ public class CharacterEntityGroundingTests
     private GameObject cameraGO;
     private GameObject floorGO;
 
-    private const float CHARACTER_HEIGHT = 2.0f;
+    /// <summary>
+    /// Helper: compute the transform.y needed to place the controller's foot at the given world Y.
+    /// CharacterController.center stays at Unity default (0,0,0), so foot = transform.y - height/2.
+    /// </summary>
+    private static float TransformYForFoot(CharacterEntity ce, float footY)
+    {
+        CharacterController cc = ce.GetComponent<CharacterController>();
+        return footY + cc.height / 2f - cc.center.y;
+    }
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -194,20 +202,23 @@ public class CharacterEntityGroundingTests
     public IEnumerator CharacterEntity_IsOnSurface_TrueAtSmallGapAboveFloor()
     {
         CharacterEntity ce = null;
-        // Place character so foot is 0.05 m above floor — well within ANY reasonable grounding margin.
-        // Transform y must be height/2 + 0.05 = 1.05.
-        yield return BuildSceneAndCharacter(new Vector3(0, CHARACTER_HEIGHT / 2f + 0.05f, 0),
-            buildFloor: true, c => ce = c);
+        // Spawn somewhere generic; we'll reposition once we know the actual controller height.
+        yield return BuildSceneAndCharacter(new Vector3(0, 5f, 0), buildFloor: true, c => ce = c);
 
-        // One physics tick so the controller registers position.
+        // Disable gravity so the position holds while we measure.
+        Rigidbody rb = ce.GetComponent<Rigidbody>();
+        if (rb != null) rb.useGravity = false;
+
+        // Place foot 0.05 m above floor — well within the new skinWidth+0.1 raycast or cc.isGrounded.
+        ce.SetPosition(new Vector3(0, TransformYForFoot(ce, 0.05f), 0),
+            local: true, synchronize: false);
         yield return new WaitForFixedUpdate();
         yield return new WaitForFixedUpdate();
 
         Assert.IsTrue(ce.IsOnSurface(),
-            "IsOnSurface returned false when foot was only 0.05 m above floor. " +
-            "Suspect 1 (raycast too short) — but 0.05 < 0.25 so this should always pass; " +
-            "if it fails, the foot computation in IsOnSurface is wrong (transform.position " +
-            "may not be where we think it is).");
+            $"IsOnSurface returned false when foot was only 0.05 m above floor. " +
+            $"Foot y={FootY(ce):F4}, transform y={ce.transform.position.y:F4}. " +
+            "Raycast distance or grounding fallback is still too strict.");
     }
 
     /// <summary>
@@ -218,19 +229,21 @@ public class CharacterEntityGroundingTests
     public IEnumerator CharacterEntity_IsOnSurface_FalseAtLargeGapAboveFloor()
     {
         CharacterEntity ce = null;
-        // Foot 1.5 m above floor.
-        yield return BuildSceneAndCharacter(new Vector3(0, CHARACTER_HEIGHT / 2f + 1.5f, 0),
-            buildFloor: true, c => ce = c);
+        yield return BuildSceneAndCharacter(new Vector3(0, 5f, 0), buildFloor: true, c => ce = c);
 
-        // Disable gravity so the character can't fall during the check.
+        // Disable gravity so the character holds the test position.
         Rigidbody rb = ce.GetComponent<Rigidbody>();
         if (rb != null) rb.useGravity = false;
 
+        // Foot 1.5 m above floor — well above any reasonable grounding margin.
+        ce.SetPosition(new Vector3(0, TransformYForFoot(ce, 1.5f), 0),
+            local: true, synchronize: false);
         yield return new WaitForFixedUpdate();
 
         Assert.IsFalse(ce.IsOnSurface(),
-            "IsOnSurface returned true at a 1.5 m gap. Either the raycast was extended (good!) " +
-            "or it's hitting something other than the floor (the character's own collider?).");
+            $"IsOnSurface returned true at a 1.5 m gap. Foot y={FootY(ce):F4}. " +
+            "Either the raycast is too long, or it's hitting something other than the floor " +
+            "(the character's own collider?).");
     }
 
     // ---------------------------------------------------------------------------------------------
