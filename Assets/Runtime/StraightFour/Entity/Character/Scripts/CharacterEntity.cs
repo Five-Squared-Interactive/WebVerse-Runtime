@@ -1057,22 +1057,15 @@ namespace FiveSQD.StraightFour.Entity
             highlightCube.SetActive(false);
         }
 
-        private float timeToWaitForUpdate = 0.025f;
-        private float timeWaitedForUpdate = 0;
         private int stepToRaise = 1;
         private int maxStepToRaise = 1024;
         void FixedUpdate()
         {
-            timeWaitedForUpdate += Time.deltaTime;
-            if (timeWaitedForUpdate >= timeToWaitForUpdate)
-            {
-                timeWaitedForUpdate = 0;
-            }
-            else
-            {
-                return;
-            }
-
+            // No throttling here — FixedUpdate already runs at the fixed physics rate (50 Hz by
+            // default), which is the correct cadence for gravity integration. The previous throttle
+            // (0.025s) caused FixedUpdate to fire only every other tick at fixedDeltaTime=0.02s but
+            // still used Time.deltaTime=0.02s in the integration math — producing gravity at half
+            // the intended rate.
             if (characterController == null)
             {
                 //LogSystem.LogError("[CharacterEntity->Update] No character controller for character entity.");

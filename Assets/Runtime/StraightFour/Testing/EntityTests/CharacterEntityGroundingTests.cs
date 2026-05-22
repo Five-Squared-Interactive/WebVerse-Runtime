@@ -255,14 +255,13 @@ public class CharacterEntityGroundingTests
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Suspect 4: Free-fall integration should approximate s = 0.5 * g * t^2. The unit-confusion
-    // bug (gravity adds to velocity per second, but velocity is passed as per-tick displacement)
-    // produces an order-of-magnitude faster fall.
+    // Free-fall integration should approximate s = 0.5 * g * t^2.
     //
     // Analytic free-fall over t=0.3s: dy = 0.5 * 9.81 * 0.09 ≈ 0.44 m.
-    // Buggy code: dy ≈ -0.196 * (1+2+...+N) where N ≈ t/0.04 ≈ 7 ticks → dy ≈ 5.5 m.
-    //
-    // We assert |displacement| < 1.0 m. Real physics: well under. Buggy: way over.
+    // Discrete sum at 50 Hz fixed-step: ≈ 0.47 m.
+    // Pre-fix bugs to catch:
+    //   - Unit-confusion (velocity stored as displacement): dy ≈ 5–7 m (way over).
+    //   - FixedUpdate-throttle gating with mismatched dt: dy ≈ 0.11 m (half-rate, way under).
     // ---------------------------------------------------------------------------------------------
 
     [UnityTest]
@@ -280,13 +279,14 @@ public class CharacterEntityGroundingTests
         float endY = ce.transform.position.y;
         float dropped = startY - endY;
 
-        Assert.Less(dropped, 1.0f,
-            $"Character fell {dropped:F3} m in 0.3 s. Analytic free-fall is ~0.44 m; >1 m strongly " +
-            "suggests Suspect 4: currentVelocity is being treated as per-tick displacement when " +
-            "gravity is added as v += a·dt (units mismatch).");
-        Assert.Greater(dropped, 0.05f,
-            $"Character barely moved ({dropped:F3} m in 0.3 s). Gravity may be disabled or " +
-            "the rigidbody is kinematic and the custom gravity path didn't run.");
+        Assert.Less(dropped, 0.8f,
+            $"Character fell {dropped:F3} m in 0.3 s. Analytic free-fall is ~0.44 m; >0.8 m suggests " +
+            "the units bug (currentVelocity used as displacement per tick).");
+        Assert.Greater(dropped, 0.25f,
+            $"Character only fell {dropped:F3} m in 0.3 s — significantly less than the expected " +
+            "~0.44 m of free-fall. Suggests gravity is being applied at half rate (FixedUpdate " +
+            "throttle gate using Time.deltaTime instead of the throttle interval), or gravity is " +
+            "otherwise weakened.");
     }
 
     // ---------------------------------------------------------------------------------------------
