@@ -990,10 +990,11 @@ namespace FiveSQD.StraightFour.Entity
             {
                 rigidBody.isKinematic = true;
             }
-            if (capsuleCollider != null)
-            {
-                capsuleCollider.enabled = true;
-            }
+            // Leave capsuleCollider disabled — the CharacterController is the canonical collider
+            // for character motion. Enabling the CapsuleCollider on the same GameObject made the
+            // character settle ~0.5 m above the floor (the CapsuleCollider's center.y) because the
+            // two colliders fight during depenetration. MakeHidden and MakeStatic both disable it
+            // for the same reason; Physical should match.
             interactionState = InteractionState.Physical;
         }
 
