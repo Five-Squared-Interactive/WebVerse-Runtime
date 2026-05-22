@@ -144,14 +144,6 @@ namespace FiveSQD.StraightFour.Entity
         private float verticalVelocity = 0f;
 
         /// <summary>
-        /// When true, FixedUpdate skips gravity, grounding, and Move() entirely. Some other system
-        /// (typically a VR rig that has this entity as a follower) is the sole writer of position
-        /// each frame, so the entity must not also write or the two writers fight and the avatar
-        /// flickers between positions. Set via Input.AddRigFollower / RemoveRigFollower.
-        /// </summary>
-        public bool externalPositionControl = false;
-
-        /// <summary>
         /// Get the character GameObject.
         /// </summary>
         /// <returns>The current character GameObject.</returns>
@@ -1084,14 +1076,6 @@ namespace FiveSQD.StraightFour.Entity
             if (characterController == null)
             {
                 //LogSystem.LogError("[CharacterEntity->Update] No character controller for character entity.");
-                return;
-            }
-
-            // If some other system (typically a VR rig) is positioning this entity each frame, do
-            // nothing here — running gravity or Move would create a second position writer and the
-            // avatar would flicker between the two writers' positions.
-            if (externalPositionControl)
-            {
                 return;
             }
 

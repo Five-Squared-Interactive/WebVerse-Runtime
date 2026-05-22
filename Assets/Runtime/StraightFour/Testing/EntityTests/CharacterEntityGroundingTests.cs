@@ -329,62 +329,6 @@ public class CharacterEntityGroundingTests
     }
 
     // ---------------------------------------------------------------------------------------------
-    // externalPositionControl: when a CharacterEntity is a rig follower, FixedUpdate must NOT
-    // write to the transform. Otherwise gravity + Move() fight the rig's per-frame SetPosition and
-    // the avatar visibly flickers between two positions.
-    // ---------------------------------------------------------------------------------------------
-
-    [UnityTest]
-    public IEnumerator CharacterEntity_ExternalPositionControl_PreventsFixedUpdateMotion()
-    {
-        CharacterEntity ce = null;
-        // Spawn at y=3 with a floor below — gravity would normally drop the character.
-        yield return BuildSceneAndCharacter(new Vector3(0, 3f, 0), buildFloor: true, c => ce = c);
-
-        // Simulate the rig taking over: set the flag and pin the entity at a specific position
-        // each frame the way VRRig.UpdateFollowers would.
-        ce.externalPositionControl = true;
-
-        CharacterController cc = ce.GetComponent<CharacterController>();
-        Vector3 pinnedPosition = new Vector3(0, 3f, 0);
-
-        // Hold the position across multiple physics ticks. Without externalPositionControl this
-        // wouldn't work — gravity would integrate verticalVelocity downward and Move() would drag
-        // the transform off pinnedPosition between our writes.
-        for (int i = 0; i < 50; i++)
-        {
-            cc.enabled = false;
-            ce.transform.position = pinnedPosition;
-            cc.enabled = true;
-            yield return new WaitForFixedUpdate();
-        }
-
-        Assert.That(ce.transform.position.y, Is.EqualTo(pinnedPosition.y).Within(0.01f),
-            $"externalPositionControl=true did not suppress FixedUpdate motion. " +
-            $"Final transform.y={ce.transform.position.y:F4}, expected {pinnedPosition.y:F4}.");
-    }
-
-    [UnityTest]
-    public IEnumerator CharacterEntity_ExternalPositionControl_FalseRestoresMotion()
-    {
-        CharacterEntity ce = null;
-        yield return BuildSceneAndCharacter(new Vector3(0, 3f, 0), buildFloor: true, c => ce = c);
-
-        // Toggle on/off — final state false means gravity should resume.
-        ce.externalPositionControl = true;
-        yield return new WaitForSeconds(0.5f);
-        float yAfterSuppressed = ce.transform.position.y;
-
-        ce.externalPositionControl = false;
-        yield return new WaitForSeconds(2f);
-        float yAfterRestored = ce.transform.position.y;
-
-        Assert.Less(yAfterRestored, yAfterSuppressed - 0.5f,
-            $"After clearing externalPositionControl, character should fall under gravity. " +
-            $"Before={yAfterSuppressed:F4}, after={yAfterRestored:F4}.");
-    }
-
-    // ---------------------------------------------------------------------------------------------
     // Diagnostic dump: not a pass/fail test, but exercises the path and logs the key signals every
     // tick so a human can read the console after a run. Useful first-look during investigation.
     // ---------------------------------------------------------------------------------------------

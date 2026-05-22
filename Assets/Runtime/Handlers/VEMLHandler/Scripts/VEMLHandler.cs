@@ -931,10 +931,6 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 {
                     WebVerseRuntime.Instance.inputManager.desktopRig.SetAvatarEntityByTag(pendingAvatarEntityTag);
                 }
-                if (WebVerseRuntime.Instance.vrRig != null)
-                {
-                    WebVerseRuntime.Instance.vrRig.SetAvatarEntityByTag(pendingAvatarEntityTag);
-                }
                 pendingAvatarEntityTag = null; // Clear the pending tag
             }
 
