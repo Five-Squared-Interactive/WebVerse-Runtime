@@ -757,11 +757,22 @@ namespace FiveSQD.StraightFour.Entity
             {
                 characterGO = Instantiate(characterObjectPrefab);
                 characterGO.SetActive(true);
-                GameObject characterLabel = Instantiate(StraightFour.ActiveWorld.entityManager.characterControllerLabelPrefab);
-                characterLabel.transform.SetParent(characterGO.transform);
-                characterLabel.transform.localPosition = avatarLabelOffset;
-                //characterLabel.transform.localRotation = Quaternion.identity;
-                //characterLabel.transform.localScale = Vector3.one;
+
+                // If the custom prefab already has a label baked in, attach a Billboard to it
+                // instead of instantiating a duplicate. Having two labels at different localPositions
+                // visually looks like the label "flickering between two positions" in motion.
+                TextMeshProUGUI existingCustomLabel = characterGO.GetComponentInChildren<TextMeshProUGUI>();
+                GameObject characterLabel;
+                if (existingCustomLabel != null)
+                {
+                    characterLabel = existingCustomLabel.gameObject;
+                }
+                else
+                {
+                    characterLabel = Instantiate(StraightFour.ActiveWorld.entityManager.characterControllerLabelPrefab);
+                    characterLabel.transform.SetParent(characterGO.transform);
+                    characterLabel.transform.localPosition = avatarLabelOffset;
+                }
 
                 // Add Billboard component to make the label always face the camera
                 Billboard billboard = characterLabel.GetComponent<Billboard>();
