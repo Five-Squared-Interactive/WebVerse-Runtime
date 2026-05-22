@@ -323,7 +323,17 @@ namespace FiveSQD.StraightFour.Entity
 
             currentVelocity.x += amount.x;
             currentVelocity.z += amount.z;
+            // DIAGNOSTIC: remove after VR joystick issue is resolved.
+            if (amount.sqrMagnitude > 0.0000001f)
+            {
+                LogSystem.Log($"[CharDiag] Move(amount=({amount.x:F4},{amount.y:F4},{amount.z:F4})) " +
+                    $"posBefore=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
+            }
             characterController.Move(amount);
+            if (amount.sqrMagnitude > 0.0000001f)
+            {
+                LogSystem.Log($"[CharDiag] Move posAfter=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
+            }
 
             if (synchronizer != null && synchronize == true)
             {
@@ -1073,6 +1083,11 @@ namespace FiveSQD.StraightFour.Entity
                 return;
             }
 
+            // DIAGNOSTIC: remove after VR joystick issue is resolved.
+            Vector3 fuPosBefore = transform.position;
+            bool fuOnSurface = IsOnSurface();
+            bool fuCcGrounded = characterController.isGrounded;
+
             // Reset vertical velocity when grounded and falling — prevents gravity from compounding
             // while on a surface, and zeroes any tiny residual downward velocity from prior ticks.
             if (IsOnSurface() && verticalVelocity < 0)
@@ -1087,8 +1102,18 @@ namespace FiveSQD.StraightFour.Entity
 
             // currentVelocity.x/z are per-frame displacement (legacy semantics callers depend on).
             // verticalVelocity is in m/s — multiply by dt to convert to displacement-this-tick.
-            characterController.Move(new Vector3(
-                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z));
+            Vector3 fuDelta = new Vector3(
+                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z);
+            characterController.Move(fuDelta);
+            // DIAGNOSTIC: log only when something meaningful happened (input or fall).
+            if (fuDelta.sqrMagnitude > 0.0000001f || Mathf.Abs(verticalVelocity) > 0.01f)
+            {
+                LogSystem.Log($"[CharDiag] FU posBefore=({fuPosBefore.x:F3},{fuPosBefore.y:F3},{fuPosBefore.z:F3}) " +
+                    $"posAfter=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}) " +
+                    $"delta=({fuDelta.x:F4},{fuDelta.y:F4},{fuDelta.z:F4}) " +
+                    $"vVel={verticalVelocity:F3} useGravity={rigidBody.useGravity} " +
+                    $"onSurface={fuOnSurface} ccGrounded={fuCcGrounded} kinematic={rigidBody.isKinematic}");
+            }
             currentVelocity.x = currentVelocity.z = 0;
 
             if (fixHeight)
