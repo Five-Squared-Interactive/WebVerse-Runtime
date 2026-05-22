@@ -623,6 +623,13 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                     WebVerseRuntime.Instance.vrRig.rigFollowers.Add(entityToFollowRig.internalEntity);
                 }
             }
+
+            // The rig is now the sole writer of this entity's position via UpdateFollowers.
+            // Suppress the entity's own FixedUpdate motion to prevent two-writer ghosting.
+            if (entityToFollowRig.internalEntity is StraightFour.Entity.CharacterEntity ce)
+            {
+                ce.externalPositionControl = true;
+            }
             return true;
         }
 
@@ -709,6 +716,12 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Input
                 {
                     WebVerseRuntime.Instance.vrRig.rigFollowers.Remove(entityToFollowRig.internalEntity);
                 }
+            }
+
+            // Restore entity-owned FixedUpdate motion now that the rig no longer drives position.
+            if (entityToFollowRig.internalEntity is StraightFour.Entity.CharacterEntity ce)
+            {
+                ce.externalPositionControl = false;
             }
             return true;
         }

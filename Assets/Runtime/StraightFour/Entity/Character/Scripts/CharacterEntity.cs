@@ -144,6 +144,15 @@ namespace FiveSQD.StraightFour.Entity
         private float verticalVelocity = 0f;
 
         /// <summary>
+        /// When true, FixedUpdate skips gravity, grounding, and Move() entirely. Some other system
+        /// (typically the VR rig writing position from rigOrigin every Update via UpdateFollowers)
+        /// is the sole writer of this entity's position, so the entity must not also write or the
+        /// two writers fight and the avatar flickers between positions. Wired via
+        /// Input.AddRigFollower / RemoveRigFollower.
+        /// </summary>
+        public bool externalPositionControl = false;
+
+        /// <summary>
         /// Get the character GameObject.
         /// </summary>
         /// <returns>The current character GameObject.</returns>
@@ -323,17 +332,7 @@ namespace FiveSQD.StraightFour.Entity
 
             currentVelocity.x += amount.x;
             currentVelocity.z += amount.z;
-            // DIAGNOSTIC: remove after VR joystick issue is resolved.
-            if (amount.sqrMagnitude > 0.0000001f)
-            {
-                LogSystem.Log($"[CharDiag] Move(amount=({amount.x:F4},{amount.y:F4},{amount.z:F4})) " +
-                    $"posBefore=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
-            }
             characterController.Move(amount);
-            if (amount.sqrMagnitude > 0.0000001f)
-            {
-                LogSystem.Log($"[CharDiag] Move posAfter=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
-            }
 
             if (synchronizer != null && synchronize == true)
             {
@@ -1083,10 +1082,13 @@ namespace FiveSQD.StraightFour.Entity
                 return;
             }
 
-            // DIAGNOSTIC: remove after VR joystick issue is resolved.
-            Vector3 fuPosBefore = transform.position;
-            bool fuOnSurface = IsOnSurface();
-            bool fuCcGrounded = characterController.isGrounded;
+            // If some other system (typically the VR rig via UpdateFollowers) is writing this
+            // entity's position each frame, don't add a second writer here — they would fight and
+            // the avatar would flicker between the two writers' positions.
+            if (externalPositionControl)
+            {
+                return;
+            }
 
             // Reset vertical velocity when grounded and falling — prevents gravity from compounding
             // while on a surface, and zeroes any tiny residual downward velocity from prior ticks.
@@ -1102,18 +1104,8 @@ namespace FiveSQD.StraightFour.Entity
 
             // currentVelocity.x/z are per-frame displacement (legacy semantics callers depend on).
             // verticalVelocity is in m/s — multiply by dt to convert to displacement-this-tick.
-            Vector3 fuDelta = new Vector3(
-                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z);
-            characterController.Move(fuDelta);
-            // DIAGNOSTIC: log only when something meaningful happened (input or fall).
-            if (fuDelta.sqrMagnitude > 0.0000001f || Mathf.Abs(verticalVelocity) > 0.01f)
-            {
-                LogSystem.Log($"[CharDiag] FU posBefore=({fuPosBefore.x:F3},{fuPosBefore.y:F3},{fuPosBefore.z:F3}) " +
-                    $"posAfter=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}) " +
-                    $"delta=({fuDelta.x:F4},{fuDelta.y:F4},{fuDelta.z:F4}) " +
-                    $"vVel={verticalVelocity:F3} useGravity={rigidBody.useGravity} " +
-                    $"onSurface={fuOnSurface} ccGrounded={fuCcGrounded} kinematic={rigidBody.isKinematic}");
-            }
+            characterController.Move(new Vector3(
+                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z));
             currentVelocity.x = currentVelocity.z = 0;
 
             if (fixHeight)
