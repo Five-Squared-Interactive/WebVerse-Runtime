@@ -768,10 +768,15 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          # Locate the .app bundle (Unity may name it various things)
-          APP_PATH=$(find "$PROJECT_PATH/Builds/Mac-Desktop" -maxdepth 2 -name "*.app" -type d | head -1)
+          # Remove Unity debug folders BEFORE signing - they contain a fake .app that confuses codesign
+          find "$PROJECT_PATH/Builds/Mac-Desktop" -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
+          find "$PROJECT_PATH/Builds/Mac-Desktop" -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
+
+          # Locate the .app bundle - only look at the top level, not nested debug folders
+          APP_PATH=$(find "$PROJECT_PATH/Builds/Mac-Desktop" -maxdepth 1 -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::Could not locate .app bundle in Builds/Mac-Desktop"
+            ls -la "$PROJECT_PATH/Builds/Mac-Desktop"
             exit 1
           fi
           echo "Found app: $APP_PATH"
