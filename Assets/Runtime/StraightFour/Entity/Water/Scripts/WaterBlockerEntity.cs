@@ -658,17 +658,16 @@ namespace FiveSQD.StraightFour.Entity
                 DestroyImmediate(entity);
             }
 
-            Collider collider = previewObject.GetComponent<Collider>();
-            if (collider)
+            // Remove ALL colliders on the preview (root + descendants). See MeshEntity for context.
+            foreach (Collider c in previewObject.GetComponentsInChildren<Collider>(true))
             {
-                Destroy(collider);
+                DestroyImmediate(c);
             }
 
-            Rigidbody rbody = previewObject.GetComponent<Rigidbody>();
-            if (rbody)
+            foreach (Rigidbody rb in previewObject.GetComponentsInChildren<Rigidbody>(true))
             {
-                Destroy(rbody);
-            }    
+                DestroyImmediate(rb);
+            }
 
             foreach (MeshRenderer rend in previewObject.GetComponentsInChildren<MeshRenderer>())
             {
