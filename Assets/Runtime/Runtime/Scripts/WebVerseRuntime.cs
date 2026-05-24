@@ -294,6 +294,14 @@ namespace FiveSQD.WebVerse.Runtime
         public Material highlightMaterial;
 
         /// <summary>
+        /// Material to use for the placement preview of entities (the "ghost" mesh shown while
+        /// the user is positioning an entity). If left unassigned, preview meshes render with
+        /// Unity's missing-material pink.
+        /// </summary>
+        [Tooltip("Material to use for entity placement previews.")]
+        public Material previewMaterial;
+
+        /// <summary>
         /// Material to use for the sky.
         /// </summary>
         [Tooltip("Material to use for the sky.")]
@@ -1006,6 +1014,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             straightFour.airplaneEntityPrefab = airplaneEntityPrefab;
             straightFour.highlightMaterial = highlightMaterial;
+            straightFour.previewMaterial = previewMaterial;
             straightFour.skyMaterial = skyMaterial;
             straightFour.liteProceduralSkyMaterial = liteProceduralSkyMaterial;
             straightFour.liteProceduralSkyObject = liteProceduralSkyObject;
