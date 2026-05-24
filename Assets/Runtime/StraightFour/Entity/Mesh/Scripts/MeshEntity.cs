@@ -629,11 +629,15 @@ namespace FiveSQD.StraightFour.Entity
 
             gameObject.SetActive(true);
             rigidBody.isKinematic = true;
+            // Disable colliders during placement so the placement raycast (camera/pointer) passes
+            // through the preview to hit world geometry. With colliders on, the entity blocks its
+            // own placement raycast, producing erratic positioning. Make* methods that exit Placing
+            // (Static/Physical) re-enable colliders normally.
             foreach (MeshCollider meshCollider in meshColliders)
             {
-                meshCollider.enabled = true;
+                meshCollider.enabled = false;
             }
-            boxCollider.enabled = true;
+            boxCollider.enabled = false;
             interactionState = InteractionState.Placing;
         }
 

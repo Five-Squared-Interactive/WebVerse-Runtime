@@ -809,9 +809,11 @@ namespace FiveSQD.StraightFour.Entity
 
             gameObject.SetActive(true);
             rbody.isKinematic = true;
+            // Disable colliders during placement so the placement raycast passes through the
+            // preview to hit world geometry. See MeshEntity.MakePlacing for context.
             foreach (MeshCollider meshCollider in meshColliders)
             {
-                meshCollider.enabled = true;
+                meshCollider.enabled = false;
             }
             interactionState = InteractionState.Placing;
         }
