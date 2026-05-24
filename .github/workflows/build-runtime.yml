@@ -368,6 +368,20 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
 
+      - name: Remove Meta AIBlocks (WebGL incompatible)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $aiBlocksPaths = Get-ChildItem -Path "$env:PROJECT_PATH\Library\PackageCache" -Directory -Filter "com.meta.xr.sdk.core@*" -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName "Scripts\BuildingBlocks\AIBlocks" } | Where-Object { Test-Path $_ }
+          if ($aiBlocksPaths) {
+            foreach ($path in $aiBlocksPaths) {
+              Remove-Item -Recurse -Force $path
+              if (Test-Path "$path.meta") { Remove-Item -Force "$path.meta" }
+              Write-Host "Removed: $path"
+            }
+          } else {
+            Write-Host "AIBlocks folder not found (package may not be resolved yet, or already removed)"
+          }
+
       - name: Build WebGL Compressed
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
@@ -549,6 +563,20 @@ jobs:
       - name: Create Logs directory
         shell: powershell -ExecutionPolicy Bypass {0}
         run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
+
+      - name: Remove Meta AIBlocks (WebGL incompatible)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $aiBlocksPaths = Get-ChildItem -Path "$env:PROJECT_PATH\Library\PackageCache" -Directory -Filter "com.meta.xr.sdk.core@*" -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName "Scripts\BuildingBlocks\AIBlocks" } | Where-Object { Test-Path $_ }
+          if ($aiBlocksPaths) {
+            foreach ($path in $aiBlocksPaths) {
+              Remove-Item -Recurse -Force $path
+              if (Test-Path "$path.meta") { Remove-Item -Force "$path.meta" }
+              Write-Host "Removed: $path"
+            }
+          } else {
+            Write-Host "AIBlocks folder not found (package may not be resolved yet, or already removed)"
+          }
 
       - name: Build WebGL Uncompressed
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -732,42 +760,18 @@ jobs:
             exit $EXIT_CODE
           fi
 
-      - name: Install Mac Developer ID Certificate
-        id: install-mac-cert
-        env:
-          MAC_CERTIFICATE_BASE64: ${{ secrets.MAC_CERTIFICATE_BASE64 }}
-          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
-        run: |
-          if [ -z "$MAC_CERTIFICATE_BASE64" ]; then
-            echo "No Mac certificate provided, skipping notarization"
-            echo "MAC_NOTARIZATION_AVAILABLE=false" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          KEYCHAIN_PATH="$RUNNER_TEMP/mac-signing.keychain-db"
-          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          CERT_PATH="$RUNNER_TEMP/mac-cert.p12"
-          echo "$MAC_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
-          security import "$CERT_PATH" -P "$MAC_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-
-          echo "MAC_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
-          echo "MAC_NOTARIZATION_AVAILABLE=true" >> $GITHUB_ENV
-          echo "Certificate installed"
-
       - name: Sign, Notarize, and Staple Mac App
-        if: env.MAC_NOTARIZATION_AVAILABLE == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
+          # Skip if Apple credentials not set (allows unsigned builds for testing)
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_PASSWORD" ]; then
+            echo "Apple credentials not set, skipping signing and notarization"
+            exit 0
+          fi
+
           # Remove Unity debug folders BEFORE signing - they contain a fake .app that confuses codesign
           find "$PROJECT_PATH/Builds/Mac-Desktop" -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
           find "$PROJECT_PATH/Builds/Mac-Desktop" -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
@@ -781,10 +785,12 @@ jobs:
           fi
           echo "Found app: $APP_PATH"
 
-          # Find the Developer ID Application identity
+          # Find the Developer ID Application identity in the runner user's login keychain
           SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
           if [ -z "$SIGNING_IDENTITY" ]; then
             echo "::error::No Developer ID Application identity found in keychain"
+            echo "Available identities:"
+            security find-identity -v -p codesigning
             exit 1
           fi
           echo "Using signing identity: $SIGNING_IDENTITY"
@@ -841,6 +847,9 @@ jobs:
           xcrun stapler validate "$APP_PATH"
           echo "Notarization complete and ticket stapled"
 
+          # Cleanup
+          rm -f "$SUBMIT_ZIP" 2>/dev/null || true
+
       - name: Create archive
         run: |
           mkdir -p "$PROJECT_PATH/Artifacts"
@@ -877,14 +886,6 @@ jobs:
         run: |
           CACHE_LOCATION="/Users/Shared/UnityLibraryCache/WebVerse-Runtime"
           [ -d "$PROJECT_PATH/Library" ] && rsync -a --delete "$PROJECT_PATH/Library/" "$CACHE_LOCATION/"
-
-      - name: Cleanup Mac Keychain
-        if: always()
-        run: |
-          if [ -n "$MAC_KEYCHAIN_PATH" ] && [ -f "$MAC_KEYCHAIN_PATH" ]; then
-            security delete-keychain "$MAC_KEYCHAIN_PATH" 2>/dev/null || true
-          fi
-          rm -f "$RUNNER_TEMP/mac-cert.p12" "$RUNNER_TEMP/WebVerse-notarize.zip" 2>/dev/null || true
 
       - name: Cleanup
         if: always()
