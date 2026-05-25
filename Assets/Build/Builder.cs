@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.XR.Management;
+using UnityEngine.XR.Management;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Building
