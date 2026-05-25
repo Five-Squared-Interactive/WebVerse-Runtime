@@ -158,7 +158,13 @@ namespace FiveSQD.WebVerse.Building
         public static void BuildAndroidAPK()
         {
             Debug.Log("Starting Android APK build...");
-            
+
+            // Unity 6: switch target before preprocess hooks fire, or BuildProfile is null.
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+            {
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+            }
+
             // Configure Android-specific settings
             ConfigureAndroidBuildSettings();
             
@@ -190,7 +196,13 @@ namespace FiveSQD.WebVerse.Building
         public static void BuildAndroidAAB()
         {
             Debug.Log("Starting Android AAB build...");
-            
+
+            // Unity 6: switch target before preprocess hooks fire, or BuildProfile is null.
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+            {
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+            }
+
             // Configure Android-specific settings
             ConfigureAndroidBuildSettings();
             
@@ -396,82 +408,104 @@ namespace FiveSQD.WebVerse.Building
     }
 
     /// <summary>
-    /// Preprocess build hook that removes Meta XR AIBlocks from the package cache
-    /// before script compilation. AIBlocks uses UnityEngine.Microphone, which is
-    /// unavailable on WebGL and on the standard mobile Android player scripting
-    /// context, causing CS0103 errors during build.
+    /// Strips Meta XR AIBlocks (both runtime and editor halves) from the Meta XR Core
+    /// package cache so it never reaches script compilation. AIBlocks references
+    /// UnityEngine.Microphone (unavailable on WebGL and standard mobile Android) and
+    /// the editor half references types from the runtime half, so leaving the editor
+    /// folder in place after deleting the runtime folder breaks every editor assembly
+    /// compile, including the one that runs during AssetDatabase initial refresh
+    /// before any build preprocess hook can run.
     ///
-    /// Runs automatically as part of BuildPipeline.BuildPlayer for every build
-    /// initiated through Builder.cs (or any other path).
+    /// Runs at InitializeOnLoad (every editor startup, including batch mode) AND as
+    /// a build preprocess hook, so the strip is guaranteed to happen before any
+    /// script compilation for any platform.
     /// </summary>
-    public class StripIncompatiblePackagesBuildPreprocessor : IPreprocessBuildWithReport
+    [InitializeOnLoad]
+    public static class StripIncompatiblePackages
     {
-        // Run very early so the strip happens before script compilation
-        // and before Meta XR's own preprocess hooks (which run at order 0).
-        public int callbackOrder => -10000;
+        private const string MetaCoreGlob = "com.meta.xr.sdk.core@*";
+        private const string PackageCacheRoot = "Library/PackageCache";
 
-        public void OnPreprocessBuild(BuildReport report)
+        // Folders inside the Meta XR Core package to remove. Both the runtime
+        // (Scripts/...) and editor (Editor/...) halves of AIBlocks are stripped;
+        // the editor half won't compile without the runtime half anyway, and
+        // neither is needed for non-Quest builds.
+        private static readonly string[] FoldersToStrip = new string[]
         {
-            BuildTarget target = report.summary.platform;
+            "Scripts/BuildingBlocks/AIBlocks",
+            "Editor/BuildingBlocks/BlockData/AIBlocks",
+        };
 
-            // AIBlocks is incompatible with WebGL and standard (non-Quest) Android.
-            // iOS, Mac, and Windows compile it fine, so leave them alone.
-            bool shouldStrip = target == BuildTarget.WebGL
-                            || target == BuildTarget.Android;
-
-            if (!shouldStrip)
-            {
-                return;
-            }
-
-            StripAIBlocks(target);
+        static StripIncompatiblePackages()
+        {
+            Strip("InitializeOnLoad");
         }
 
-        private static void StripAIBlocks(BuildTarget target)
+        private class BuildPreprocessor : IPreprocessBuildWithReport
         {
-            const string packageCacheRoot = "Library/PackageCache";
-
-            if (!Directory.Exists(packageCacheRoot))
+            public int callbackOrder => -10000;
+            public void OnPreprocessBuild(BuildReport report)
             {
-                Debug.LogWarning($"[StripIncompatiblePackages] {packageCacheRoot} not found; skipping AIBlocks strip.");
+                Strip($"Preprocess({report.summary.platform})");
+            }
+        }
+
+        private static void Strip(string source)
+        {
+            if (!Directory.Exists(PackageCacheRoot))
+            {
                 return;
             }
 
-            string[] metaCoreDirs = Directory.GetDirectories(packageCacheRoot, "com.meta.xr.sdk.core@*");
+            string[] metaCoreDirs;
+            try
+            {
+                metaCoreDirs = Directory.GetDirectories(PackageCacheRoot, MetaCoreGlob);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[StripIncompatiblePackages/{source}] Couldn't enumerate {PackageCacheRoot}: {ex.Message}");
+                return;
+            }
+
             if (metaCoreDirs.Length == 0)
             {
-                Debug.Log("[StripIncompatiblePackages] Meta XR Core package not found in cache; nothing to strip.");
                 return;
             }
 
-            bool stripped = false;
+            bool anyStripped = false;
+
             foreach (string metaCoreDir in metaCoreDirs)
             {
-                string aiBlocksPath = Path.Combine(metaCoreDir, "Scripts", "BuildingBlocks", "AIBlocks");
-                string aiBlocksMeta = aiBlocksPath + ".meta";
-
-                if (Directory.Exists(aiBlocksPath))
+                foreach (string relativeFolder in FoldersToStrip)
                 {
-                    Directory.Delete(aiBlocksPath, recursive: true);
-                    Debug.Log($"[StripIncompatiblePackages] Removed for {target}: {aiBlocksPath}");
-                    stripped = true;
-                }
+                    string folderPath = Path.Combine(metaCoreDir, relativeFolder.Replace('/', Path.DirectorySeparatorChar));
+                    string metaPath = folderPath + ".meta";
 
-                if (File.Exists(aiBlocksMeta))
-                {
-                    File.Delete(aiBlocksMeta);
+                    try
+                    {
+                        if (Directory.Exists(folderPath))
+                        {
+                            Directory.Delete(folderPath, recursive: true);
+                            Debug.Log($"[StripIncompatiblePackages/{source}] Removed: {folderPath}");
+                            anyStripped = true;
+                        }
+
+                        if (File.Exists(metaPath))
+                        {
+                            File.Delete(metaPath);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[StripIncompatiblePackages/{source}] Failed removing {folderPath}: {ex.Message}");
+                    }
                 }
             }
 
-            if (stripped)
+            if (anyStripped && source.StartsWith("Preprocess"))
             {
-                // Force Unity to rescan so the deleted files aren't picked up
-                // by the upcoming script compilation pass.
                 AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
-            }
-            else
-            {
-                Debug.Log($"[StripIncompatiblePackages] AIBlocks folder already absent for {target}; no strip needed.");
             }
         }
     }
