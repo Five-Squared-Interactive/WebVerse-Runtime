@@ -1281,7 +1281,7 @@ jobs:
           $logFile = "$env:PROJECT_PATH\Logs\build-android-apk.log"
           
           # Build arguments
-          $args = @("-batchmode", "-quit", "-disable-debugger-agent", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAPK", "-logFile", $logFile)
+          $args = @("-batchmode", "-quit", "-disable-debugger-agent", "-buildTarget", "Android", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAPK", "-logFile", $logFile)
           
           # Add keystore arguments if available
           if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
@@ -1306,7 +1306,7 @@ jobs:
           $logFile = "$env:PROJECT_PATH\Logs\build-android-aab.log"
           
           # Build arguments
-          $args = @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAAB", "-logFile", $logFile)
+          $args = @("-batchmode", "-nographics", "-quit", "-buildTarget", "Android", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAAB", "-logFile", $logFile)
           
           # Add keystore arguments if available
           if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
