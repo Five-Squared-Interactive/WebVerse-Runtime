@@ -1268,7 +1268,7 @@ jobs:
               $removed += $pkg
             }
           }
-          $manifest | ConvertTo-Json -Depth 32 | Set-Content $manifestPath -Encoding UTF8
+          [System.IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 32), (New-Object System.Text.UTF8Encoding $false))
           if ($removed.Count -gt 0) {
             Write-Host "Removed Meta XR packages: $($removed -join ', ')"
           } else {
