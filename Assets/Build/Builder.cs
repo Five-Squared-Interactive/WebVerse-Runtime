@@ -2,9 +2,11 @@
 
 #if UNITY_EDITOR
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityEditor.XR.Management;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Building
@@ -165,6 +167,9 @@ namespace FiveSQD.WebVerse.Building
                 EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
             }
 
+            // Disable XR/OpenXR/Meta XR for mobile Android builds
+            DisableXRForAndroid();
+
             // Configure Android-specific settings
             ConfigureAndroidBuildSettings();
             
@@ -202,6 +207,9 @@ namespace FiveSQD.WebVerse.Building
             {
                 EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
             }
+
+            // Disable XR/OpenXR/Meta XR for mobile Android builds
+            DisableXRForAndroid();
 
             // Configure Android-specific settings
             ConfigureAndroidBuildSettings();
@@ -262,6 +270,41 @@ namespace FiveSQD.WebVerse.Building
             BuildiOS();
             
             Debug.Log("All builds completed.");
+        }
+
+        /// <summary>
+        /// Disable XR plug-in management for the Android build target group.
+        /// Necessary for mobile Android builds because the project has OpenXR + Meta XR
+        /// Feature enabled for Android (used for Quest builds), and leaving that on
+        /// causes mobile builds to pull in Quest SDK preprocess hooks and fail.
+        /// </summary>
+        private static void DisableXRForAndroid()
+        {
+            XRGeneralSettings androidSettings =
+                XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(BuildTargetGroup.Android);
+
+            if (androidSettings == null || androidSettings.Manager == null)
+            {
+                Debug.Log("[Android] No XR settings configured for Android; nothing to disable.");
+                return;
+            }
+
+            androidSettings.Manager.automaticLoading = false;
+            androidSettings.Manager.automaticRunning = false;
+
+            // Remove every active XR loader (OpenXR, Oculus, etc.) so the Quest
+            // preprocess hooks have nothing to act on.
+            var activeLoaders = androidSettings.Manager.activeLoaders.ToList();
+            foreach (var loader in activeLoaders)
+            {
+                androidSettings.Manager.TryRemoveLoader(loader);
+                Debug.Log($"[Android] Removed XR loader: {loader.GetType().Name}");
+            }
+
+            EditorUtility.SetDirty(androidSettings.Manager);
+            EditorUtility.SetDirty(androidSettings);
+
+            Debug.Log("[Android] Disabled XR plug-in loading for Android build target.");
         }
 
         /// <summary>
