@@ -369,6 +369,7 @@ namespace FiveSQD.StraightFour.Entity
 
             MakeHidden();
             SetUpHighlightVolume();
+            StopAllAnimations();
         }
 
         /// <summary>
