@@ -85,19 +85,21 @@
     --spacing-md: 24px;
 }
 
-/* Mobile Mode - Touch-optimized targets */
+/* Mobile Mode - viewport-relative for correct sizing regardless of DPR.
+   max() ensures values never shrink below sensible px minimums in Editor simulators. */
 .mobile-mode {
-    --bar-height: 56px;
-    --bar-padding-h: 16px;
-    --bar-padding-v: 8px;
-    --bar-radius: 0px;
-    --tabs-button-size: 48px;
-    --nav-btn-size: 44px;
-    --tab-icon-size: 28px;
-    --font-size-md: 16px;
-    --font-size-lg: 18px;
-    --spacing-md: 12px;
-    --touch-target-min: 44px;
+    --bar-height: max(7vh, 80px);
+    --bar-padding-h: max(1.5vw, 12px);
+    --bar-padding-v: max(1vh, 8px);
+    --bar-radius: max(3.5vh, 40px);
+    --tabs-button-size: max(6.5vh, 64px);
+    --nav-btn-size: max(4.5vh, 48px);
+    --tab-icon-size: max(3vh, 32px);
+    --font-size-md: max(1.6vh, 16px);
+    --font-size-lg: max(1.8vh, 18px);
+    --spacing-md: max(0.8vh, 8px);
+    --touch-target-min: max(4.5vh, 48px);
+    --gap-button-bar: max(0.5vh, 4px);
     --safe-area-top: 0px;
     --safe-area-bottom: 0px;
     --safe-area-left: 0px;

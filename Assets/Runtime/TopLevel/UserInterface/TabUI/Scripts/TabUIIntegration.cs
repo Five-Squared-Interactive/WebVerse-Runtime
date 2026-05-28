@@ -83,6 +83,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         [Tooltip("Home URL to load on startup.")]
         private string homeUrl;
 
+        /// <summary>
+        /// Force mobile mode regardless of platform detection.
+        /// Set this before initialization (e.g. from MobileMode.Awake).
+        /// </summary>
+        [Tooltip("Force mobile mode regardless of platform.")]
+        public bool forceMobile;
+
         #endregion
 
         #region Private Fields
@@ -443,7 +450,8 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             desktopTabUIController = desktopTabUIGO.AddComponent<TabUIController>();
 
             // Mobile platform detection
-            bool isMobilePlatform = Application.platform == RuntimePlatform.Android
+            bool isMobilePlatform = forceMobile
+                || Application.platform == RuntimePlatform.Android
                 || Application.platform == RuntimePlatform.IPhonePlayer;
             if (isMobilePlatform)
             {

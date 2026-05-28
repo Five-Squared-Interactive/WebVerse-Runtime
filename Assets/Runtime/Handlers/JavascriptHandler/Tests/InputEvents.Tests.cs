@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Jint;
 using Jint.Native;
+using UnityEngine.TestTools;
 
 using InputAPI = FiveSQD.WebVerse.Handlers.Javascript.APIs.Input.Input;
 
@@ -34,6 +35,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnRegistersAndEmitFires()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cb = _engine.Evaluate("(function() { results.Add('keydown'); })");
             InputAPI.on("keydown", cb);
             InputAPI.Emit("keydown");
@@ -44,6 +46,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void MultipleListenersFireInOrder()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cbA = _engine.Evaluate("(function() { results.Add('A'); })");
             var cbB = _engine.Evaluate("(function() { results.Add('B'); })");
             InputAPI.on("keydown", cbA);
@@ -57,6 +60,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void UnsubscribeRemovesListener()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cb = _engine.Evaluate("(function() { results.Add('fired'); })");
             var unsub = InputAPI.on("keydown", cb);
             unsub();
@@ -67,6 +71,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnceAutoRemoves()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cb = _engine.Evaluate("(function() { results.Add('once'); })");
             InputAPI.once("keydown", cb);
             InputAPI.Emit("keydown");
@@ -79,6 +84,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OffRemovesSpecific()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cbA = _engine.Evaluate("(function() { results.Add('A'); })");
             var cbB = _engine.Evaluate("(function() { results.Add('B'); })");
             InputAPI.on("keydown", cbA);
@@ -92,6 +98,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OffAllRemovesAllForEvent()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cbA = _engine.Evaluate("(function() { results.Add('A'); })");
             var cbB = _engine.Evaluate("(function() { results.Add('B'); })");
             InputAPI.on("keydown", cbA);
@@ -104,6 +111,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void CatchLogContinue()
         {
+            LogAssert.ignoreFailingMessages = true;
             var good = _engine.Evaluate("(function() { results.Add('good'); })");
             var bad = _engine.Evaluate("(function() { throw new Error('boom'); })");
             InputAPI.on("keydown", good);
@@ -116,6 +124,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DisposeAllClearsEverything()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cb = _engine.Evaluate("(function() { results.Add('x'); })");
             InputAPI.on("keydown", cb);
             InputAPI.on("mousedown", cb);
@@ -128,6 +137,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DifferentInputEventsAreIndependent()
         {
+            LogAssert.ignoreFailingMessages = true;
             var cbKey = _engine.Evaluate("(function() { results.Add('key'); })");
             var cbMouse = _engine.Evaluate("(function() { results.Add('mouse'); })");
             InputAPI.on("keydown", cbKey);

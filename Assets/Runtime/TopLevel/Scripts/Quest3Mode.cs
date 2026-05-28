@@ -128,6 +128,11 @@ namespace FiveSQD.WebVerse.Runtime
         private Quest3Input quest3InputComponent;
 
         /// <summary>
+        /// Quest 3 AR provider for passthrough rendering.
+        /// </summary>
+        private Quest3ARProvider _arProvider;
+
+        /// <summary>
         /// Fade controller for world transition effects.
         /// </summary>
         private FadeController _fadeController;
@@ -332,6 +337,14 @@ namespace FiveSQD.WebVerse.Runtime
                 _vignetteController.SetCamera(vrCamera);
                 _vignetteController.SetVelocityTracker(_velocityTracker);
                 Logging.Log("[Quest3Mode->InitializeVR] VignetteController initialized.");
+            }
+
+            // Register AR provider with InputManager
+            if (runtime.inputManager != null)
+            {
+                _arProvider = new Quest3ARProvider(null, vrCamera);
+                runtime.inputManager.arProvider = _arProvider;
+                Logging.Log("[Quest3Mode->InitializeVR] Quest3ARProvider registered with InputManager.");
             }
 
             Logging.Log("[Quest3Mode->InitializeVR] Quest 3 VR initialized.");

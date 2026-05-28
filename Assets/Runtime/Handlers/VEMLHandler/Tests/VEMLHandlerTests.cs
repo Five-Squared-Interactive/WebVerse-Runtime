@@ -38,6 +38,8 @@ public class VEMLHandlerTests
     [SetUp]
     public void SetUp()
     {
+        LogAssert.ignoreFailingMessages = true;
+
         // Create a simple runtime setup
         runtimeGO = new GameObject("runtime");
         runtime = runtimeGO.AddComponent<WebVerseRuntime>();
@@ -63,6 +65,8 @@ public class VEMLHandlerTests
     [TearDown]
     public void TearDown()
     {
+        LogAssert.ignoreFailingMessages = true;
+
         // Clean up integration test state first (VRRig + world) to prevent leaks on assertion failure
         if (worldLoaded)
         {
@@ -1131,6 +1135,15 @@ public class VEMLHandlerTests
     {
         vrRigGO = new GameObject("TestVRRig");
         runtime.vrRig = vrRigGO.AddComponent<VRRig>();
+
+        // In Unity 6 test mode, Awake() is deferred — force-invoke it on StraightFour
+        // so the static singleton is set before LoadWorld accesses it.
+        if (runtime.straightFour != null)
+        {
+            var awakeMethod = typeof(FiveSQD.StraightFour.StraightFour).GetMethod("Awake",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            awakeMethod?.Invoke(runtime.straightFour, null);
+        }
 
         Assert.IsTrue(FiveSQD.StraightFour.StraightFour.LoadWorld(worldName),
             "FiveSQD.StraightFour.StraightFour.LoadWorld failed for: " + worldName);

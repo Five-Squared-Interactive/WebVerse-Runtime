@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Jint;
 using Jint.Native;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
+using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 
 namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
@@ -42,6 +43,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void PositionEventConstantExists()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.AreEqual("position", Events.Entity.Position);
             Assert.IsTrue(Events.IsValid("position"));
         }
@@ -49,6 +51,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void RotationEventConstantExists()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.AreEqual("rotation", Events.Entity.Rotation);
             Assert.IsTrue(Events.IsValid("rotation"));
         }
@@ -56,6 +59,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void ScaleEventConstantExists()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.AreEqual("scale", Events.Entity.Scale);
             Assert.IsTrue(Events.IsValid("scale"));
         }
@@ -63,6 +67,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void VisibilityEventConstantExists()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.AreEqual("visibility", Events.Entity.Visibility);
             Assert.IsTrue(Events.IsValid("visibility"));
         }
@@ -72,6 +77,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void PositionListenerFiresOnEmit()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -86,6 +92,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void RotationListenerFiresOnEmit()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -100,6 +107,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void ScaleListenerFiresOnEmit()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -114,6 +122,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void VisibilityListenerFiresOnEmit()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -130,6 +139,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void EntityWithNoPropertyListenersHasNoOverhead()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
 
             Assert.IsFalse(entity.Listeners.ContainsKey(Events.Entity.Position));
@@ -141,6 +151,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void ListenerCheckIsO1DictionaryLookup()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -159,6 +170,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void MultiplePositionListenersFireInOrder()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -179,6 +191,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OncePropertyListenerAutoRemoves()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 

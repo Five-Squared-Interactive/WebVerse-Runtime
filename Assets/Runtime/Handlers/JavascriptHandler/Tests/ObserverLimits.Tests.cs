@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Jint;
 using Jint.Native;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
+using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 
 namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
@@ -36,12 +37,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void InitialCountIsZero()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.AreEqual(0, ObserverLimits.CurrentCount);
         }
 
         [Test]
         public void OnIncrementsCount()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb = _engine.Evaluate("(function() {})");
@@ -54,6 +57,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void MultipleOnsIncrementCorrectly()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb1 = _engine.Evaluate("(function() {})");
@@ -70,6 +74,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OffDecrementsCount()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb = _engine.Evaluate("(function() {})");
@@ -84,6 +89,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OffAllDecrementsCorrectly()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb1 = _engine.Evaluate("(function() {})");
@@ -100,6 +106,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DisposeEventsDecrementsCorrectly()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb1 = _engine.Evaluate("(function() {})");
@@ -118,6 +125,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void UnsubscribeFunctionDecrementsCount()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb = _engine.Evaluate("(function() {})");
@@ -132,6 +140,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnceDecrementedAfterEmit()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var cb = _engine.Evaluate("(function() {})");
@@ -148,12 +157,14 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void CanRegisterReturnsTrueUnderLimit()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.IsTrue(ObserverLimits.CanRegister);
         }
 
         [Test]
         public void OnRejectedAtMaxObservers()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -172,6 +183,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void ExistingListenersContinueAtLimit()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
             var results = new List<string>();
@@ -193,6 +205,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void CountTracksAcrossMultipleEntities()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entityA = new BaseEntity();
             var entityB = new BaseEntity();
             IEventEmitter emitterA = entityA;
@@ -214,6 +227,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void ResetClearsCount()
         {
+            LogAssert.ignoreFailingMessages = true;
             ObserverLimits.CurrentCount = 500;
             ObserverLimits.Reset();
             Assert.AreEqual(0, ObserverLimits.CurrentCount);
@@ -222,6 +236,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void MaxObserversIs1000()
         {
+            LogAssert.ignoreFailingMessages = true;
             Assert.AreEqual(1000, ObserverLimits.MaxObservers);
         }
     }

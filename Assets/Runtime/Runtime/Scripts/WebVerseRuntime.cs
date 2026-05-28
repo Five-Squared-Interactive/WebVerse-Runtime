@@ -970,16 +970,23 @@ namespace FiveSQD.WebVerse.Runtime
             int maxEntries, int maxEntryLength, int maxKeyLength, string filesDirectory,
             float timeout = 120)
         {
-            #if UNITY_STANDALONE || UNITY_EDITOR
-                // On Windows and macOS, change the User-Agent to mobile:
-                Web.SetUserAgent(true);
-            #elif UNITY_IOS
-                // On iOS, change the User-Agent to desktop:
-                Web.SetUserAgent(false);
-            #elif UNITY_ANDROID
-                // On Android, change the User-Agent to "random":
-                Web.SetUserAgent("random");
-            #endif
+            try
+            {
+                #if UNITY_STANDALONE || UNITY_EDITOR
+                    // On Windows and macOS, change the User-Agent to mobile:
+                    Web.SetUserAgent(true);
+                #elif UNITY_IOS
+                    // On iOS, change the User-Agent to desktop:
+                    Web.SetUserAgent(false);
+                #elif UNITY_ANDROID
+                    // On Android, change the User-Agent to "random":
+                    Web.SetUserAgent("random");
+                #endif
+            }
+            catch (System.InvalidOperationException)
+            {
+                Logging.LogWarning("[WebVerseRuntime->InitializeComponents] Web.SetUserAgent called before Awake — skipping.");
+            }
 
             // Set up World Engine.
             GameObject StraightFourGO = new GameObject("StraightFour");

@@ -2,6 +2,7 @@
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -276,7 +277,7 @@ namespace FiveSQD.WebVerse.Building
             PlayerSettings.iOS.targetOSVersionString = "13.0";
             
             // Set scripting backend to IL2CPP (required for iOS)
-            PlayerSettings.SetScriptingBackend(BuildTargetGroup.iOS, ScriptingImplementation.IL2CPP);
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
             
             // Set target SDK to Device SDK (for physical devices)
             PlayerSettings.iOS.sdkVersion = iOSSdkVersion.DeviceSDK;

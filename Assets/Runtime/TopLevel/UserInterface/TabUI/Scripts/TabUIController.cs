@@ -343,6 +343,12 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             {
                 inputFilter = rawImage.gameObject.AddComponent<ChromeInputFilter>();
                 if (isVR) inputFilter.vrMode = true;
+                if (isMobile)
+                {
+                    inputFilter.chromeAtBottom = true;
+                    // 10% of screen height covers the bar (7vh) plus margins
+                    inputFilter.chromeHeight = Screen.height * 0.10f;
+                }
             }
 
             // Wire any keyboard in the prefab to send input to this WebView
@@ -368,6 +374,8 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             tabUIPath = "file:///" + tabUIPath.Replace("\\", "/");
 #endif
 
+            // Cache-bust: append timestamp so Vuplex reloads fresh content
+            tabUIPath += "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             webView.LoadUrl(tabUIPath);
 
             // The JS will send a 'ready' message when loaded
@@ -755,6 +763,10 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                     HandleHudBounds(message);
                     break;
 
+                case "urlBarFocused":
+                    HandleUrlBarFocused();
+                    break;
+
                 case "overlayOpened":
                     if (inputFilter != null) inputFilter.allowFullScreenInput = true;
                     break;
@@ -787,6 +799,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             // Send initial state — priority: mobile/tablet > vr > desktop
             SendModeToWebView(GetModeString());
+            if (isMobile) InjectMobileStyles();
             SendSafeAreaToWebView();
             SendChromePositionToWebView();
             SyncAllTabsToWebView();
@@ -861,6 +874,27 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         }
 
         /// <summary>
+        /// Handle URL bar focused — ensure the Chrome WebView has keyboard focus
+        /// so hardware keyboard input reaches the Chromium input element.
+        /// </summary>
+        private void HandleUrlBarFocused()
+        {
+#if VUPLEX_INCLUDED
+            webView?.SetFocused(true);
+            bool simActive = false;
+#if UNITY_EDITOR
+            simActive = UnityEngine.Device.SystemInfo.deviceType != SystemInfo.deviceType;
+#endif
+            Logging.Log($"[TabUIController] URL bar focused, SetFocused(true) called. " +
+                $"Screen=({Screen.width}x{Screen.height}), " +
+                $"simActive={simActive}, " +
+                $"touchSupported={UnityEngine.Input.touchSupported}, " +
+                $"mousePresent={UnityEngine.Input.mousePresent}");
+            StartInputDiag();
+#endif
+        }
+
+        /// <summary>
         /// Handle navigate request.
         /// </summary>
         private void HandleNavigate(string url)
@@ -885,6 +919,8 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             // Notify runtime to load the URL
             OnNavigateRequested?.Invoke(url);
 
+            // Update URL bar immediately so user sees the navigated URL
+            SendUrlToWebView(url);
             UpdateNavStateInWebView();
         }
 
@@ -903,6 +939,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             string prevUrl = backHistory.Pop();
             OnNavigateRequested?.Invoke(prevUrl);
+            SendUrlToWebView(prevUrl);
             UpdateNavStateInWebView();
         }
 
@@ -921,6 +958,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
             string nextUrl = forwardHistory.Pop();
             OnNavigateRequested?.Invoke(nextUrl);
+            SendUrlToWebView(nextUrl);
             UpdateNavStateInWebView();
         }
 
@@ -1189,6 +1227,40 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         }
 
         /// <summary>
+        /// Inject mobile-optimized CSS directly via JS to bypass Vuplex cache.
+        /// Uses viewport-relative units so the bar scales correctly regardless of DPR.
+        /// </summary>
+        private void InjectMobileStyles()
+        {
+            // Build CSS using max() so vh units scale up on real phones but never
+            // shrink below default px sizes in the Editor mobile simulator.
+            string css = ".mobile-mode{" +
+                "--bar-height:max(7vh,80px)!important;" +
+                "--bar-padding-h:max(1.5vw,12px)!important;" +
+                "--bar-padding-v:max(1vh,8px)!important;" +
+                "--bar-radius:max(3.5vh,40px)!important;" +
+                "--tabs-button-size:max(6.5vh,64px)!important;" +
+                "--nav-btn-size:max(4.5vh,48px)!important;" +
+                "--tab-icon-size:max(3vh,32px)!important;" +
+                "--font-size-md:max(1.6vh,16px)!important;" +
+                "--font-size-lg:max(1.8vh,18px)!important;" +
+                "--spacing-md:max(0.8vh,8px)!important;" +
+                "--touch-target-min:max(4.5vh,48px)!important;" +
+                "--gap-button-bar:max(0.5vh,4px)!important;" +
+                "}" +
+                ".mobile-mode .chrome{left:2vw!important;right:2vw!important;}" +
+                ".mobile-mode #btn-fullscreen,.mobile-mode #btn-vr,.mobile-mode .nav-btn-wrapper{display:none!important;}" +
+                ".mobile-mode .url-bar-container{min-width:0!important;}" +
+                ".mobile-mode .nav-btn svg{width:max(3vh,36px)!important;height:max(3vh,36px)!important;}" +
+                ".mobile-mode .tabs-button__icon svg{width:max(3.5vh,40px)!important;height:max(3.5vh,40px)!important;}" +
+                ".mobile-mode .url-bar{font-size:max(1.6vh,16px)!important;height:max(5vh,44px)!important;border-radius:max(2.5vh,22px)!important;padding:0 max(1.5vw,12px)!important;}";
+
+            string js = "var s=document.createElement('style');s.textContent='" + css.Replace("'", "\\'") + "';document.head.appendChild(s);";
+            ExecuteJavaScript(js);
+            Logging.Log("[TabUIController] Injected mobile styles via JS.");
+        }
+
+        /// <summary>
         /// Send safe area insets to WebView as CSS custom properties.
         /// </summary>
         private void SendSafeAreaToWebView()
@@ -1286,6 +1358,15 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         }
 
         /// <summary>
+        /// Send platform back event to the Chrome WebView for mobile back button handling.
+        /// </summary>
+        public void SendPlatformBack()
+        {
+            if (!isMobile || !webViewReady) return;
+            ExecuteJavaScript("window.tabUI?.handlePlatformBack();");
+        }
+
+        /// <summary>
         /// Check for keyboard visibility and height changes each frame (mobile only).
         /// </summary>
         private void CheckKeyboardState()
@@ -1307,12 +1388,39 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             }
         }
 
+        private int inputDiagCounter;
+        private bool inputDiagEnabled;
+
+        /// <summary>
+        /// Call from HandleUrlBarFocused to start capturing input diagnostics for a few seconds.
+        /// </summary>
+        private void StartInputDiag()
+        {
+            inputDiagEnabled = true;
+            inputDiagCounter = 300; // ~5 seconds at 60fps
+        }
+
         private void Update()
         {
             if (isMobile && webViewReady)
             {
                 CheckOrientationAndSafeArea();
                 CheckKeyboardState();
+            }
+
+            // Temporary input diagnostic — log every frame that has keyboard input
+            if (inputDiagEnabled && inputDiagCounter > 0)
+            {
+                inputDiagCounter--;
+                if (UnityEngine.Input.anyKeyDown || UnityEngine.Input.inputString.Length > 0)
+                {
+                    Logging.Log($"[TabUI InputDiag] inputString=\"{UnityEngine.Input.inputString}\" anyKeyDown={UnityEngine.Input.anyKeyDown} mouseBtn0={UnityEngine.Input.GetMouseButtonDown(0)}");
+                }
+                if (inputDiagCounter == 0)
+                {
+                    inputDiagEnabled = false;
+                    Logging.Log("[TabUI InputDiag] Diagnostic window ended.");
+                }
             }
         }
 

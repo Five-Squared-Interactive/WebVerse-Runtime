@@ -75,11 +75,10 @@
     right: var(--spacing-lg);
 }
 
-/* Mobile mode - shared chrome layout (full width, no radius) */
+/* Mobile mode - shared chrome layout */
 .mobile-mode .chrome {
-    left: 0;
-    right: 0;
-    border-radius: 0;
+    left: 2vw;
+    right: 2vw;
     padding-left: calc(var(--bar-padding-h) + var(--safe-area-left));
     padding-right: calc(var(--bar-padding-h) + var(--safe-area-right));
     transition: top 200ms ease, bottom 200ms ease, padding 200ms ease, opacity 200ms ease;
@@ -119,12 +118,50 @@
     bottom: var(--keyboard-height);
 }
 
+/* Mobile mode - hide desktop-only elements and nav back/forward */
+.mobile-mode #btn-fullscreen,
+.mobile-mode #btn-vr {
+    display: none;
+}
+.mobile-mode .nav-btn-wrapper {
+    display: none;
+}
+
+/* Mobile mode - URL bar doesn't need min-width on narrow screens */
+.mobile-mode .url-bar-container {
+    min-width: 0;
+}
+
 /* Mobile mode - touch target minimums */
 .mobile-mode .nav-btn,
 .mobile-mode .tabs-button,
 .mobile-mode .menu-btn {
     min-width: var(--touch-target-min);
     min-height: var(--touch-target-min);
+}
+
+/* Mobile mode - scale SVG icons to fill buttons properly */
+.mobile-mode .nav-btn svg {
+    width: max(3vh, 36px);
+    height: max(3vh, 36px);
+}
+.mobile-mode .tabs-button__icon svg {
+    width: max(3.5vh, 40px);
+    height: max(3.5vh, 40px);
+}
+
+/* Mobile mode - URL bar sizing */
+.mobile-mode .url-bar {
+    font-size: max(1.6vh, 16px);
+    height: max(5vh, 44px);
+    border-radius: max(2.5vh, 22px);
+    padding: 0 max(1.5vw, 12px);
+}
+
+/* Mobile mode - chrome bar inset from screen edges */
+.mobile-mode .chrome {
+    left: 2vw;
+    right: 2vw;
 }
 
 /* Mobile mode - tab item 56px height (MFR10) */

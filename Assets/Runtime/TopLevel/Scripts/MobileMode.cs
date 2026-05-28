@@ -1,8 +1,13 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Input;
-using FiveSQD.WebVerse.Interface.MultibarMenu;
+using FiveSQD.WebVerse.Input.Mobile;
+using FiveSQD.WebVerse.Interface.TabUI;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Runtime
@@ -67,10 +72,10 @@ namespace FiveSQD.WebVerse.Runtime
         public WebVerseRuntime runtime;
 
         /// <summary>
-        /// Multibar.
+        /// Tab UI Integration.
         /// </summary>
-        [Tooltip("Multibar.")]
-        public Multibar multibar;
+        [Tooltip("Tab UI Integration.")]
+        public TabUIIntegration tabUIIntegration;
 
         /// <summary>
         /// Native Settings.
@@ -110,18 +115,273 @@ namespace FiveSQD.WebVerse.Runtime
 
         private void Awake()
         {
+            Screen.orientation = ScreenOrientation.AutoRotation;
+            Screen.autorotateToPortrait = true;
+            Screen.autorotateToPortraitUpsideDown = true;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.Portrait;
+
             nativeSettings.Initialize("3", System.IO.Path.Combine(Application.persistentDataPath, settingsFilePath));
             nativeHistory.Initialize("3", System.IO.Path.Combine(Application.persistentDataPath, historyFilePath));
 
             LoadRuntime();
 
-            multibar.Initialize(Multibar.MultibarMode.Mobile, nativeSettings);
-
-            string homeURL = nativeSettings.GetHomeURL();
-            if (!string.IsNullOrEmpty(homeURL))
+            // Initialize Tab UI
+            if (tabUIIntegration != null)
             {
-                multibar.SetURL(homeURL);
-                multibar.Enter();
+                tabUIIntegration.forceMobile = true;
+                string homeURL = nativeSettings.GetHomeURL();
+                if (!string.IsNullOrEmpty(homeURL))
+                    tabUIIntegration.SetHomeUrl(homeURL);
+
+                tabUIIntegration.SetHistoryProvider(() => GetHistoryData());
+                tabUIIntegration.SetConsoleLogProvider(() => GetConsoleLogData());
+                tabUIIntegration.SetSettingsProvider(() => GetSettingsData());
+
+                tabUIIntegration.OnClearHistoryRequested += HandleClearHistory;
+                tabUIIntegration.OnSaveSettingsRequested += HandleSaveSettings;
+                tabUIIntegration.OnClearCacheRequested += HandleClearCache;
+                tabUIIntegration.OnExitRequested += HandleExit;
+                tabUIIntegration.OnPageLoaded += HandlePageLoaded;
+
+                Logging.Log("[MobileMode->Awake] Tab UI initialized with data providers.");
+            }
+
+            // Wire touch hooks to TabUI
+            if (tabUIIntegration != null && mobileInput != null)
+            {
+                StartCoroutine(WireTabUIControllerWhenReady());
+            }
+        }
+
+        private void Update()
+        {
+            // Android back button maps to KeyCode.Escape
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (tabUIIntegration != null && tabUIIntegration.ActiveTabUIController != null)
+                {
+                    tabUIIntegration.ActiveTabUIController.SendPlatformBack();
+                }
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (tabUIIntegration != null)
+            {
+                tabUIIntegration.OnClearHistoryRequested -= HandleClearHistory;
+                tabUIIntegration.OnSaveSettingsRequested -= HandleSaveSettings;
+                tabUIIntegration.OnClearCacheRequested -= HandleClearCache;
+                tabUIIntegration.OnExitRequested -= HandleExit;
+                tabUIIntegration.OnPageLoaded -= HandlePageLoaded;
+            }
+        }
+
+        /// <summary>
+        /// Get browsing history formatted for the Tab UI.
+        /// </summary>
+        public object GetHistoryData()
+        {
+            try
+            {
+                if (nativeHistory == null) return new List<Dictionary<string, string>>();
+
+                var items = nativeHistory.GetAllItemsFromHistory();
+                if (items == null || items.Length == 0) return new List<Dictionary<string, string>>();
+
+                var result = new List<Dictionary<string, string>>();
+                var sorted = items.OrderByDescending(item => item.Item1);
+                foreach (var item in sorted)
+                {
+                    result.Add(new Dictionary<string, string>
+                    {
+                        { "timestamp", item.Item1.ToString("o") },
+                        { "name", item.Item2 ?? "" },
+                        { "url", item.Item3 ?? "" }
+                    });
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[MobileMode->GetHistoryData] Error: {ex.Message}");
+                return new List<Dictionary<string, string>>();
+            }
+        }
+
+        /// <summary>
+        /// Get console log data formatted for the Tab UI.
+        /// Returns empty list — live console lines are forwarded via Logging callback.
+        /// </summary>
+        public object GetConsoleLogData()
+        {
+            return new List<object>();
+        }
+
+        /// <summary>
+        /// Get current settings formatted for the Tab UI.
+        /// </summary>
+        public object GetSettingsData()
+        {
+            try
+            {
+                return new Dictionary<string, object>
+                {
+                    { "homeURL", nativeSettings.GetHomeURL() ?? "" },
+                    { "worldLoadTimeout", (int) nativeSettings.GetWorldLoadTimeout() },
+                    { "storageMode", nativeSettings.GetStorageMode() },
+                    { "maxStorageEntries", (int) nativeSettings.GetMaxStorageEntries() },
+                    { "maxStorageKeyLength", (int) nativeSettings.GetMaxStorageKeyLength() },
+                    { "maxStorageEntryLength", (int) nativeSettings.GetMaxStorageEntryLength() },
+                    { "cacheDirectory", nativeSettings.GetCacheDirectory() },
+                    { "defaultAvatar", nativeSettings.GetDefaultAvatar() }
+                };
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[MobileMode->GetSettingsData] Error: {ex.Message}");
+                return new Dictionary<string, object>();
+            }
+        }
+
+        /// <summary>
+        /// Handle clear history request from Tab UI.
+        /// </summary>
+        public void HandleClearHistory()
+        {
+            if (nativeHistory != null)
+            {
+                nativeHistory.ClearHistory();
+                Logging.Log("[MobileMode] History cleared.");
+            }
+        }
+
+        /// <summary>
+        /// Handle save settings request from Tab UI.
+        /// </summary>
+        public void HandleSaveSettings(Dictionary<string, object> settings)
+        {
+            if (nativeSettings == null || settings == null) return;
+
+            try
+            {
+                if (settings.TryGetValue("homeURL", out object homeUrl))
+                    nativeSettings.SetHomeURL(homeUrl?.ToString() ?? "");
+
+                if (settings.TryGetValue("storageMode", out object storageMode))
+                    nativeSettings.SetStorageMode(storageMode?.ToString() ?? "persistent");
+
+                if (settings.TryGetValue("worldLoadTimeout", out object wlt))
+                    nativeSettings.SetWorldLoadTimeout(Convert.ToUInt32(wlt));
+
+                if (settings.TryGetValue("maxStorageEntries", out object mse))
+                    nativeSettings.SetMaxStorageEntries(Convert.ToUInt32(mse));
+
+                if (settings.TryGetValue("maxStorageKeyLength", out object mskl))
+                    nativeSettings.SetMaxStorageKeyLength(Convert.ToUInt32(mskl));
+
+                if (settings.TryGetValue("maxStorageEntryLength", out object msel))
+                    nativeSettings.SetMaxStorageEntryLength(Convert.ToUInt32(msel));
+
+                if (settings.TryGetValue("cacheDirectory", out object cacheDir))
+                    nativeSettings.SetCacheDirectory(cacheDir?.ToString() ?? "");
+
+                if (settings.TryGetValue("defaultAvatar", out object defaultAvatar))
+                    nativeSettings.SetDefaultAvatar(defaultAvatar?.ToString() ?? "rigged");
+
+                Logging.Log("[MobileMode] Settings saved.");
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[MobileMode->HandleSaveSettings] Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle clear cache request from Tab UI.
+        /// </summary>
+        public void HandleClearCache(string timeRange)
+        {
+            try
+            {
+                string fullPath = System.IO.Path.Combine(Application.persistentDataPath, GetCacheDirectory());
+                if (string.IsNullOrEmpty(fullPath))
+                {
+                    Logging.LogWarning("[MobileMode->HandleClearCache] Cache directory not configured.");
+                    return;
+                }
+
+                if (System.IO.Directory.Exists(fullPath))
+                {
+                    foreach (var file in System.IO.Directory.GetFiles(fullPath))
+                        System.IO.File.Delete(file);
+                    foreach (var dir in System.IO.Directory.GetDirectories(fullPath))
+                        System.IO.Directory.Delete(dir, true);
+                    Logging.Log($"[MobileMode] Cache cleared (timeRange: {timeRange}, path: {fullPath}).");
+                }
+                else
+                {
+                    Logging.Log($"[MobileMode] Cache directory does not exist: {fullPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.LogError($"[MobileMode->HandleClearCache] Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle exit request from Tab UI.
+        /// </summary>
+        public void HandleExit()
+        {
+            Logging.Log("[MobileMode] Exit requested.");
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        /// <summary>
+        /// Handle page loaded — record in browsing history.
+        /// </summary>
+        public void HandlePageLoaded(string siteName, string url)
+        {
+            if (nativeHistory != null && !string.IsNullOrEmpty(url))
+            {
+                nativeHistory.AddItemToHistory(DateTime.Now, siteName ?? "Web Page", url);
+            }
+        }
+
+        private IEnumerator WireTabUIControllerWhenReady()
+        {
+            // Wait for TabUIIntegration to finish initializing (timeout after 30s)
+            float timeout = 30f;
+            float elapsed = 0f;
+            while (tabUIIntegration != null && !tabUIIntegration.IsInitialized)
+            {
+                elapsed += Time.deltaTime;
+                if (elapsed > timeout)
+                {
+                    Logging.LogWarning("[MobileMode] TabUIIntegration did not initialize within 30s. Touch hooks not wired.");
+                    yield break;
+                }
+                yield return null;
+            }
+
+            var mobileInputComponent = mobileInput.GetComponent<MobileInput>();
+            if (mobileInputComponent == null)
+            {
+                Logging.LogWarning("[MobileMode] mobileInput GameObject lacks MobileInput component. Touch hooks not wired.");
+                yield break;
+            }
+            if (tabUIIntegration != null && tabUIIntegration.ActiveTabUIController != null)
+            {
+                mobileInputComponent.TabUIController = tabUIIntegration.ActiveTabUIController;
+                Logging.Log("[MobileMode] MobileInput wired to TabUIController.");
             }
         }
 

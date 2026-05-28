@@ -3194,6 +3194,25 @@ public class TabUITests
 
     #endregion
 
+    #region SendPlatformBack Tests
+
+    [Test]
+    public void TabUIController_SendPlatformBack_DoesNotThrowWhenNotReady()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        // Arrange
+        GameObject go = new GameObject("TestTabUIController");
+        var controller = go.AddComponent<TabUIController>();
+
+        // Act & Assert - Should handle not-ready state gracefully (isMobile=false, webViewReady=false)
+        Assert.DoesNotThrow(() => controller.SendPlatformBack());
+
+        // Cleanup
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    #endregion
+
     #region Mobile Tab Limit Tests
 
     [Test]

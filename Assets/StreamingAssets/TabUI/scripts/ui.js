@@ -618,6 +618,8 @@
      */
     function handleUrlFocus() {
         elements.urlBar.select();
+        // Notify Unity so it can ensure the WebView has keyboard focus
+        try { window.vuplex?.postMessage(JSON.stringify({ type: 'urlBarFocused' })); } catch(e) {}
     }
 
     /**

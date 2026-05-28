@@ -68,6 +68,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Core
         /// </summary>
         bool IsDisposed { get; }
 
+
         /// <summary>
         /// Register an event listener. Returns an unsubscribe function.
         /// Logs a warning for unrecognized event names but still registers the listener.

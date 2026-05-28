@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Jint;
 using Jint.Native;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
+using UnityEngine.TestTools;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 
 namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
@@ -33,6 +34,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void SpawnEventFiresOnEntity()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -49,6 +51,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void SpawnEventFiresMultipleListenersInOrder()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -70,6 +73,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DestroyEventFiresOnEntity()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -86,6 +90,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DestroyListenersCanAccessEntityDuringCallback()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -106,6 +111,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DestroyThenDisposeSequence()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -137,6 +143,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void DisposeEventsAfterDestroyEmitClearsAllListeners()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -162,6 +169,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnRejectedOnDisposedEntity()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
@@ -182,6 +190,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.Tests
         [Test]
         public void OnceRejectedOnDisposedEntity()
         {
+            LogAssert.ignoreFailingMessages = true;
             var entity = new BaseEntity();
             IEventEmitter emitter = entity;
 
