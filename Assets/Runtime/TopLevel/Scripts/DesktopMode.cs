@@ -217,6 +217,8 @@ namespace FiveSQD.WebVerse.Runtime
         public void EnableVR()
         {
             vrEnabled = true;
+            // PROBE: testing whether HDR output is a compounding cause of VR overbright. Revert after test.
+            vrCamera.allowHDR = false;
             StartCoroutine(EnableVRCoroutine());
             desktopRig.SetActive(false);
             vrRig.transform.position = desktopRig.transform.position;

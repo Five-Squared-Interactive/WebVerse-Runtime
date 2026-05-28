@@ -368,6 +368,20 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
 
+      - name: Remove Meta AIBlocks (WebGL incompatible)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $aiBlocksPaths = Get-ChildItem -Path "$env:PROJECT_PATH\Library\PackageCache" -Directory -Filter "com.meta.xr.sdk.core@*" -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName "Scripts\BuildingBlocks\AIBlocks" } | Where-Object { Test-Path $_ }
+          if ($aiBlocksPaths) {
+            foreach ($path in $aiBlocksPaths) {
+              Remove-Item -Recurse -Force $path
+              if (Test-Path "$path.meta") { Remove-Item -Force "$path.meta" }
+              Write-Host "Removed: $path"
+            }
+          } else {
+            Write-Host "AIBlocks folder not found (package may not be resolved yet, or already removed)"
+          }
+
       - name: Build WebGL Compressed
         shell: powershell -ExecutionPolicy Bypass {0}
         run: |
@@ -549,6 +563,20 @@ jobs:
       - name: Create Logs directory
         shell: powershell -ExecutionPolicy Bypass {0}
         run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
+
+      - name: Remove Meta AIBlocks (WebGL incompatible)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $aiBlocksPaths = Get-ChildItem -Path "$env:PROJECT_PATH\Library\PackageCache" -Directory -Filter "com.meta.xr.sdk.core@*" -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName "Scripts\BuildingBlocks\AIBlocks" } | Where-Object { Test-Path $_ }
+          if ($aiBlocksPaths) {
+            foreach ($path in $aiBlocksPaths) {
+              Remove-Item -Recurse -Force $path
+              if (Test-Path "$path.meta") { Remove-Item -Force "$path.meta" }
+              Write-Host "Removed: $path"
+            }
+          } else {
+            Write-Host "AIBlocks folder not found (package may not be resolved yet, or already removed)"
+          }
 
       - name: Build WebGL Uncompressed
         shell: powershell -ExecutionPolicy Bypass {0}
@@ -732,6 +760,96 @@ jobs:
             exit $EXIT_CODE
           fi
 
+      - name: Sign, Notarize, and Staple Mac App
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          # Skip if Apple credentials not set (allows unsigned builds for testing)
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_PASSWORD" ]; then
+            echo "Apple credentials not set, skipping signing and notarization"
+            exit 0
+          fi
+
+          # Remove Unity debug folders BEFORE signing - they contain a fake .app that confuses codesign
+          find "$PROJECT_PATH/Builds/Mac-Desktop" -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
+          find "$PROJECT_PATH/Builds/Mac-Desktop" -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
+
+          # Locate the .app bundle - only look at the top level, not nested debug folders
+          APP_PATH=$(find "$PROJECT_PATH/Builds/Mac-Desktop" -maxdepth 1 -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::Could not locate .app bundle in Builds/Mac-Desktop"
+            ls -la "$PROJECT_PATH/Builds/Mac-Desktop"
+            exit 1
+          fi
+          echo "Found app: $APP_PATH"
+
+          # Find the Developer ID Application identity in the runner user's login keychain
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$SIGNING_IDENTITY" ]; then
+            echo "::error::No Developer ID Application identity found in keychain"
+            echo "Available identities:"
+            security find-identity -v -p codesigning
+            exit 1
+          fi
+          echo "Using signing identity: $SIGNING_IDENTITY"
+
+          # Use entitlements file if present
+          ENTITLEMENTS_FLAG=""
+          if [ -f "$PROJECT_PATH/Entitlements.plist" ]; then
+            ENTITLEMENTS_FLAG="--entitlements $PROJECT_PATH/Entitlements.plist"
+            echo "Using entitlements: $PROJECT_PATH/Entitlements.plist"
+          fi
+
+          # Deep-sign the app with Hardened Runtime
+          codesign --deep --force --verify --verbose \
+            --sign "$SIGNING_IDENTITY" \
+            --options runtime \
+            $ENTITLEMENTS_FLAG \
+            --timestamp \
+            "$APP_PATH"
+
+          # Verify signature
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          # Zip for notarization submission (ditto preserves Mac metadata)
+          SUBMIT_ZIP="$RUNNER_TEMP/WebVerse-notarize.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$SUBMIT_ZIP"
+
+          # Submit for notarization and wait
+          echo "Submitting for notarization..."
+          SUBMISSION_OUTPUT=$(xcrun notarytool submit "$SUBMIT_ZIP" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait \
+            --output-format json)
+          echo "$SUBMISSION_OUTPUT"
+
+          SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          STATUS=$(echo "$SUBMISSION_OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])")
+          echo "Submission ID: $SUBMISSION_ID"
+          echo "Status: $STATUS"
+
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed with status: $STATUS"
+            echo "=== Notarization log ==="
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD"
+            exit 1
+          fi
+
+          # Staple the notarization ticket to the app
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          echo "Notarization complete and ticket stapled"
+
+          # Cleanup
+          rm -f "$SUBMIT_ZIP" 2>/dev/null || true
+
       - name: Create archive
         run: |
           mkdir -p "$PROJECT_PATH/Artifacts"
@@ -739,7 +857,8 @@ jobs:
             cd "$PROJECT_PATH/Builds/Mac-Desktop"
             find . -type d -name "*_BackUpThisFolder_ButDontShipItWithYourGame" -exec rm -rf {} + 2>/dev/null || true
             find . -type d -name "*_BurstDebugInformation_DoNotShip" -exec rm -rf {} + 2>/dev/null || true
-            zip -r "$PROJECT_PATH/Artifacts/Mac-Desktop-$BUILD_ID.zip" .
+            # Use ditto instead of zip to preserve notarization staple and extended attributes
+            ditto -c -k --keepParent . "$PROJECT_PATH/Artifacts/Mac-Desktop-$BUILD_ID.zip"
           fi
 
       - name: Upload to S3
@@ -1136,6 +1255,31 @@ jobs:
         shell: powershell -ExecutionPolicy Bypass {0}
         run: New-Item -ItemType Directory -Path "$env:PROJECT_PATH\Logs" -Force | Out-Null
 
+      - name: Remove Meta XR SDK (mobile Android, not Quest)
+        shell: powershell -ExecutionPolicy Bypass {0}
+        run: |
+          $manifestPath = "$env:PROJECT_PATH\Packages\manifest.json"
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          $removed = @()
+          $metaPackages = @("com.meta.xr.sdk.core", "com.meta.xr.sdk.interaction", "com.meta.xr.sdk.interaction.ovr", "com.meta.xr.sdk.platform", "com.meta.xr.simulator", "com.meta.xr.mrutilitykit")
+          foreach ($pkg in $metaPackages) {
+            if ($manifest.dependencies.PSObject.Properties.Name -contains $pkg) {
+              $manifest.dependencies.PSObject.Properties.Remove($pkg)
+              $removed += $pkg
+            }
+          }
+          [System.IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 32), (New-Object System.Text.UTF8Encoding $false))
+          if ($removed.Count -gt 0) {
+            Write-Host "Removed Meta XR packages: $($removed -join ', ')"
+          } else {
+            Write-Host "No Meta XR packages found in manifest"
+          }
+          
+          Get-ChildItem -Path "$env:PROJECT_PATH\Library\PackageCache" -Directory -Filter "com.meta.xr.*" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item -Recurse -Force $_.FullName
+            Write-Host "Cleared cache: $($_.Name)"
+          }
+
       - name: Setup Android Keystore
         shell: powershell -ExecutionPolicy Bypass {0}
         env:
@@ -1162,7 +1306,7 @@ jobs:
           $logFile = "$env:PROJECT_PATH\Logs\build-android-apk.log"
           
           # Build arguments
-          $args = @("-batchmode", "-quit", "-disable-debugger-agent", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAPK", "-logFile", $logFile)
+          $args = @("-batchmode", "-quit", "-disable-debugger-agent", "-buildTarget", "Android", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAPK", "-logFile", $logFile)
           
           # Add keystore arguments if available
           if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
@@ -1187,7 +1331,7 @@ jobs:
           $logFile = "$env:PROJECT_PATH\Logs\build-android-aab.log"
           
           # Build arguments
-          $args = @("-batchmode", "-nographics", "-quit", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAAB", "-logFile", $logFile)
+          $args = @("-batchmode", "-nographics", "-quit", "-buildTarget", "Android", "-projectPath", "$env:PROJECT_PATH", "-executeMethod", "FiveSQD.WebVerse.Building.Builder.BuildAndroidAAB", "-logFile", $logFile)
           
           # Add keystore arguments if available
           if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
