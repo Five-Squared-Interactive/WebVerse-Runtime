@@ -373,6 +373,12 @@ namespace FiveSQD.WebVerse.Building
                     PlayerSettings.Android.keyaliasPass = args[i + 1];
                 }
             }
+
+            PlayerSettings.Android.useCustomKeystore = keystoreConfigured;
+
+            Debug.Log($"[{buildType}] useCustomKeystore = {PlayerSettings.Android.useCustomKeystore}");
+            Debug.Log($"[{buildType}] keystoreName      = {PlayerSettings.Android.keystoreName}");
+            Debug.Log($"[{buildType}] keyaliasName      = {PlayerSettings.Android.keyaliasName}");
         }
 
         /// <summary>
