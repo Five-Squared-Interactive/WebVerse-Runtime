@@ -351,12 +351,14 @@ namespace FiveSQD.WebVerse.Building
         /// <param name="buildType">The type of build (for logging purposes).</param>
         private static void ParseAndroidKeystoreArguments(string buildType)
         {
+            bool keystoreConfigured = false;
             string[] args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-keystorePath" && i + 1 < args.Length)
                 {
                     PlayerSettings.Android.keystoreName = args[i + 1];
+                    keystoreConfigured = true;
                     Debug.Log($"[{buildType}] Using keystore: {args[i + 1]}");
                 }
                 else if (args[i] == "-keystorePass" && i + 1 < args.Length)
@@ -373,9 +375,9 @@ namespace FiveSQD.WebVerse.Building
                     PlayerSettings.Android.keyaliasPass = args[i + 1];
                 }
             }
-
+        
             PlayerSettings.Android.useCustomKeystore = keystoreConfigured;
-
+        
             Debug.Log($"[{buildType}] useCustomKeystore = {PlayerSettings.Android.useCustomKeystore}");
             Debug.Log($"[{buildType}] keystoreName      = {PlayerSettings.Android.keystoreName}");
             Debug.Log($"[{buildType}] keyaliasName      = {PlayerSettings.Android.keyaliasName}");
