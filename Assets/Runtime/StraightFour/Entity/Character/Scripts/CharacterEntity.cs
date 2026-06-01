@@ -132,11 +132,27 @@ namespace FiveSQD.StraightFour.Entity
         private GameObject highlightCube;
 
         /// <summary>
-        /// The current applied velocity.
+        /// The current horizontal displacement applied this tick (x and z). Resets after each
+        /// FixedUpdate. y is unused; vertical motion lives in verticalVelocity.
         /// </summary>
         private Vector3 currentVelocity = Vector3.zero;
 
         /// <summary>
+        /// Vertical velocity in meters/second. Integrated by gravity each FixedUpdate; displacement
+        /// is verticalVelocity * Time.deltaTime applied via CharacterController.Move. Jump() and the
+        /// y component of Move(amount) treat this as velocity (m/s), not per-frame displacement.
+        /// </summary>
+        private float verticalVelocity = 0f;
+
+        /// <summary>
+        /// When true, FixedUpdate skips gravity, grounding, and Move() entirely. Some other system
+        /// (typically the VR rig writing position from rigOrigin every Update via UpdateFollowers)
+        /// is the sole writer of this entity's position, so the entity must not also write or the
+        /// two writers fight and the avatar flickers between positions. Wired via
+        /// Input.AddRigFollower / RemoveRigFollower.
+        /// </summary>
+        public bool externalPositionControl = false;
+
         /// Avatar animation manager for this character.
         /// </summary>
         private AvatarAnimationManager _avatarAnimationManager;
@@ -368,7 +384,8 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            currentVelocity = new Vector3(currentVelocity.x + amount.x, currentVelocity.y + amount.y, currentVelocity.z + amount.z);
+            currentVelocity.x += amount.x;
+            currentVelocity.z += amount.z;
             characterController.Move(amount);
 
             if (synchronizer != null && synchronize == true)
@@ -402,7 +419,7 @@ namespace FiveSQD.StraightFour.Entity
 
             if (IsOnSurface() || !discardIfFalling)
             {
-                currentVelocity.y += amount;
+                verticalVelocity += amount;
             }
 
             if (synchronizer != null && synchronize == true)
@@ -431,7 +448,16 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2, 0), Vector3.down, 0.25f);
+            // CharacterController.isGrounded is the canonical signal; it's updated each Move() with
+            // the controller's internal slope/penetration logic and accounts for skinWidth.
+            if (characterController.isGrounded) return true;
+
+            // Fallback raycast for the pre-first-Move case and as a small-gap safety net.
+            // Distance is skinWidth + a small margin so we catch the "just barely above floor"
+            // state without falsely reporting grounded at large gaps.
+            float rayDistance = characterController.skinWidth + 0.1f;
+            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2f, 0),
+                Vector3.down, rayDistance);
         }
 
         public bool IsAboveGround()
@@ -1205,6 +1231,19 @@ namespace FiveSQD.StraightFour.Entity
             }
 
             gameObject.SetActive(true);
+            // Keep Rigidbody kinematic in Physical state — character motion is owned by
+            // CharacterController.Move() in FixedUpdate. A non-kinematic Rigidbody on the same
+            // GameObject causes per-frame position fighting (visible as the avatar/label rendering
+            // at two flickering positions). Defends against SetMotion(Moving) flipping this.
+            if (rigidBody != null)
+            {
+                rigidBody.isKinematic = true;
+            }
+            // Leave capsuleCollider disabled — the CharacterController is the canonical collider
+            // for character motion. Enabling the CapsuleCollider on the same GameObject made the
+            // character settle ~0.5 m above the floor (the CapsuleCollider's center.y) because the
+            // two colliders fight during depenetration. MakeHidden and MakeStatic both disable it
+            // for the same reason; Physical should match.
             interactionState = InteractionState.Physical;
         }
 
@@ -1268,38 +1307,45 @@ namespace FiveSQD.StraightFour.Entity
             highlightCube.SetActive(false);
         }
 
-        private float timeToWaitForUpdate = 0.025f;
-        private float timeWaitedForUpdate = 0;
         private int stepToRaise = 1;
         private int maxStepToRaise = 1024;
         void FixedUpdate()
         {
-            timeWaitedForUpdate += Time.deltaTime;
-            if (timeWaitedForUpdate >= timeToWaitForUpdate)
-            {
-                timeWaitedForUpdate = 0;
-            }
-            else
-            {
-                return;
-            }
-
+            // No throttling here — FixedUpdate already runs at the fixed physics rate (50 Hz by
+            // default), which is the correct cadence for gravity integration. The previous throttle
+            // (0.025s) caused FixedUpdate to fire only every other tick at fixedDeltaTime=0.02s but
+            // still used Time.deltaTime=0.02s in the integration math — producing gravity at half
+            // the intended rate.
             if (characterController == null)
             {
                 //LogSystem.LogError("[CharacterEntity->Update] No character controller for character entity.");
                 return;
             }
 
-            if (IsOnSurface() && currentVelocity.y < 0)
+            // If some other system (typically the VR rig via UpdateFollowers) is writing this
+            // entity's position each frame, don't add a second writer here — they would fight and
+            // the avatar would flicker between the two writers' positions.
+            if (externalPositionControl)
             {
-                currentVelocity.y = 0f;
+                return;
+            }
+
+            // Reset vertical velocity when grounded and falling — prevents gravity from compounding
+            // while on a surface, and zeroes any tiny residual downward velocity from prior ticks.
+            if (IsOnSurface() && verticalVelocity < 0)
+            {
+                verticalVelocity = 0f;
             }
 
             if (rigidBody.useGravity)
             {
-                currentVelocity.y += -9.81f * Time.deltaTime; // TODO: Magic number, tie into larger gravity system.
+                verticalVelocity += -9.81f * Time.deltaTime; // TODO: tie into larger gravity system.
             }
-            characterController.Move(currentVelocity);
+
+            // currentVelocity.x/z are per-frame displacement (legacy semantics callers depend on).
+            // verticalVelocity is in m/s — multiply by dt to convert to displacement-this-tick.
+            characterController.Move(new Vector3(
+                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z));
             currentVelocity.x = currentVelocity.z = 0;
 
             if (fixHeight)
