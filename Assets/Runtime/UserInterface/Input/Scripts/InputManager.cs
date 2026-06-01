@@ -30,6 +30,26 @@ namespace FiveSQD.WebVerse.Input
         public DesktopRig desktopRig;
 
         /// <summary>
+        /// AR provider. Null on non-AR platforms.
+        /// </summary>
+        public IARProvider arProvider;
+
+        /// <summary>
+        /// Surface detector. Null on non-AR platforms.
+        /// </summary>
+        public ISurfaceDetector surfaceDetector;
+
+        /// <summary>
+        /// Anchor placer. Null on non-AR platforms.
+        /// </summary>
+        public IAnchorPlacer anchorPlacer;
+
+        /// <summary>
+        /// Fade transition. Null on non-AR platforms.
+        /// </summary>
+        public IFadeTransition fadeTransition;
+
+        /// <summary>
         /// Whether or not input is enabled.
         /// </summary>
         public bool inputEnabled;

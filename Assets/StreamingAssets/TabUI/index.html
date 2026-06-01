@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebVerse Chrome</title>
-    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/tokens.css?v=12">
     <link rel="stylesheet" href="styles/base.css">
-    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/components.css?v=12">
     <link rel="stylesheet" href="styles/animations.css">
 </head>
 <body>
@@ -283,6 +283,18 @@
                                 <option value="system">System Default</option>
                                 <option value="dark">Dark</option>
                                 <option value="light">Light</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Avatar Section -->
+                    <div class="settings-section">
+                        <div class="settings-section__title">Avatar</div>
+                        <div class="settings-item">
+                            <label class="settings-item__label" for="setting-default-avatar">Default Avatar</label>
+                            <select id="setting-default-avatar" class="settings-select" data-setting="defaultAvatar">
+                                <option value="rigged">Rigged Mannequin</option>
+                                <option value="simple">Simple</option>
                             </select>
                         </div>
                     </div>

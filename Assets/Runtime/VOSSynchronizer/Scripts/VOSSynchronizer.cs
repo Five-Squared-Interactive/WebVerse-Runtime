@@ -1591,7 +1591,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                 LogSystem.LogError("[VOSSynchronizer->OnError] Not intialized.");
                 return;
             }*/
-            LogSystem.LogError("[VOSSynchronizer] Error: " + info);
+            LogSystem.LogWarning("[VOSSynchronizer] Error: " + info);
         }
 
         /// <summary>

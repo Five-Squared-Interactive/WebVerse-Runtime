@@ -15,10 +15,16 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// <summary>
         /// Height in local pixels where the chrome bar lives.
         /// Desktop: measured from the top of the screen.
+        /// Mobile: measured from the bottom of the screen.
         /// VR: measured from the bottom of the panel.
         /// Matches the CSS: spacing-md(16) + bar-height(96) + spacing-sm(8) = 120.
         /// </summary>
         public float chromeHeight = 120f;
+
+        /// <summary>
+        /// When true, chrome bar is at the bottom of the screen (mobile mode).
+        /// </summary>
+        public bool chromeAtBottom = false;
 
         /// <summary>
         /// When true, allows raycasts everywhere (for modals/dropdowns that
@@ -40,6 +46,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
 
         private RectTransform cachedRT;
         private int logFrameCounter;
+        private bool hasLoggedConfig = false;
 
         /// <summary>
         /// Determines whether the given screen point should be considered
@@ -47,6 +54,15 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
         {
+            // One-time config log to confirm filter is active and correctly configured
+            if (!hasLoggedConfig)
+            {
+                hasLoggedConfig = true;
+                Debug.Log($"[ChromeInputFilter] Config: chromeAtBottom={chromeAtBottom}, " +
+                    $"chromeHeight={chromeHeight:F0}, vrMode={vrMode}, " +
+                    $"Screen=({Screen.width}x{Screen.height}), allowFullScreen={allowFullScreenInput}");
+            }
+
             if (allowFullScreenInput) return true;
 
             if (vrMode)
@@ -78,15 +94,33 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 return true;
             }
 
-            // Desktop: chrome bar at top of screen.
+            bool hit;
+
             // Screen coordinates: (0,0) = bottom-left, (width,height) = top-right.
-            if (screenPoint.y >= (Screen.height - chromeHeight)) return true;
+            if (chromeAtBottom)
+            {
+                // Mobile: chrome bar at bottom of screen.
+                hit = screenPoint.y <= chromeHeight;
+            }
+            else
+            {
+                // Desktop: chrome bar at top of screen.
+                hit = screenPoint.y >= (Screen.height - chromeHeight);
+            }
 
             // Allow raycasts in secondary hit rect (e.g. stats HUD).
-            if (secondaryHitRect.HasValue && secondaryHitRect.Value.Contains(screenPoint))
-                return true;
+            if (!hit && secondaryHitRect.HasValue && secondaryHitRect.Value.Contains(screenPoint))
+                hit = true;
 
-            return false;
+            // Periodic diagnostic logging for non-VR modes
+            if (++logFrameCounter >= 120)
+            {
+                logFrameCounter = 0;
+                Debug.Log($"[ChromeInputFilter] screenPoint=({screenPoint.x:F0},{screenPoint.y:F0}), " +
+                    $"chromeHeight={chromeHeight:F0}, chromeAtBottom={chromeAtBottom}, hit={hit}");
+            }
+
+            return hit;
         }
     }
 }

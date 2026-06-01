@@ -139,6 +139,23 @@ public class TextureAtlasBuilder : EditorWindow
                 }
 
                 Color[] pixels = tex.GetPixels();
+
+                // Pre-tint biome-colored textures (grass, leaves, vines, etc.)
+                // These are grayscale in the resource pack and tinted green at runtime by Minecraft.
+                if (IsBiomeTintedTexture(textureName))
+                {
+                    Color tint = GetBiomeTint(textureName);
+                    for (int p = 0; p < pixels.Length; p++)
+                    {
+                        pixels[p] = new Color(
+                            pixels[p].r * tint.r,
+                            pixels[p].g * tint.g,
+                            pixels[p].b * tint.b,
+                            pixels[p].a
+                        );
+                    }
+                }
+
                 atlas.SetPixels(x, y, textureSize, textureSize, pixels);
 
                 // Store UV coordinates
@@ -566,6 +583,58 @@ public class TextureAtlasBuilder : EditorWindow
         AssetDatabase.SaveAssets();
         
         Debug.Log($"Material created with shader: {shader.name}, texture: {atlasTexture.name}");
+    }
+
+    // ── Biome tinting for grayscale textures ──
+
+    // Plains biome green: approximately (0.486, 0.741, 0.325) from Minecraft's foliage/grass colormaps
+    private static readonly Color grassTint  = new Color(0.49f, 0.74f, 0.33f, 1f);
+    private static readonly Color foliageTint = new Color(0.40f, 0.65f, 0.20f, 1f);
+    private static readonly Color waterTint  = new Color(0.24f, 0.46f, 0.90f, 1f);
+
+    private static readonly HashSet<string> grassTintNames = new HashSet<string>
+    {
+        "grass_block_top", "grass_block_top_1", "grass_block_top_2", "grass_block_top_3",
+        "grass_block_top_4", "grass_block_top_5",
+        "grass_block_side_overlay",
+        "short_grass", "short_grass_flowering", "tall_grass_bottom", "tall_grass_top",
+        "fern", "large_fern_bottom", "large_fern_top",
+        "grass_block", "grass_block_3",
+        "better_grass_side",
+        "sugar_cane",
+    };
+
+    private static readonly HashSet<string> foliageTintNames = new HashSet<string>
+    {
+        "oak_leaves", "oak_leaves_bush",
+        "birch_leaves", "birch_leaves_bush",
+        "spruce_leaves",
+        "jungle_leaves", "jungle_leaves_bush",
+        "acacia_leaves", "acacia_leaves_bush",
+        "dark_oak_leaves", "dark_oak_leaves_item",
+        "mangrove_leaves", "mangrove_leaves_bush",
+        "vine", "vine_0", "vine_1",
+    };
+
+    private static readonly HashSet<string> waterTintNames = new HashSet<string>
+    {
+        "water_still", "water_flow", "water",
+        "water_cauldron_side_level1", "water_cauldron_side_level2", "water_cauldron_side_level3",
+    };
+
+    private static bool IsBiomeTintedTexture(string textureName)
+    {
+        return grassTintNames.Contains(textureName) ||
+               foliageTintNames.Contains(textureName) ||
+               waterTintNames.Contains(textureName);
+    }
+
+    private static Color GetBiomeTint(string textureName)
+    {
+        if (grassTintNames.Contains(textureName)) return grassTint;
+        if (foliageTintNames.Contains(textureName)) return foliageTint;
+        if (waterTintNames.Contains(textureName)) return waterTint;
+        return Color.white;
     }
 }
 

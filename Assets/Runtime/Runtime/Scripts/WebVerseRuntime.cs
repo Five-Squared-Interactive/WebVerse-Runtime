@@ -9,6 +9,7 @@ using FiveSQD.WebVerse.Handlers.Image;
 using FiveSQD.WebVerse.Handlers.Javascript;
 #if USE_WEBINTERFACE
 using FiveSQD.WebVerse.VOSSynchronization;
+using FiveSQD.WebVerse.WorldSync;
 #endif
 using System.IO;
 using FiveSQD.WebVerse.Handlers.VEML;
@@ -17,6 +18,7 @@ using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.WebInterface.HTTP;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Data;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.WebView;
 using FiveSQD.WebVerse.Output;
@@ -142,6 +144,12 @@ namespace FiveSQD.WebVerse.Runtime
         public static WebVerseRuntime Instance;
 
         /// <summary>
+        /// Default avatar mode. "rigged" uses the animated mannequin,
+        /// "simple" uses original entity renderers.
+        /// </summary>
+        public string defaultAvatarMode = "rigged";
+
+        /// <summary>
         /// Current state of the WebVerse Runtime.
         /// </summary>
         public RuntimeState state { get; private set; }
@@ -212,6 +220,17 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The VOS Synchronization Manager.")]
         public VOSSynchronizationManager vosSynchronizationManager { get; private set; }
+
+        /// <summary>
+        /// WorldSync clients keyed by synchronizationservice id attribute from VEML.
+        /// </summary>
+        private Dictionary<string, WorldSyncClient> worldSyncClients = new Dictionary<string, WorldSyncClient>();
+
+        /// <summary>
+        /// WorldSync scene handlers keyed by synchronizationservice id.
+        /// </summary>
+        private Dictionary<string, Handlers.VEML.WorldSyncSceneHandler> worldSyncSceneHandlers
+            = new Dictionary<string, Handlers.VEML.WorldSyncSceneHandler>();
 #endif
 
         /// <summary>
@@ -718,6 +737,11 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 x3dHandler.GetX3DTitle(baseURL, (title) =>
                 {
+                    // Emit load event BEFORE dispose so previous world's listeners
+                    // get notified that a new world is loading (acts as "beforeunload").
+                    // Then dispose clears all listeners for a clean slate.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
@@ -729,10 +753,15 @@ namespace FiveSQD.WebVerse.Runtime
                             reflectionProbe.enabled = true;
                             reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                             state = RuntimeState.LoadedWorld;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                         }
                         else
                         {
                             state = RuntimeState.Error;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                                Jint.Native.JsValue.FromObject(
+                                    WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                    new { message = "World loading failed (X3D)" }));
                         }
 
                         if (onLoaded != null)
@@ -747,6 +776,9 @@ namespace FiveSQD.WebVerse.Runtime
                 // Load glTF/GLB as OMI world
                 omiHandler.GetWorldTitle(baseURL, (title) =>
                 {
+                    // Emit load before dispose — previous world listeners get notified.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
@@ -758,10 +790,15 @@ namespace FiveSQD.WebVerse.Runtime
                             reflectionProbe.enabled = true;
                             reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                             state = RuntimeState.LoadedWorld;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                         }
                         else
                         {
                             state = RuntimeState.Error;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                                Jint.Native.JsValue.FromObject(
+                                    WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                    new { message = "World loading failed (OMI)" }));
                         }
 
                         if (onLoaded != null)
@@ -781,10 +818,15 @@ namespace FiveSQD.WebVerse.Runtime
                         reflectionProbe.enabled = true;
                         reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                         state = RuntimeState.LoadedWorld;
+                        Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                     }
                     else
                     {
                         state = RuntimeState.Error;
+                        Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                            Jint.Native.JsValue.FromObject(
+                                WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                new { message = "World loading failed (VEML)" }));
                     }
 
                     if (onLoaded != null)
@@ -795,6 +837,9 @@ namespace FiveSQD.WebVerse.Runtime
 
                 Action<string> onFound = (title) =>
                 {
+                    // Emit load before dispose — previous world listeners get notified.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.Utilities.LoggingConfig loggingConfig = new StraightFour.Utilities.LoggingConfig()
@@ -888,6 +933,7 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 vosSynchronizationManager.Reset();
             }
+            ClearWorldSyncClients();
 #endif
             Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Resetting OMI Handler...");
 
@@ -982,16 +1028,23 @@ namespace FiveSQD.WebVerse.Runtime
             int maxEntries, int maxEntryLength, int maxKeyLength, string filesDirectory,
             float timeout = 120)
         {
-            #if UNITY_STANDALONE || UNITY_EDITOR
-                // On Windows and macOS, change the User-Agent to mobile:
-                Web.SetUserAgent(true);
-            #elif UNITY_IOS
-                // On iOS, change the User-Agent to desktop:
-                Web.SetUserAgent(false);
-            #elif UNITY_ANDROID
-                // On Android, change the User-Agent to "random":
-                Web.SetUserAgent("random");
-            #endif
+            try
+            {
+                #if UNITY_STANDALONE || UNITY_EDITOR
+                    // On Windows and macOS, change the User-Agent to mobile:
+                    Web.SetUserAgent(true);
+                #elif UNITY_IOS
+                    // On iOS, change the User-Agent to desktop:
+                    Web.SetUserAgent(false);
+                #elif UNITY_ANDROID
+                    // On Android, change the User-Agent to "random":
+                    Web.SetUserAgent("random");
+                #endif
+            }
+            catch (System.InvalidOperationException)
+            {
+                Logging.LogWarning("[WebVerseRuntime->InitializeComponents] Web.SetUserAgent called before Awake — skipping.");
+            }
 
             // Set up World Engine.
             GameObject StraightFourGO = new GameObject("StraightFour");
@@ -1208,6 +1261,9 @@ namespace FiveSQD.WebVerse.Runtime
             // Terminate VOS Synchronization Manager.
             vosSynchronizationManager.Terminate();
             Destroy(vosSynchronizationManager.gameObject);
+
+            // Terminate WorldSync clients.
+            ClearWorldSyncClients();
 #endif
 
             // Terminate Handlers.
@@ -1321,5 +1377,87 @@ namespace FiveSQD.WebVerse.Runtime
             
             fileHandler.ClearCache(seconds);
         }
+
+#if USE_WEBINTERFACE
+        /// <summary>
+        /// Register a WorldSyncClient by synchronizer id.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <param name="client">The WorldSyncClient instance.</param>
+        public void RegisterWorldSyncClient(string id, WorldSyncClient client)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                Logging.LogWarning("[WebVerseRuntime->RegisterWorldSyncClient] Cannot register WorldSyncClient with null or empty id.");
+                return;
+            }
+            if (worldSyncClients.ContainsKey(id))
+            {
+                Logging.LogWarning("[WebVerseRuntime->RegisterWorldSyncClient] Replacing existing WorldSyncClient with id: " + id);
+                try { _ = worldSyncClients[id].DisconnectAsync(); } catch { }
+            }
+            worldSyncClients[id] = client;
+        }
+
+        /// <summary>
+        /// Get a WorldSyncClient by synchronizer id.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <returns>The WorldSyncClient, or null if not found.</returns>
+        public WorldSyncClient GetWorldSyncClient(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return null;
+            }
+            return worldSyncClients.TryGetValue(id, out var client) ? client : null;
+        }
+
+        /// <summary>
+        /// Register a WorldSync scene handler for inbound entity materialization.
+        /// </summary>
+        public void RegisterWorldSyncSceneHandler(string id, Handlers.VEML.WorldSyncSceneHandler handler)
+        {
+            if (string.IsNullOrEmpty(id) || handler == null) return;
+            if (worldSyncSceneHandlers.ContainsKey(id))
+            {
+                worldSyncSceneHandlers[id].Dispose();
+            }
+            worldSyncSceneHandlers[id] = handler;
+        }
+
+        /// <summary>
+        /// Disconnect and remove all WorldSync clients and scene handlers.
+        /// </summary>
+        public void ClearWorldSyncClients()
+        {
+            foreach (var kvp in worldSyncSceneHandlers)
+            {
+                try { kvp.Value.Dispose(); } catch { }
+            }
+            worldSyncSceneHandlers.Clear();
+
+            foreach (var kvp in worldSyncClients)
+            {
+                try { _ = kvp.Value.DisconnectAsync(); } catch { }
+            }
+            worldSyncClients.Clear();
+        }
+
+        /// <summary>
+        /// Remove a WorldSyncClient from the registry without disconnecting it.
+        /// Caller is responsible for disconnect ordering.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <returns>True if a client was removed, false if no client with that id was registered.</returns>
+        public bool UnregisterWorldSyncClient(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return false;
+            }
+            return worldSyncClients.Remove(id);
+        }
+#endif
     }
 }

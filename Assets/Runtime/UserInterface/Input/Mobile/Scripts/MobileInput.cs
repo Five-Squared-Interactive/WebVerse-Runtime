@@ -2,6 +2,7 @@
 
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
+using FiveSQD.WebVerse.Interface.TabUI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,6 +15,11 @@ namespace FiveSQD.WebVerse.Input.Mobile
     /// </summary>
     public class MobileInput : BasePlatformInput
     {
+        /// <summary>
+        /// Optional TabUIController reference for auto-hide and edge-tap hooks.
+        /// </summary>
+        public TabUIController TabUIController { get; set; }
+
         /// <summary>
         /// Whether touch input is enabled.
         /// </summary>
@@ -118,6 +124,8 @@ namespace FiveSQD.WebVerse.Input.Mobile
                 // Trigger left click equivalent
                 WebVerseRuntime.Instance.inputManager.Left();
                 WebVerseRuntime.Instance.inputManager.leftValue = true;
+
+                HandleTouchStartHooks();
             }
             else if (context.phase == InputActionPhase.Canceled)
             {
@@ -136,6 +144,8 @@ namespace FiveSQD.WebVerse.Input.Mobile
                 // End left click equivalent
                 WebVerseRuntime.Instance.inputManager.EndLeft();
                 WebVerseRuntime.Instance.inputManager.leftValue = false;
+
+                HandleTouchEndHooks(touchDuration, touchDistance, touchStartPosition);
 
                 // End any ongoing movement
                 if (touchMovementEnabled || touchLookEnabled)
@@ -270,6 +280,28 @@ namespace FiveSQD.WebVerse.Input.Mobile
             {
                 isPinching = false;
                 initialPinchDistance = 0f;
+            }
+        }
+
+        /// <summary>
+        /// Handle TabUI hooks on touch start. Extracted for testability.
+        /// </summary>
+        internal void HandleTouchStartHooks()
+        {
+            if (touchCount <= 1)
+                TabUIController?.SendStartAutoHide();
+        }
+
+        /// <summary>
+        /// Handle TabUI hooks on touch end. Extracted for testability.
+        /// </summary>
+        internal void HandleTouchEndHooks(float duration, float distance, Vector2 startPos)
+        {
+            TabUIController?.SendStopAutoHide();
+
+            if (duration < tapTimeThreshold && distance < tapDistanceThreshold)
+            {
+                TabUIController?.SendEdgeTap((int)startPos.y, Screen.height);
             }
         }
 

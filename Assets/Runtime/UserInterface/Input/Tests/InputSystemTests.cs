@@ -1728,21 +1728,21 @@ public class InputSystemTests
     public void VRRig_PointerMode_None_HasValue0()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(0, (int)FiveSQD.WebVerse.Input.VRRig.PointerMode.None);
+        Assert.AreEqual(0, (int) FiveSQD.WebVerse.Input.VRRig.PointerMode.None);
     }
 
     [Test]
     public void VRRig_PointerMode_Teleport_HasValue1()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(1, (int)FiveSQD.WebVerse.Input.VRRig.PointerMode.Teleport);
+        Assert.AreEqual(1, (int) FiveSQD.WebVerse.Input.VRRig.PointerMode.Teleport);
     }
 
     [Test]
     public void VRRig_PointerMode_UI_HasValue2()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(2, (int)FiveSQD.WebVerse.Input.VRRig.PointerMode.UI);
+        Assert.AreEqual(2, (int) FiveSQD.WebVerse.Input.VRRig.PointerMode.UI);
     }
 
     [Test]
@@ -1757,21 +1757,21 @@ public class InputSystemTests
     public void VRRig_TurnLocomotionMode_None_HasValue0()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(0, (int)FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.None);
+        Assert.AreEqual(0, (int) FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.None);
     }
 
     [Test]
     public void VRRig_TurnLocomotionMode_Smooth_HasValue1()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(1, (int)FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.Smooth);
+        Assert.AreEqual(1, (int) FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.Smooth);
     }
 
     [Test]
     public void VRRig_TurnLocomotionMode_Snap_HasValue2()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(2, (int)FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.Snap);
+        Assert.AreEqual(2, (int) FiveSQD.WebVerse.Input.VRRig.TurnLocomotionMode.Snap);
     }
 
     [Test]
@@ -1786,14 +1786,14 @@ public class InputSystemTests
     public void VRRig_RayInteractorType_Standard_HasValue0()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(0, (int)FiveSQD.WebVerse.Input.VRRig.RayInteractorType.Standard);
+        Assert.AreEqual(0, (int) FiveSQD.WebVerse.Input.VRRig.RayInteractorType.Standard);
     }
 
     [Test]
     public void VRRig_RayInteractorType_NearFar_HasValue1()
     {
         LogAssert.ignoreFailingMessages = true;
-        Assert.AreEqual(1, (int)FiveSQD.WebVerse.Input.VRRig.RayInteractorType.NearFar);
+        Assert.AreEqual(1, (int) FiveSQD.WebVerse.Input.VRRig.RayInteractorType.NearFar);
     }
 
     [Test]

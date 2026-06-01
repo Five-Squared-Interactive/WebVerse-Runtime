@@ -598,6 +598,80 @@ namespace FiveSQD.WebVerse.Input
         }
 
         /// <summary>
+        /// Apply sensible default control flags for VR locomotion and interaction.
+        /// Called after Initialize() to set correct defaults for worlds without VEML control flags.
+        /// Also used by WorldStateRestorer as fallback when switching to unflagged worlds.
+        /// </summary>
+        public void ApplyDefaultControlFlags()
+        {
+            leftPointerMode = PointerMode.Teleport;   // FIX: Initialize() sets None
+            rightPointerMode = PointerMode.UI;
+            joystickMotionEnabled = true;              // FIX: Initialize() sets conditional
+            turnLocomotionMode = TurnLocomotionMode.Snap;
+            Logging.Log("[VRRig] Applied default control flags");
+        }
+
+        /// <summary>
+        /// Apply cached control flags from a world's CachedControlFlags dictionary.
+        /// Used during tab switch to restore the world author's intended VR configuration.
+        /// Falls back to ApplyDefaultControlFlags() if cachedFlags is null or empty.
+        /// </summary>
+        /// <param name="cachedFlags">Dictionary of flag key → string value pairs from World.CachedControlFlags.</param>
+        public void ApplyCachedControlFlags(Dictionary<string, string> cachedFlags)
+        {
+            // Always reset to defaults first to prevent stale flags from previous worlds
+            ApplyDefaultControlFlags();
+
+            if (cachedFlags == null || cachedFlags.Count == 0)
+                return;
+
+            if (cachedFlags.TryGetValue("joystickmotion", out string jm))
+                if (bool.TryParse(jm, out bool jmVal)) joystickMotionEnabled = jmVal;
+            if (cachedFlags.TryGetValue("leftgrabmove", out string lgm))
+                if (bool.TryParse(lgm, out bool lgmVal)) leftGrabMoveEnabled = lgmVal;
+            if (cachedFlags.TryGetValue("rightgrabmove", out string rgm))
+                if (bool.TryParse(rgm, out bool rgmVal)) rightGrabMoveEnabled = rgmVal;
+            if (cachedFlags.TryGetValue("lefthandinteraction", out string lhi))
+                if (bool.TryParse(lhi, out bool lhiVal)) leftInteractionEnabled = lhiVal;
+            if (cachedFlags.TryGetValue("righthandinteraction", out string rhi))
+                if (bool.TryParse(rhi, out bool rhiVal)) rightInteractionEnabled = rhiVal;
+            if (cachedFlags.TryGetValue("leftvrpointer", out string lvp))
+                leftPointerMode = ParsePointerMode(lvp);
+            if (cachedFlags.TryGetValue("rightvrpointer", out string rvp))
+                rightPointerMode = ParsePointerMode(rvp);
+            if (cachedFlags.TryGetValue("leftvrpoker", out string lpk))
+                if (bool.TryParse(lpk, out bool lpkVal)) leftPokerEnabled = lpkVal;
+            if (cachedFlags.TryGetValue("rightvrpoker", out string rpk))
+                if (bool.TryParse(rpk, out bool rpkVal)) rightPokerEnabled = rpkVal;
+            if (cachedFlags.TryGetValue("turnlocomotion", out string tl))
+                turnLocomotionMode = ParseTurnLocomotionMode(tl);
+            if (cachedFlags.TryGetValue("twohandedgrabmove", out string thgm))
+                if (bool.TryParse(thgm, out bool thgmVal)) twoHandedGrabMoveEnabled = thgmVal;
+
+            Logging.Log("[VRRig] Applied " + cachedFlags.Count + " cached control flags");
+        }
+
+        private static PointerMode ParsePointerMode(string value)
+        {
+            switch (value)
+            {
+                case "teleport": return PointerMode.Teleport;
+                case "ui": return PointerMode.UI;
+                default: return PointerMode.None;
+            }
+        }
+
+        private static TurnLocomotionMode ParseTurnLocomotionMode(string value)
+        {
+            switch (value)
+            {
+                case "snap": return TurnLocomotionMode.Snap;
+                case "smooth": return TurnLocomotionMode.Smooth;
+                default: return TurnLocomotionMode.None;
+            }
+        }
+
+        /// <summary>
         /// Terminate the VR rig.
         /// </summary>
         public void Terminate()

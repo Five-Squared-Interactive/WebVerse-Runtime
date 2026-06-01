@@ -3,6 +3,7 @@
     "rootNamespace": "FiveSQD.WebVerse.WorldSync.Tests",
     "references": [
         "FiveSQD.WebVerse.WorldSync",
+        "FiveSQD.StraightFour",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

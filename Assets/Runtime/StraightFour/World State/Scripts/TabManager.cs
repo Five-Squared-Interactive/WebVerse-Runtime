@@ -93,6 +93,23 @@ namespace FiveSQD.StraightFour.WorldState
         /// </summary>
         public bool IsSwitching { get; private set; }
 
+        /// <summary>
+        /// Callback invoked after a world loads during tab switch, before the tab is marked Loaded.
+        /// Used to restore VR control flags (injected by higher-level code that has VRRig access).
+        /// </summary>
+        public Action<World.World> OnWorldReadyForControlFlags { get; set; }
+
+        /// <summary>
+        /// Callback invoked at the start of a tab switch to fade out. Takes a continuation Action
+        /// that must be called when fade-out completes. If null or desktop mode, switch proceeds immediately.
+        /// </summary>
+        public Action<Action> OnFadeOutRequested { get; set; }
+
+        /// <summary>
+        /// Callback invoked at the end of a tab switch to fade in (fire-and-forget).
+        /// </summary>
+        public Action OnFadeInRequested { get; set; }
+
         #endregion
 
         #region Private Fields
@@ -292,6 +309,24 @@ namespace FiveSQD.StraightFour.WorldState
             LogSystem.Log($"[TabManager] Switching from '{previousTab?.GetDisplayName() ?? "none"}' to '{targetTab.GetDisplayName()}'.");
             OnTabSwitchStarted?.Invoke(previousTab, targetTab);
 
+            // Fade out before switching
+            if (OnFadeOutRequested != null)
+            {
+                bool fadeOutComplete = false;
+                OnFadeOutRequested(() => fadeOutComplete = true);
+                float fadeTimeout = 5f;
+                float fadeElapsed = 0f;
+                while (!fadeOutComplete && fadeElapsed < fadeTimeout)
+                {
+                    fadeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                if (!fadeOutComplete)
+                {
+                    LogSystem.LogWarning("[TabManager] Fade-out timed out after 5s, proceeding with switch.");
+                }
+            }
+
             // Phase 1: Capture thumbnail and world state
             if (previousTab != null && previousTab.LoadState == TabLoadState.Loaded)
             {
@@ -340,6 +375,11 @@ namespace FiveSQD.StraightFour.WorldState
                 {
                     // Webpage tabs: navigate directly, skip world pipeline
                     LogSystem.Log($"[TabManager] Navigating to webpage: {targetTab.WorldUrl}");
+
+                    // Reset VR control flags to defaults for non-world tabs
+                    try { OnWorldReadyForControlFlags?.Invoke(null); }
+                    catch (System.Exception ex) { LogSystem.LogWarning("[TabManager] Control flag callback error: " + ex.Message); }
+
                     targetTab.LoadState = TabLoadState.Loaded;
                     OnTabStateChanged?.Invoke(targetTab);
                     OnTabNavigateRequested?.Invoke(targetTab.WorldUrl);
@@ -412,6 +452,10 @@ namespace FiveSQD.StraightFour.WorldState
                             }
                         }
 
+                        // Restore VR control flags for the loaded world
+                        try { OnWorldReadyForControlFlags?.Invoke(loadedWorld); }
+                        catch (System.Exception ex) { LogSystem.LogWarning("[TabManager] Control flag callback error: " + ex.Message); }
+
                         targetTab.LoadState = TabLoadState.Loaded;
                         OnTabStateChanged?.Invoke(targetTab);
 
@@ -437,6 +481,9 @@ namespace FiveSQD.StraightFour.WorldState
                     }
                 }
             }
+
+            // Fade in to reveal new content
+            OnFadeInRequested?.Invoke();
 
             IsSwitching = false;
             LogSystem.Log($"[TabManager] Switch complete. Active tab: '{targetTab.GetDisplayName()}'");

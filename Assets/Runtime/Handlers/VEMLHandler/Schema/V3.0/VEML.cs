@@ -82,6 +82,22 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
 
         private voice voiceField;
 
+        private string modeField;
+
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string mode
+        {
+            get
+            {
+                return this.modeField;
+            }
+            set
+            {
+                this.modeField = value;
+            }
+        }
+
         /// <remarks/>
         public string title
         {
@@ -1079,6 +1095,8 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
 
         private string onloadeventField;
 
+        private string anchorField;
+
         /// <remarks/>
         public basetransform transform
         {
@@ -1172,6 +1190,20 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
             set
             {
                 this.onloadeventField = value;
+            }
+        }
+
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string anchor
+        {
+            get
+            {
+                return this.anchorField;
+            }
+            set
+            {
+                this.anchorField = value;
             }
         }
     }
@@ -3820,6 +3852,8 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
 
         private string sessionField;
 
+        private string tagField;
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string type
@@ -3873,6 +3907,20 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
             set
             {
                 this.sessionField = value;
+            }
+        }
+
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string tag
+        {
+            get
+            {
+                return this.tagField;
+            }
+            set
+            {
+                this.tagField = value;
             }
         }
     }

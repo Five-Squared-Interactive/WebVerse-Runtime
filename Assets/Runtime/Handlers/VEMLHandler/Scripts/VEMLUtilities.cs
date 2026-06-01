@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using FiveSQD.WebVerse.Input;
 
 namespace FiveSQD.WebVerse.Handlers.VEML
 {
@@ -195,6 +196,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -418,6 +420,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -641,6 +644,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -784,6 +788,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -902,6 +907,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1020,6 +1026,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1138,6 +1145,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1256,6 +1264,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -1374,6 +1383,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         outputVEMLSynchronizationService.address = synchronizationService.address;
                         outputVEMLSynchronizationService.session = synchronizationService.session;
                         outputVEMLSynchronizationService.type = synchronizationService.type;
+                        outputVEMLSynchronizationServices.Add(outputVEMLSynchronizationService);
                     }
                     outputVEML.metadata.synchronizationservice = outputVEMLSynchronizationServices.ToArray();
                 }
@@ -5383,6 +5393,27 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             }
             entityList.Add(entityToAdd);
             return entityList.ToArray();
+        }
+
+        /// <summary>
+        /// Parse an anchor attribute value to an AnchorType.
+        /// </summary>
+        /// <param name="anchorValue">The anchor attribute string (e.g., "floor", "table", "wall").</param>
+        /// <returns>The corresponding AnchorType, or null if not specified or invalid.</returns>
+        public static AnchorType? ParseAnchorType(string anchorValue)
+        {
+            if (string.IsNullOrEmpty(anchorValue)) return null;
+
+            switch (anchorValue.ToLowerInvariant())
+            {
+                case "floor": return AnchorType.Floor;
+                case "table": return AnchorType.Table;
+                case "wall": return AnchorType.Wall;
+                default:
+                    Utilities.Logging.LogWarning(
+                        $"[VEMLUtilities] Unknown anchor type '{anchorValue}', ignoring anchor attribute.");
+                    return null;
+            }
         }
     }
 }

@@ -146,22 +146,26 @@ namespace FiveSQD.StraightFour.Camera
             {
                 if (vr)
                 {
-                    cameraOffset.transform.SetParent(defaultCameraParent.transform);
+                    if (cameraOffset != null)
+                        cameraOffset.transform.SetParent(defaultCameraParent != null ? defaultCameraParent.transform : null);
                 }
                 else
                 {
-                    cam.transform.SetParent(defaultCameraParent == null ? null : defaultCameraParent.transform);
+                    if (cam != null)
+                        cam.transform.SetParent(defaultCameraParent != null ? defaultCameraParent.transform : null);
                 }
             }
             else
             {
                 if (vr)
                 {
-                    cameraOffset.transform.SetParent(parent.transform);
+                    if (cameraOffset != null)
+                        cameraOffset.transform.SetParent(parent.transform);
                 }
                 else
                 {
-                    cam.transform.SetParent(parent.transform);
+                    if (cam != null)
+                        cam.transform.SetParent(parent.transform);
                 }
             }
         }

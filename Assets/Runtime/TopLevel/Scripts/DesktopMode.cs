@@ -8,6 +8,7 @@ using FiveSQD.WebVerse.Utilities;
 using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.Input.SteamVR;
 using FiveSQD.WebVerse.Interface.TabUI;
+using FiveSQD.WebVerse.VR.Comfort;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Runtime
@@ -196,6 +197,21 @@ namespace FiveSQD.WebVerse.Runtime
         private SteamVRInput steamVRInputComponent;
 
         /// <summary>
+        /// FadeController for world transition fades in VR mode.
+        /// </summary>
+        private FadeController _fadeController;
+
+        /// <summary>
+        /// VelocityTracker for comfort vignette velocity detection in VR mode.
+        /// </summary>
+        private VelocityTracker _velocityTracker;
+
+        /// <summary>
+        /// VignetteController for comfort vignette rendering in VR mode.
+        /// </summary>
+        private VignetteController _vignetteController;
+
+        /// <summary>
         /// Enable VR.
         /// </summary>
         public void EnableVR()
@@ -222,7 +238,8 @@ namespace FiveSQD.WebVerse.Runtime
             if (vrRigComponent != null)
             {
                 vrRigComponent.Initialize();
-                Logging.Log($"[DesktopMode->EnableVR] VRRig initialized. rightPointerMode={vrRigComponent.rightPointerMode}, rayType={vrRigComponent.rayInteractorType}, rightRay={(vrRigComponent.rightRayInteractor != null ? $"enabled={vrRigComponent.rightRayInteractor.enabled}" : "NULL")}, rightNearFar={(vrRigComponent.rightNearFarInteractor != null ? $"enabled={vrRigComponent.rightNearFarInteractor.enabled}" : "NULL")}");
+                vrRigComponent.ApplyDefaultControlFlags();
+                Logging.Log($"[DesktopMode->EnableVR] VRRig initialized with default control flags. rightPointerMode={vrRigComponent.rightPointerMode}, rayType={vrRigComponent.rayInteractorType}, rightRay={(vrRigComponent.rightRayInteractor != null ? $"enabled={vrRigComponent.rightRayInteractor.enabled}" : "NULL")}, rightNearFar={(vrRigComponent.rightNearFarInteractor != null ? $"enabled={vrRigComponent.rightNearFarInteractor.enabled}" : "NULL")}");
             }
             else
             {
@@ -233,6 +250,37 @@ namespace FiveSQD.WebVerse.Runtime
             runtime.vr = true;
             SetCanvasEventCamera(vrCamera);
             skySphereFollower.transformToFollow = vrCamera.transform;
+
+            // Initialize comfort components (matching Quest3Mode.InitializeVR order: Fade → Tracker → Vignette)
+            if (vrCamera != null)
+            {
+                var fadeGO = new GameObject("FadeController");
+                fadeGO.transform.SetParent(transform, false);
+                _fadeController = fadeGO.AddComponent<FadeController>();
+                _fadeController.SetCamera(vrCamera);
+
+                if (tabUIIntegration != null)
+                {
+                    tabUIIntegration.SetFadeController(_fadeController);
+                }
+
+                var trackerGO = new GameObject("VelocityTracker");
+                trackerGO.transform.SetParent(transform, false);
+                _velocityTracker = trackerGO.AddComponent<VelocityTracker>();
+                _velocityTracker.SetTarget(vrCamera.transform);
+
+                var vignetteGO = new GameObject("VignetteController");
+                vignetteGO.transform.SetParent(transform, false);
+                _vignetteController = vignetteGO.AddComponent<VignetteController>();
+                _vignetteController.SetCamera(vrCamera);
+                _vignetteController.SetVelocityTracker(_velocityTracker);
+
+                Logging.Log("[DesktopMode->EnableVR] Comfort components initialized (FadeController, VelocityTracker, VignetteController).");
+            }
+            else
+            {
+                Logging.LogWarning("[DesktopMode->EnableVR] vrCamera is null — comfort components not created.");
+            }
 
             // Switch Tab UI to VR mode
             if (tabUIIntegration != null)
@@ -272,6 +320,28 @@ namespace FiveSQD.WebVerse.Runtime
             topLevelVRRig.SetActive(false);
             desktopInput.SetActive(true);
             steamVRInput.SetActive(false);
+
+            // Destroy comfort components (reverse order, matching Quest3Mode.OnDestroy pattern)
+            if (_vignetteController != null)
+            {
+                Destroy(_vignetteController.gameObject);
+                _vignetteController = null;
+            }
+            if (_velocityTracker != null)
+            {
+                Destroy(_velocityTracker.gameObject);
+                _velocityTracker = null;
+            }
+            if (_fadeController != null)
+            {
+                Destroy(_fadeController.gameObject);
+                _fadeController = null;
+            }
+            if (tabUIIntegration != null)
+            {
+                tabUIIntegration.SetFadeController(null);
+            }
+
             runtime.platformInput = desktopPlatformInput;
             if (runtime.inputManager != null)
             {
@@ -382,6 +452,9 @@ namespace FiveSQD.WebVerse.Runtime
 
             runtime.Initialize(storageMode, (int) maxEntries, (int) maxEntryLength, (int) maxKeyLength,
                 filesDirectory, worldLoadTimeout, loggingConfig, automationPort);
+
+            runtime.defaultAvatarMode = desktopSettings.GetDefaultAvatar();
+            FiveSQD.WebVerse.Avatar.AvatarAnimationManager.DefaultAvatarMode = runtime.defaultAvatarMode;
         }
 
         /// <summary>
@@ -654,7 +727,8 @@ namespace FiveSQD.WebVerse.Runtime
                     { "maxStorageEntries", (int) desktopSettings.GetMaxStorageEntries() },
                     { "maxStorageKeyLength", (int) desktopSettings.GetMaxStorageKeyLength() },
                     { "maxStorageEntryLength", (int) desktopSettings.GetMaxStorageEntryLength() },
-                    { "cacheDirectory", desktopSettings.GetCacheDirectory() }
+                    { "cacheDirectory", desktopSettings.GetCacheDirectory() },
+                    { "defaultAvatar", desktopSettings.GetDefaultAvatar() }
                 };
             }
             catch (Exception ex)
@@ -705,6 +779,9 @@ namespace FiveSQD.WebVerse.Runtime
 
                 if (settings.TryGetValue("cacheDirectory", out object cacheDir))
                     desktopSettings.SetCacheDirectory(cacheDir?.ToString() ?? "");
+
+                if (settings.TryGetValue("defaultAvatar", out object defaultAvatar))
+                    desktopSettings.SetDefaultAvatar(defaultAvatar?.ToString() ?? "rigged");
 
                 Logging.Log("[DesktopMode] Settings saved.");
             }

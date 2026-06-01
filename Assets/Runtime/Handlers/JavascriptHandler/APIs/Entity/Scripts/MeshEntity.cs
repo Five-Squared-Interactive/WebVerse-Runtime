@@ -456,14 +456,18 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                         meshEntity.SetPosition(pos, true);
                         meshEntity.SetRotation(rot, true);
 
-                        UnityEngine.Renderer rend = meshEntity.gameObject.GetComponent<UnityEngine.Renderer>();
-                        if (rend == null)
+                        try
                         {
-                            Logging.LogError("[MeshEntity:CreatePrimitiveEntity] Invalid primitive entity.");
+                            UnityEngine.Renderer rend = meshEntity.gameObject.GetComponentInChildren<UnityEngine.Renderer>();
+                            if (rend != null && rend.material != null)
+                            {
+                                rend.material.SetColor("_BaseColor", new UnityEngine.Color(color.r, color.g, color.b, color.a));
+                                rend.material.SetColor("_Color", new UnityEngine.Color(color.r, color.g, color.b, color.a));
+                            }
                         }
-                        else
+                        catch (System.Exception e)
                         {
-                            rend.material.SetColor("_Color", new UnityEngine.Color(color.r, color.g, color.b, color.a));
+                            Logging.LogWarning("[MeshEntity:CreatePrimitiveEntity] Could not apply color: " + e.Message);
                         }
 
                         me.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);

@@ -1,8 +1,13 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
 #if UNITY_EDITOR
+using System.IO;
+using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityEditor.XR.Management;
+using UnityEngine.XR.Management;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Building
@@ -156,7 +161,16 @@ namespace FiveSQD.WebVerse.Building
         public static void BuildAndroidAPK()
         {
             Debug.Log("Starting Android APK build...");
-            
+
+            // Unity 6: switch target before preprocess hooks fire, or BuildProfile is null.
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+            {
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+            }
+
+            // Disable XR/OpenXR/Meta XR for mobile Android builds
+            DisableXRForAndroid();
+
             // Configure Android-specific settings
             ConfigureAndroidBuildSettings();
             
@@ -188,7 +202,16 @@ namespace FiveSQD.WebVerse.Building
         public static void BuildAndroidAAB()
         {
             Debug.Log("Starting Android AAB build...");
-            
+
+            // Unity 6: switch target before preprocess hooks fire, or BuildProfile is null.
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+            {
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+            }
+
+            // Disable XR/OpenXR/Meta XR for mobile Android builds
+            DisableXRForAndroid();
+
             // Configure Android-specific settings
             ConfigureAndroidBuildSettings();
             
@@ -251,6 +274,41 @@ namespace FiveSQD.WebVerse.Building
         }
 
         /// <summary>
+        /// Disable XR plug-in management for the Android build target group.
+        /// Necessary for mobile Android builds because the project has OpenXR + Meta XR
+        /// Feature enabled for Android (used for Quest builds), and leaving that on
+        /// causes mobile builds to pull in Quest SDK preprocess hooks and fail.
+        /// </summary>
+        private static void DisableXRForAndroid()
+        {
+            XRGeneralSettings androidSettings =
+                XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(BuildTargetGroup.Android);
+
+            if (androidSettings == null || androidSettings.Manager == null)
+            {
+                Debug.Log("[Android] No XR settings configured for Android; nothing to disable.");
+                return;
+            }
+
+            androidSettings.Manager.automaticLoading = false;
+            androidSettings.Manager.automaticRunning = false;
+
+            // Remove every active XR loader (OpenXR, Oculus, etc.) so the Quest
+            // preprocess hooks have nothing to act on.
+            var activeLoaders = androidSettings.Manager.activeLoaders.ToList();
+            foreach (var loader in activeLoaders)
+            {
+                androidSettings.Manager.TryRemoveLoader(loader);
+                Debug.Log($"[Android] Removed XR loader: {loader.GetType().Name}");
+            }
+
+            EditorUtility.SetDirty(androidSettings.Manager);
+            EditorUtility.SetDirty(androidSettings);
+
+            Debug.Log("[Android] Disabled XR plug-in loading for Android build target.");
+        }
+
+        /// <summary>
         /// Configure Android-specific build settings.
         /// </summary>
         private static void ConfigureAndroidBuildSettings()
@@ -276,7 +334,7 @@ namespace FiveSQD.WebVerse.Building
             PlayerSettings.iOS.targetOSVersionString = "13.0";
             
             // Set scripting backend to IL2CPP (required for iOS)
-            PlayerSettings.SetScriptingBackend(BuildTargetGroup.iOS, ScriptingImplementation.IL2CPP);
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
             
             // Set target SDK to Device SDK (for physical devices)
             PlayerSettings.iOS.sdkVersion = iOSSdkVersion.DeviceSDK;
@@ -293,12 +351,14 @@ namespace FiveSQD.WebVerse.Building
         /// <param name="buildType">The type of build (for logging purposes).</param>
         private static void ParseAndroidKeystoreArguments(string buildType)
         {
+            bool keystoreConfigured = false;
             string[] args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-keystorePath" && i + 1 < args.Length)
                 {
                     PlayerSettings.Android.keystoreName = args[i + 1];
+                    keystoreConfigured = true;
                     Debug.Log($"[{buildType}] Using keystore: {args[i + 1]}");
                 }
                 else if (args[i] == "-keystorePass" && i + 1 < args.Length)
@@ -315,6 +375,12 @@ namespace FiveSQD.WebVerse.Building
                     PlayerSettings.Android.keyaliasPass = args[i + 1];
                 }
             }
+        
+            PlayerSettings.Android.useCustomKeystore = keystoreConfigured;
+        
+            Debug.Log($"[{buildType}] useCustomKeystore = {PlayerSettings.Android.useCustomKeystore}");
+            Debug.Log($"[{buildType}] keystoreName      = {PlayerSettings.Android.keystoreName}");
+            Debug.Log($"[{buildType}] keyaliasName      = {PlayerSettings.Android.keyaliasName}");
         }
 
         /// <summary>
@@ -389,6 +455,109 @@ namespace FiveSQD.WebVerse.Building
                     Debug.LogError($"[{buildName}] Unidentified build result.");
                     EditorApplication.Exit(1);
                     break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Strips Meta XR AIBlocks (both runtime and editor halves) from the Meta XR Core
+    /// package cache so it never reaches script compilation. AIBlocks references
+    /// UnityEngine.Microphone (unavailable on WebGL and standard mobile Android) and
+    /// the editor half references types from the runtime half, so leaving the editor
+    /// folder in place after deleting the runtime folder breaks every editor assembly
+    /// compile, including the one that runs during AssetDatabase initial refresh
+    /// before any build preprocess hook can run.
+    ///
+    /// Runs at InitializeOnLoad (every editor startup, including batch mode) AND as
+    /// a build preprocess hook, so the strip is guaranteed to happen before any
+    /// script compilation for any platform.
+    /// </summary>
+    [InitializeOnLoad]
+    public static class StripIncompatiblePackages
+    {
+        private const string MetaCoreGlob = "com.meta.xr.sdk.core@*";
+        private const string PackageCacheRoot = "Library/PackageCache";
+
+        // Folders inside the Meta XR Core package to remove. Both the runtime
+        // (Scripts/...) and editor (Editor/...) halves of AIBlocks are stripped;
+        // the editor half won't compile without the runtime half anyway, and
+        // neither is needed for non-Quest builds.
+        private static readonly string[] FoldersToStrip = new string[]
+        {
+            "Scripts/BuildingBlocks/AIBlocks",
+            "Editor/BuildingBlocks/BlockData/AIBlocks",
+        };
+
+        static StripIncompatiblePackages()
+        {
+            Strip("InitializeOnLoad");
+        }
+
+        private class BuildPreprocessor : IPreprocessBuildWithReport
+        {
+            public int callbackOrder => -10000;
+            public void OnPreprocessBuild(BuildReport report)
+            {
+                Strip($"Preprocess({report.summary.platform})");
+            }
+        }
+
+        private static void Strip(string source)
+        {
+            if (!Directory.Exists(PackageCacheRoot))
+            {
+                return;
+            }
+
+            string[] metaCoreDirs;
+            try
+            {
+                metaCoreDirs = Directory.GetDirectories(PackageCacheRoot, MetaCoreGlob);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[StripIncompatiblePackages/{source}] Couldn't enumerate {PackageCacheRoot}: {ex.Message}");
+                return;
+            }
+
+            if (metaCoreDirs.Length == 0)
+            {
+                return;
+            }
+
+            bool anyStripped = false;
+
+            foreach (string metaCoreDir in metaCoreDirs)
+            {
+                foreach (string relativeFolder in FoldersToStrip)
+                {
+                    string folderPath = Path.Combine(metaCoreDir, relativeFolder.Replace('/', Path.DirectorySeparatorChar));
+                    string metaPath = folderPath + ".meta";
+
+                    try
+                    {
+                        if (Directory.Exists(folderPath))
+                        {
+                            Directory.Delete(folderPath, recursive: true);
+                            Debug.Log($"[StripIncompatiblePackages/{source}] Removed: {folderPath}");
+                            anyStripped = true;
+                        }
+
+                        if (File.Exists(metaPath))
+                        {
+                            File.Delete(metaPath);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[StripIncompatiblePackages/{source}] Failed removing {folderPath}: {ex.Message}");
+                    }
+                }
+            }
+
+            if (anyStripped && source.StartsWith("Preprocess"))
+            {
+                AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
             }
         }
     }
