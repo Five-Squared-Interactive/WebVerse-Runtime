@@ -567,6 +567,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87b08793163292045931ab41739fdba4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  defaultAvatarMode: rigged
   consoles: []
   crosshair: {fileID: 0}
   automobileEntityTypeMap:
@@ -574,6 +575,7 @@ MonoBehaviour:
     stateSettings: {fileID: 11400000, guid: 3404c49a4170ad94e87f0e8545b86758, type: 2}
   airplaneEntityPrefab: {fileID: 2546332423327978143, guid: 9f84e1b9b912d9b4db6c879e27fa1ff8, type: 3}
   highlightMaterial: {fileID: 2100000, guid: fb72f213bae4057419539525b597f16d, type: 2}
+  previewMaterial: {fileID: 2100000, guid: 2cb465f813171f84b85cfe4f981c5850, type: 2}
   skyMaterial: {fileID: 2100000, guid: 0aade801f5d375245b8bd2843b11a686, type: 2}
   liteProceduralSkyMaterial: {fileID: 2100000, guid: acf78ab0ce284f148a485a21087ea77a, type: 2}
   liteProceduralSkyObject: {fileID: 1137534123}
@@ -1792,6 +1794,7 @@ MonoBehaviour:
   enableHandTracking: 1
   enableGrabMove: 0
   enableDynamicMove: 0
+  controllerRotationOffset: {x: 0, y: 0, z: 0}
   leftController: {fileID: 176276164}
   rightController: {fileID: 1642610546}
   leftControllerModel: {fileID: 4816121}
@@ -2062,6 +2065,7 @@ MonoBehaviour:
   maxTabs: 10
   maxSnapshotMemoryMB: 100
   homeUrl: 
+  forceMobile: 0
 --- !u!4 &2050217702
 Transform:
   m_ObjectHideFlags: 0
