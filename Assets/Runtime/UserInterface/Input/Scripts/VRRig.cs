@@ -347,12 +347,6 @@ namespace FiveSQD.WebVerse.Input
 
         private int followersUpdateCount = 0;
 
-        /// <summary>
-        /// Rotation correction applied to controller visuals to fix XRI model orientation.
-        /// Also applied to hand followers so attached objects match the corrected visual.
-        /// </summary>
-        private static readonly Quaternion controllerRotationCorrection = Quaternion.Euler(0f, 180f, 180f);
-
         #endregion
 
         #region Pointer Mode Properties
@@ -776,27 +770,7 @@ namespace FiveSQD.WebVerse.Input
                     }
                 }
             }
-            // Fix XRI controller visual orientation — the starter assets prefab ships with
-            // a 180-degree Y rotation on the visual children that causes models to face backwards.
-            FixControllerVisualRotation(leftController);
-            FixControllerVisualRotation(rightController);
-        }
 
-        /// <summary>
-        /// Reset the local rotation of controller visual children to identity.
-        /// XRI Starter Assets ships visuals rotated 180 degrees around Y; this corrects that.
-        /// </summary>
-        private void FixControllerVisualRotation(Transform controller)
-        {
-            if (controller == null) return;
-
-            foreach (Transform child in controller)
-            {
-                if (child.name.Contains("Visual"))
-                {
-                    child.localRotation = Quaternion.Euler(0f, 180f, 180f);
-                }
-            }
         }
 
         /// <summary>
@@ -936,7 +910,7 @@ namespace FiveSQD.WebVerse.Input
                     if (follower != null)
                     {
                         follower.SetPosition(leftHand.position, false, true);
-                        follower.SetRotation(leftHand.rotation * controllerRotationCorrection, false, true);
+                        follower.SetRotation(leftHand.rotation, false, true);
                     }
                 }
             }
@@ -949,7 +923,7 @@ namespace FiveSQD.WebVerse.Input
                     if (follower != null)
                     {
                         follower.SetPosition(rightHand.position, false, true);
-                        follower.SetRotation(rightHand.rotation * controllerRotationCorrection, false, true);
+                        follower.SetRotation(rightHand.rotation, false, true);
                     }
                 }
             }
