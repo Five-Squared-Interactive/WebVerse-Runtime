@@ -2569,7 +2569,7 @@ MonoBehaviour:
     stateSettings: {fileID: 11400000, guid: 3404c49a4170ad94e87f0e8545b86758, type: 2}
   airplaneEntityPrefab: {fileID: 2546332423327978143, guid: 9f84e1b9b912d9b4db6c879e27fa1ff8, type: 3}
   highlightMaterial: {fileID: 2100000, guid: fb72f213bae4057419539525b597f16d, type: 2}
-  previewMaterial: {fileID: 0}
+  previewMaterial: {fileID: 2100000, guid: 2cb465f813171f84b85cfe4f981c5850, type: 2}
   skyMaterial: {fileID: 2100000, guid: 0aade801f5d375245b8bd2843b11a686, type: 2}
   liteProceduralSkyMaterial: {fileID: 2100000, guid: acf78ab0ce284f148a485a21087ea77a, type: 2}
   liteProceduralSkyObject: {fileID: 1137534123}
