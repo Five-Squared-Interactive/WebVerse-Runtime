@@ -347,6 +347,12 @@ namespace FiveSQD.WebVerse.Input
 
         private int followersUpdateCount = 0;
 
+        /// <summary>
+        /// Rotation correction applied to controller visuals to fix XRI model orientation.
+        /// Also applied to hand followers so attached objects match the corrected visual.
+        /// </summary>
+        private static readonly Quaternion controllerRotationCorrection = Quaternion.Euler(0f, 180f, 180f);
+
         #endregion
 
         #region Pointer Mode Properties
@@ -930,7 +936,7 @@ namespace FiveSQD.WebVerse.Input
                     if (follower != null)
                     {
                         follower.SetPosition(leftHand.position, false, true);
-                        follower.SetRotation(leftHand.rotation, false, true);
+                        follower.SetRotation(leftHand.rotation * controllerRotationCorrection, false, true);
                     }
                 }
             }
@@ -943,7 +949,7 @@ namespace FiveSQD.WebVerse.Input
                     if (follower != null)
                     {
                         follower.SetPosition(rightHand.position, false, true);
-                        follower.SetRotation(rightHand.rotation, false, true);
+                        follower.SetRotation(rightHand.rotation * controllerRotationCorrection, false, true);
                     }
                 }
             }
