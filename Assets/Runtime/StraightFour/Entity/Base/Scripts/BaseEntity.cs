@@ -95,6 +95,11 @@ namespace FiveSQD.StraightFour.Entity
         private List<SeatData> seats = new List<SeatData>();
 
         /// <summary>
+        /// Animation names tracked by this entity's animation control methods.
+        /// </summary>
+        private HashSet<string> definedAnimations = new HashSet<string>();
+
+        /// <summary>
         /// Interaction state of the entity.
         /// </summary>
         protected InteractionState interactionState;
@@ -744,8 +749,10 @@ namespace FiveSQD.StraightFour.Entity
                     AnimationClip clip = animation.GetClip(animationName);
                     if (clip != null)
                     {
+                        definedAnimations.Add(animationName);
                         animation[animationName].weight = 0.1f;
                         animation.Play(animationName);
+                        return true;
                     }
                 }
             }
@@ -772,6 +779,29 @@ namespace FiveSQD.StraightFour.Entity
                         return true;
                     }
                 }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Stop all animations.
+        /// </summary>
+        /// <returns>Whether or not any animations were found.</returns>
+        public virtual bool StopAllAnimations()
+        {
+            if (definedAnimations.Count > 0)
+            {
+                bool foundAnimation = false;
+                foreach (string animationName in definedAnimations)
+                {
+                    if (StopAnimation(animationName))
+                    {
+                        foundAnimation = true;
+                    }
+                }
+
+                return foundAnimation;
             }
 
             return false;

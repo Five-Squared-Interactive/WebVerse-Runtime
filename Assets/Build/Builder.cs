@@ -313,8 +313,8 @@ namespace FiveSQD.WebVerse.Building
         /// </summary>
         private static void ConfigureAndroidBuildSettings()
         {
-            // Set target API level (Android 13 / API level 33)
-            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel33;
+            // Set target API level (Android 13 / API level 35)
+            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel35;
             
             // Set minimum API level (Android 7.0 / API level 24)
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
@@ -322,7 +322,7 @@ namespace FiveSQD.WebVerse.Building
             // Target ARM64 architecture (required by Google Play Store)
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             
-            Debug.Log("[Android Config] Configured build settings: IL2CPP backend, ARM64 architecture, API 24-33");
+            Debug.Log("[Android Config] Configured build settings: IL2CPP backend, ARM64 architecture, API 24-35");
         }
 
         /// <summary>
@@ -351,12 +351,14 @@ namespace FiveSQD.WebVerse.Building
         /// <param name="buildType">The type of build (for logging purposes).</param>
         private static void ParseAndroidKeystoreArguments(string buildType)
         {
+            bool keystoreConfigured = false;
             string[] args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-keystorePath" && i + 1 < args.Length)
                 {
                     PlayerSettings.Android.keystoreName = args[i + 1];
+                    keystoreConfigured = true;
                     Debug.Log($"[{buildType}] Using keystore: {args[i + 1]}");
                 }
                 else if (args[i] == "-keystorePass" && i + 1 < args.Length)
@@ -373,6 +375,12 @@ namespace FiveSQD.WebVerse.Building
                     PlayerSettings.Android.keyaliasPass = args[i + 1];
                 }
             }
+        
+            PlayerSettings.Android.useCustomKeystore = keystoreConfigured;
+        
+            Debug.Log($"[{buildType}] useCustomKeystore = {PlayerSettings.Android.useCustomKeystore}");
+            Debug.Log($"[{buildType}] keystoreName      = {PlayerSettings.Android.keystoreName}");
+            Debug.Log($"[{buildType}] keyaliasName      = {PlayerSettings.Android.keyaliasName}");
         }
 
         /// <summary>
