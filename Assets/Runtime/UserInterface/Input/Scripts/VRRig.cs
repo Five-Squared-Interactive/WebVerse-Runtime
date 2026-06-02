@@ -793,27 +793,55 @@ namespace FiveSQD.WebVerse.Input
         /// </summary>
         private void ApplyControllerRotationOffset()
         {
-            if (controllerRotationOffset == Vector3.zero) return;
+            if (controllerRotationOffset == Vector3.zero)
+            {
+                Logging.Log("[VRRig] controllerRotationOffset is zero, skipping processor.");
+                return;
+            }
 
-            string processorStr = $"quaternionRotate(x={controllerRotationOffset.x},y={controllerRotationOffset.y},z={controllerRotationOffset.z})";
+            string processorStr = $"QuaternionRotate(x={controllerRotationOffset.x},y={controllerRotationOffset.y},z={controllerRotationOffset.z})";
 
             Transform[] controllers = { leftController, rightController };
             foreach (var controller in controllers)
             {
-                if (controller == null) continue;
-
-                var tpd = controller.GetComponent<TrackedPoseDriver>();
-                if (tpd == null) continue;
-
-                var rotAction = tpd.rotationInput.action;
-                if (rotAction == null) continue;
-
-                for (int i = 0; i < rotAction.bindings.Count; i++)
+                if (controller == null)
                 {
-                    rotAction.ApplyBindingOverride(i, new InputBinding { overrideProcessors = processorStr });
+                    Logging.LogWarning("[VRRig] Controller transform is null, skipping rotation offset.");
+                    continue;
                 }
 
-                Logging.Log($"[VRRig] Applied rotation offset processor '{processorStr}' to {controller.name} ({rotAction.bindings.Count} bindings)");
+                var tpd = controller.GetComponent<TrackedPoseDriver>();
+                if (tpd == null)
+                {
+                    Logging.LogWarning($"[VRRig] No TrackedPoseDriver on {controller.name}");
+                    continue;
+                }
+
+                var rotAction = tpd.rotationInput.action;
+                if (rotAction == null)
+                {
+                    Logging.LogWarning($"[VRRig] rotationInput.action is null on {controller.name}");
+                    continue;
+                }
+
+                // Disable the action before modifying bindings, then re-enable
+                bool wasEnabled = rotAction.enabled;
+                if (wasEnabled) rotAction.Disable();
+
+                int applied = 0;
+                for (int i = 0; i < rotAction.bindings.Count; i++)
+                {
+                    var binding = rotAction.bindings[i];
+                    // Skip composite parent bindings — only override leaf bindings
+                    if (binding.isComposite) continue;
+
+                    rotAction.ApplyBindingOverride(i, new InputBinding { overrideProcessors = processorStr });
+                    applied++;
+                }
+
+                if (wasEnabled) rotAction.Enable();
+
+                Logging.Log($"[VRRig] Applied '{processorStr}' to {controller.name}: {applied}/{rotAction.bindings.Count} bindings overridden. Action={rotAction.name}, enabled={rotAction.enabled}");
             }
         }
 
