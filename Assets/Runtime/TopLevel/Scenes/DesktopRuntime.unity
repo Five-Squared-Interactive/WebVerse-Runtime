@@ -299,6 +299,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1767192433, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1975917701}
+    - targetCorrespondingSourceObject: {fileID: 202364687, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 176276163}
+    - targetCorrespondingSourceObject: {fileID: 1670256624, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1642610548}
   m_SourcePrefab: {fileID: 100100000, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
 --- !u!114 &176276147 stripped
 MonoBehaviour:
@@ -458,6 +464,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9ac216f0eb04754b1d938aac6380b31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &176276163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 135533238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec7bfff44018a9a46824cdf68774278b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rotationOffsetEuler: {x: 0, y: 180, z: 0}
 --- !u!1 &188723511
 GameObject:
   m_ObjectHideFlags: 0
@@ -2561,6 +2580,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87b08793163292045931ab41739fdba4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  defaultAvatarMode: rigged
   consoles: []
   crosshair: {fileID: 167713673}
   automobileEntityTypeMap:
@@ -2568,6 +2588,7 @@ MonoBehaviour:
     stateSettings: {fileID: 11400000, guid: 3404c49a4170ad94e87f0e8545b86758, type: 2}
   airplaneEntityPrefab: {fileID: 2546332423327978143, guid: 9f84e1b9b912d9b4db6c879e27fa1ff8, type: 3}
   highlightMaterial: {fileID: 2100000, guid: fb72f213bae4057419539525b597f16d, type: 2}
+  previewMaterial: {fileID: 0}
   skyMaterial: {fileID: 2100000, guid: 0aade801f5d375245b8bd2843b11a686, type: 2}
   liteProceduralSkyMaterial: {fileID: 2100000, guid: acf78ab0ce284f148a485a21087ea77a, type: 2}
   liteProceduralSkyObject: {fileID: 1137534123}
@@ -3836,6 +3857,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b94c4c83dec6a94fbaebf543478259e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1642610548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 615982734}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec7bfff44018a9a46824cdf68774278b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rotationOffsetEuler: {x: 0, y: 180, z: 0}
 --- !u!1 &1898133184
 GameObject:
   m_ObjectHideFlags: 0
@@ -3887,6 +3921,7 @@ MonoBehaviour:
   maxTabs: 10
   maxSnapshotMemoryMB: 100
   homeUrl: 
+  forceMobile: 0
 --- !u!1 &1949991329
 GameObject:
   m_ObjectHideFlags: 0
