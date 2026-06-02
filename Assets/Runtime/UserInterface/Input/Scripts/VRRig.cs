@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using FiveSQD.StraightFour.Entity;
 using FiveSQD.WebVerse.Utilities;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Inputs;
@@ -91,6 +93,14 @@ namespace FiveSQD.WebVerse.Input
         /// </summary>
         [Tooltip("Enable dynamic move provider.")]
         public bool enableDynamicMove = false;
+
+        /// <summary>
+        /// Euler rotation offset applied to controller tracking data via Input System processor.
+        /// Corrects OpenXR pose convention differences (e.g., SteamVR/Quest Link backwards controllers).
+        /// Set to (0,180,0) to fix 180-degree Y-axis rotation issue. Set to (0,0,0) to disable.
+        /// </summary>
+        [Tooltip("Euler rotation offset for controller tracking correction. (0,180,0) fixes backwards controllers.")]
+        public Vector3 controllerRotationOffset = Vector3.zero;
 
         #endregion
 
@@ -594,7 +604,10 @@ namespace FiveSQD.WebVerse.Input
             // Set up platform-specific controller models
             SetupPlatformControllerModels();
 
-            Logging.Log($"[VRRig] Initialized. RayType={rayInteractorType}, HandTracking={enableHandTracking}");
+            // Apply controller rotation correction via Input System processor
+            ApplyControllerRotationOffset();
+
+            Logging.Log($"[VRRig] Initialized. RayType={rayInteractorType}, HandTracking={enableHandTracking}, RotationOffset={controllerRotationOffset}");
         }
 
         /// <summary>
@@ -771,6 +784,37 @@ namespace FiveSQD.WebVerse.Input
                 }
             }
 
+        }
+
+        /// <summary>
+        /// Apply rotation offset processor to controller TrackedPoseDriver rotation inputs.
+        /// This corrects the pose data at the Input System level, before TrackedPoseDriver
+        /// and XRI interactors read it, ensuring all systems see the corrected orientation.
+        /// </summary>
+        private void ApplyControllerRotationOffset()
+        {
+            if (controllerRotationOffset == Vector3.zero) return;
+
+            string processorStr = $"quaternionRotate(x={controllerRotationOffset.x},y={controllerRotationOffset.y},z={controllerRotationOffset.z})";
+
+            Transform[] controllers = { leftController, rightController };
+            foreach (var controller in controllers)
+            {
+                if (controller == null) continue;
+
+                var tpd = controller.GetComponent<TrackedPoseDriver>();
+                if (tpd == null) continue;
+
+                var rotAction = tpd.rotationInput.action;
+                if (rotAction == null) continue;
+
+                for (int i = 0; i < rotAction.bindings.Count; i++)
+                {
+                    rotAction.ApplyBindingOverride(i, new InputBinding { overrideProcessors = processorStr });
+                }
+
+                Logging.Log($"[VRRig] Applied rotation offset processor '{processorStr}' to {controller.name} ({rotAction.bindings.Count} bindings)");
+            }
         }
 
         /// <summary>

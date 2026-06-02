@@ -477,6 +477,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rotationOffsetEuler: {x: 0, y: 180, z: 0}
+  _correctionQuat: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  _trackedPoseDriver: {fileID: 0}
 --- !u!1 &188723511
 GameObject:
   m_ObjectHideFlags: 0
@@ -3694,6 +3696,7 @@ MonoBehaviour:
   enableHandTracking: 0
   enableGrabMove: 0
   enableDynamicMove: 0
+  controllerRotationOffset: {x: 0, y: 0, z: 180}
   leftController: {fileID: 176276161}
   rightController: {fileID: 1642610546}
   leftControllerModel: {fileID: 0}
@@ -3870,6 +3873,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rotationOffsetEuler: {x: 0, y: 180, z: 0}
+  _correctionQuat: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  _trackedPoseDriver: {fileID: 0}
 --- !u!1 &1898133184
 GameObject:
   m_ObjectHideFlags: 0
