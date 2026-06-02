@@ -617,6 +617,19 @@ namespace FiveSQD.StraightFour.Entity
             positionBroadcastInterval = -1;
             rotationBroadcastInterval = -1;
 
+            Animation[] entityAnimations = GetAnimations();
+            if (entityAnimations != null)
+            {
+                foreach (Animation animation in entityAnimations)
+                {
+                    foreach (AnimationState state in animation)
+                    {
+                        state.wrapMode = WrapMode.Once;
+                        state.clip.wrapMode = WrapMode.Once;
+                    }
+                }
+            }
+
             // TODO event.
         }
 
