@@ -788,7 +788,7 @@ namespace FiveSQD.WebVerse.Input
             {
                 if (child.name.Contains("Visual"))
                 {
-                    child.localRotation = Quaternion.identity;
+                    child.localRotation = Quaternion.Euler(0f, 0f, 180f);
                 }
             }
         }
