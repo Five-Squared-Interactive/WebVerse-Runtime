@@ -358,7 +358,12 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                     {
                         string message = System.Text.Encoding.UTF8.GetString(
                             msg.payload.data, msg.payload.offset, msg.payload.count);
+                        LogSystem.Log("[SyncDebug-SUB] Raw msg on topic=" + msg.topic);
                         OnMessage(msg.topic, message);
+                    }
+                    else
+                    {
+                        LogSystem.LogWarning("[SyncDebug-SUB] Null message received");
                     }
                 }
             );
@@ -553,8 +558,10 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                     ((CharacterEntity) entityToSynchronize).characterObjectRotation,
                     ((CharacterEntity) entityToSynchronize).characterLabelOffset, entityToSynchronize.GetPosition(true),
                     entityToSynchronize.GetRotation(true), entityToSynchronize.GetScale(), false, deleteWithClient);
-                mqttClient.Publish("vos/request/" + currentSessionID.Value.ToString() + "/createcharacterentity",
-                    JsonConvert.SerializeObject(addCharacterEntityMessage));
+                string createCharTopic = "vos/request/" + currentSessionID.Value.ToString() + "/createcharacterentity";
+                string createCharPayload = JsonConvert.SerializeObject(addCharacterEntityMessage);
+                LogSystem.Log("[SyncDebug-TX] Publishing to " + createCharTopic + " payload=" + createCharPayload);
+                mqttClient.Publish(createCharTopic, createCharPayload);
             }
             else if (entityToSynchronize is ButtonEntity)
             {
@@ -1601,6 +1608,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
         /// <param name="message">Message.</param>
         private void OnMessage(string topic, string message)
         {
+            LogSystem.Log("[SyncDebug-RX] OnMessage topic=" + topic + " len=" + (message != null ? message.Length.ToString() : "null"));
             if (topic == "vos/session/new")
             {
                 VOSSynchronizationMessages.SessionMessages.NewSessionMessage
@@ -1728,6 +1736,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                 }
                 else if (topic == "vos/status/" + currentSessionID.ToString() + "/createcharacterentity")
                 {
+                    LogSystem.Log("[SyncDebug-RX] createcharacterentity received, message=" + message);
                     VOSSynchronizationMessages.StatusMessages.AddCharacterEntityMessage
                         addCharacterEntityMessage = JsonConvert.DeserializeObject<
                             VOSSynchronizationMessages.StatusMessages.AddCharacterEntityMessage>(message);
@@ -1790,6 +1799,13 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                     else
                     {
                         ce.SetInteractionState(BaseEntity.InteractionState.Static);
+                        // Disable CharacterController on remote entities so FixedUpdate
+                        // doesn't overwrite position set by sync updates.
+                        CharacterController remoteCC = ce.gameObject.GetComponent<CharacterController>();
+                        if (remoteCC != null)
+                        {
+                            remoteCC.enabled = false;
+                        }
                         ce.SetVisibility(true, false);
                         ce.SetPosition(ToOffsetPosition(addCharacterEntityMessage.position.ToVector3()), false, false);
                         ce.SetRotation(addCharacterEntityMessage.rotation.ToQuaternion(), false, false);
@@ -1814,9 +1830,16 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                 }
                 else if (topic == "vos/status/" + currentSessionID.ToString() + "/createmeshentity")
                 {
+                    LogSystem.Log("[SyncDebug-RX] createmeshentity received, message=" + message);
                     VOSSynchronizationMessages.StatusMessages.AddMeshEntityMessage
                         addMeshEntityMessage = JsonConvert.DeserializeObject<
                         VOSSynchronizationMessages.StatusMessages.AddMeshEntityMessage>(message);
+                    LogSystem.Log("[SyncDebug-MESH] id=" + addMeshEntityMessage.id
+                        + " path=" + addMeshEntityMessage.path
+                        + " parentID=" + addMeshEntityMessage.parentID
+                        + " clientID=" + addMeshEntityMessage.clientID
+                        + " pos=" + (addMeshEntityMessage.position != null ? addMeshEntityMessage.position.ToVector3().ToString() : "null")
+                        + " scale=" + (addMeshEntityMessage.scale != null ? addMeshEntityMessage.scale.ToVector3().ToString() : "null"));
                     bool isSize = false;
                     Vector3 scaleSize = Vector3.zero;
                     if (addMeshEntityMessage.scale != null)
@@ -1834,27 +1857,47 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                         LogSystem.LogWarning("[VOSSynchronizer->OnMessage] Invalid " +
                             "createmeshentity message.");
                     }
-                    WebVerseRuntime.Instance.gltfHandler.LoadGLTFResourceAsMeshEntity(addMeshEntityMessage.path, addMeshEntityMessage.resources, Guid.Parse(addMeshEntityMessage.parentID));
-                    BaseEntity me = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(Guid.Parse(addMeshEntityMessage.id));
-                    if (me == null)
+                    if (addMeshEntityMessage.clientID == currentClientID.ToString())
                     {
-                        LogSystem.LogWarning("[VOSSynchronizer->OnMessage] Could not find entity.");
+                        return;
                     }
-                    else
-                    {
-                        me.SetVisibility(true, false);
-                        me.SetPosition(ToOffsetPosition(addMeshEntityMessage.position.ToVector3()), false, false);
-                        me.SetRotation(addMeshEntityMessage.rotation.ToQuaternion(), false, false);
-                        if (isSize)
+                    Guid? meshParentId = string.IsNullOrEmpty(addMeshEntityMessage.parentID) ? (Guid?)null : Guid.Parse(addMeshEntityMessage.parentID);
+                    Guid meshEntityId = Guid.Parse(addMeshEntityMessage.id);
+                    Vector3 meshPos = addMeshEntityMessage.position != null ? ToOffsetPosition(addMeshEntityMessage.position.ToVector3()) : Vector3.zero;
+                    Quaternion meshRot = addMeshEntityMessage.rotation != null ? addMeshEntityMessage.rotation.ToQuaternion() : Quaternion.identity;
+                    bool meshIsSize = isSize;
+                    Vector3 meshScaleSize = scaleSize;
+                    string meshTag = addMeshEntityMessage.tag;
+                    WebVerseRuntime.Instance.gltfHandler.LoadGLTFResourceAsMeshEntity(
+                        addMeshEntityMessage.path, addMeshEntityMessage.resources, meshEntityId,
+                        (MeshEntity me) =>
                         {
-                            me.SetSize(scaleSize, false);
-                        }
-                        else
-                        {
-                            me.SetScale(scaleSize, false);
-                        }
-                        me.entityTag = addMeshEntityMessage.tag;
-                    }
+                            if (me == null)
+                            {
+                                LogSystem.LogWarning("[VOSSynchronizer->OnMessage] Mesh entity loaded but null.");
+                                return;
+                            }
+                            me.SetVisibility(true, false);
+                            me.SetPosition(meshPos, false, false);
+                            me.SetRotation(meshRot, false, false);
+                            if (meshIsSize)
+                            {
+                                me.SetSize(meshScaleSize, false);
+                            }
+                            else
+                            {
+                                me.SetScale(meshScaleSize, false);
+                            }
+                            me.entityTag = meshTag;
+                            if (meshParentId.HasValue)
+                            {
+                                BaseEntity meshParent = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(meshParentId.Value);
+                                if (meshParent != null)
+                                {
+                                    me.SetParent(meshParent);
+                                }
+                            }
+                        });
                 }
                 else if (topic == "vos/status/" + currentSessionID.ToString() + "/createbuttonentity")
                 {
@@ -2572,18 +2615,25 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                         VOSSynchronizationMessages.StatusMessages.UpdateEntityPositionMessage
                             updateEntityPositionMessage = JsonConvert.DeserializeObject<
                             VOSSynchronizationMessages.StatusMessages.UpdateEntityPositionMessage>(message);
+                        LogSystem.Log("[SyncDebug-POS] Position msg: entityId=" + updateEntityPositionMessage.id
+                            + " clientID=" + updateEntityPositionMessage.clientID
+                            + " pos=" + (updateEntityPositionMessage.position != null ? updateEntityPositionMessage.position.ToVector3().ToString() : "null")
+                            + " myClientID=" + currentClientID);
                         if (updateEntityPositionMessage.clientID == currentClientID.ToString())
                         {
+                            LogSystem.Log("[SyncDebug-POS] Skipping own position update");
                             return;
                         }
                         BaseEntity pe = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(Guid.Parse(updateEntityPositionMessage.id));
                         if (pe == null)
                         {
-                            LogSystem.LogWarning("[VOSSynchronizer->OnMessage] Could not find entity.");
+                            LogSystem.LogWarning("[SyncDebug-POS] Could not find entity " + updateEntityPositionMessage.id);
                         }
                         else
                         {
-                            pe.SetPosition(ToOffsetPosition(updateEntityPositionMessage.position.ToVector3()), false, false);
+                            Vector3 offsetPos = ToOffsetPosition(updateEntityPositionMessage.position.ToVector3());
+                            LogSystem.Log("[SyncDebug-POS] Applying position " + offsetPos + " to entity " + pe.id + " (current=" + pe.GetPosition(false) + ")");
+                            pe.SetPosition(offsetPos, false, false);
                         }
                     }
                     else if (topic.EndsWith("/rotation"))
