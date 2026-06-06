@@ -358,12 +358,7 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                     {
                         string message = System.Text.Encoding.UTF8.GetString(
                             msg.payload.data, msg.payload.offset, msg.payload.count);
-                        LogSystem.Log("[SyncDebug-SUB] Raw msg on topic=" + msg.topic);
                         OnMessage(msg.topic, message);
-                    }
-                    else
-                    {
-                        LogSystem.LogWarning("[SyncDebug-SUB] Null message received");
                     }
                 }
             );
@@ -558,10 +553,8 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                     ((CharacterEntity) entityToSynchronize).characterObjectRotation,
                     ((CharacterEntity) entityToSynchronize).characterLabelOffset, entityToSynchronize.GetPosition(true),
                     entityToSynchronize.GetRotation(true), entityToSynchronize.GetScale(), false, deleteWithClient);
-                string createCharTopic = "vos/request/" + currentSessionID.Value.ToString() + "/createcharacterentity";
-                string createCharPayload = JsonConvert.SerializeObject(addCharacterEntityMessage);
-                LogSystem.Log("[SyncDebug-TX] Publishing to " + createCharTopic + " payload=" + createCharPayload);
-                mqttClient.Publish(createCharTopic, createCharPayload);
+                mqttClient.Publish("vos/request/" + currentSessionID.Value.ToString() + "/createcharacterentity",
+                    JsonConvert.SerializeObject(addCharacterEntityMessage));
             }
             else if (entityToSynchronize is ButtonEntity)
             {
@@ -1608,7 +1601,6 @@ namespace FiveSQD.WebVerse.VOSSynchronization
         /// <param name="message">Message.</param>
         private void OnMessage(string topic, string message)
         {
-            LogSystem.Log("[SyncDebug-RX] OnMessage topic=" + topic + " len=" + (message != null ? message.Length.ToString() : "null"));
             if (topic == "vos/session/new")
             {
                 VOSSynchronizationMessages.SessionMessages.NewSessionMessage
@@ -1736,7 +1728,6 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                 }
                 else if (topic == "vos/status/" + currentSessionID.ToString() + "/createcharacterentity")
                 {
-                    LogSystem.Log("[SyncDebug-RX] createcharacterentity received, message=" + message);
                     VOSSynchronizationMessages.StatusMessages.AddCharacterEntityMessage
                         addCharacterEntityMessage = JsonConvert.DeserializeObject<
                             VOSSynchronizationMessages.StatusMessages.AddCharacterEntityMessage>(message);
@@ -1830,16 +1821,9 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                 }
                 else if (topic == "vos/status/" + currentSessionID.ToString() + "/createmeshentity")
                 {
-                    LogSystem.Log("[SyncDebug-RX] createmeshentity received, message=" + message);
                     VOSSynchronizationMessages.StatusMessages.AddMeshEntityMessage
                         addMeshEntityMessage = JsonConvert.DeserializeObject<
                         VOSSynchronizationMessages.StatusMessages.AddMeshEntityMessage>(message);
-                    LogSystem.Log("[SyncDebug-MESH] id=" + addMeshEntityMessage.id
-                        + " path=" + addMeshEntityMessage.path
-                        + " parentID=" + addMeshEntityMessage.parentID
-                        + " clientID=" + addMeshEntityMessage.clientID
-                        + " pos=" + (addMeshEntityMessage.position != null ? addMeshEntityMessage.position.ToVector3().ToString() : "null")
-                        + " scale=" + (addMeshEntityMessage.scale != null ? addMeshEntityMessage.scale.ToVector3().ToString() : "null"));
                     bool isSize = false;
                     Vector3 scaleSize = Vector3.zero;
                     if (addMeshEntityMessage.scale != null)
@@ -2615,25 +2599,18 @@ namespace FiveSQD.WebVerse.VOSSynchronization
                         VOSSynchronizationMessages.StatusMessages.UpdateEntityPositionMessage
                             updateEntityPositionMessage = JsonConvert.DeserializeObject<
                             VOSSynchronizationMessages.StatusMessages.UpdateEntityPositionMessage>(message);
-                        LogSystem.Log("[SyncDebug-POS] Position msg: entityId=" + updateEntityPositionMessage.id
-                            + " clientID=" + updateEntityPositionMessage.clientID
-                            + " pos=" + (updateEntityPositionMessage.position != null ? updateEntityPositionMessage.position.ToVector3().ToString() : "null")
-                            + " myClientID=" + currentClientID);
                         if (updateEntityPositionMessage.clientID == currentClientID.ToString())
                         {
-                            LogSystem.Log("[SyncDebug-POS] Skipping own position update");
                             return;
                         }
                         BaseEntity pe = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(Guid.Parse(updateEntityPositionMessage.id));
                         if (pe == null)
                         {
-                            LogSystem.LogWarning("[SyncDebug-POS] Could not find entity " + updateEntityPositionMessage.id);
+                            LogSystem.LogWarning("[VOSSynchronizer->OnMessage] Could not find entity.");
                         }
                         else
                         {
-                            Vector3 offsetPos = ToOffsetPosition(updateEntityPositionMessage.position.ToVector3());
-                            LogSystem.Log("[SyncDebug-POS] Applying position " + offsetPos + " to entity " + pe.id + " (current=" + pe.GetPosition(false) + ")");
-                            pe.SetPosition(offsetPos, false, false);
+                            pe.SetPosition(ToOffsetPosition(updateEntityPositionMessage.position.ToVector3()), false, false);
                         }
                     }
                     else if (topic.EndsWith("/rotation"))
