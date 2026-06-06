@@ -47,6 +47,46 @@
                     window.tabUI?.setMode(data.mode);
                     break;
 
+                case 'setSafeArea':
+                    window.tabUI?.setSafeArea(data);
+                    break;
+
+                case 'setChromePosition':
+                    window.tabUI?.setChromePosition(data.position);
+                    break;
+
+                case 'setOrientation':
+                    window.tabUI?.setOrientation(data.orientation);
+                    break;
+
+                case 'setKeyboardState':
+                    window.tabUI?.setKeyboardState({ visible: data.visible, height: data.height });
+                    break;
+
+                case 'startAutoHide':
+                    window.tabUI?.startAutoHideTimer();
+                    break;
+
+                case 'stopAutoHide':
+                    window.tabUI?.stopAutoHideTimer();
+                    break;
+
+                case 'edgeTap':
+                    window.tabUI?.handleEdgeTap(data.y, data.screenHeight);
+                    break;
+
+                case 'platformBack':
+                    window.tabUI?.handlePlatformBack();
+                    break;
+
+                case 'setPlatform':
+                    window.tabUI?.setPlatform(data.platform);
+                    break;
+
+                case 'setMobileTabLimit':
+                    window.tabUI?.setMobileTabLimit(data.limit);
+                    break;
+
                 case 'showChrome':
                     window.tabUI?.showChrome();
                     break;
@@ -129,6 +169,19 @@
                 // Tab thumbnails
                 case 'updateTabThumbnail':
                     window.tabUI?.updateTabThumbnail(data.tabId, data.thumbnail);
+                    break;
+
+                // Session restore
+                case 'restoreSession':
+                    window.tabUI?.restoreSession(data);
+                    break;
+
+                case 'showRestorePrompt':
+                    window.tabUI?.showRestorePrompt();
+                    break;
+
+                case 'showReloadingToast':
+                    window.tabUI?.showReloadingToast();
                     break;
 
                 default:
@@ -261,6 +314,11 @@
             sendToUnity({ type: 'requestHideChrome' });
         },
 
+        // Exit dialog (Android back navigation)
+        showExitDialog: function() {
+            sendToUnity({ type: 'showExitDialog' });
+        },
+
         // Theme
         notifyThemeChange: function(theme) {
             sendToUnity({ type: 'themeChanged', theme: theme });
@@ -288,6 +346,14 @@
         },
         notifyHudHidden: function() {
             sendToUnity({ type: 'hudBounds', visible: false });
+        },
+
+        // Session restore
+        acceptSessionRestore: function() {
+            sendToUnity({ type: 'acceptSessionRestore' });
+        },
+        declineSessionRestore: function() {
+            sendToUnity({ type: 'declineSessionRestore' });
         },
 
         // Ready notification

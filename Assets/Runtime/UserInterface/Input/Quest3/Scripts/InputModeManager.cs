@@ -117,6 +117,45 @@ namespace FiveSQD.WebVerse.Input.Quest3
 
         #endregion
 
+        #region AR Error Handling
+
+        /// <summary>
+        /// Handle an AR error by falling back to VR mode and notifying the user.
+        /// Idempotent -- safe to call multiple times.
+        /// </summary>
+        /// <param name="errorType">The type of AR error that occurred.</param>
+        public void HandleARError(ARErrorType errorType)
+        {
+            var inputManager = WebVerseRuntime.Instance?.inputManager;
+
+            switch (errorType)
+            {
+                case ARErrorType.PassthroughFailed:
+                    // Ensure we're back in VR mode
+                    if (inputManager?.arProvider != null
+                        && inputManager.arProvider.CurrentDisplayMode == XRDisplayMode.AR)
+                    {
+                        inputManager.arProvider.DisablePassthrough();
+                    }
+                    Logging.LogWarning("[InputModeManager] Passthrough unavailable. Switching to VR mode.");
+                    break;
+
+                case ARErrorType.SurfaceDetectionFailed:
+                    Logging.LogWarning("[InputModeManager] Surface detection failed.");
+                    break;
+
+                case ARErrorType.NoSurfacesFound:
+                    Logging.LogWarning("[InputModeManager] No surfaces found.");
+                    break;
+
+                case ARErrorType.AnchorPlacementFailed:
+                    Logging.LogWarning("[InputModeManager] Anchor placement failed.");
+                    break;
+            }
+        }
+
+        #endregion
+
         #region Private Methods
 
         private void CheckHandInput()

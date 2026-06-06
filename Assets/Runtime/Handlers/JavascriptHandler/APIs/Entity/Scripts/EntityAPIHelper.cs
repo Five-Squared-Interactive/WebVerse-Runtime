@@ -1,5 +1,6 @@
 // Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
 
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
@@ -209,6 +210,67 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 return;
             }
             loadedEntities.Add(internalEntity, publicEntity);
+
+            // Wire up CollisionEmitter callbacks if present on the internal entity
+            var collisionEmitter = internalEntity.GetComponent<StraightFour.Entity.CollisionEmitter>();
+            if (collisionEmitter != null)
+            {
+                collisionEmitter.OnCollisionEnterEvent += (owner, otherGO) =>
+                    HandleCollisionCallback(Events.Collision.Enter, owner, otherGO);
+                collisionEmitter.OnCollisionExitEvent += (owner, otherGO) =>
+                    HandleCollisionCallback(Events.Collision.Exit, owner, otherGO);
+            }
+
+            // Emit spawn event — entity is now in loadedEntities and accessible via Entity.Get()
+            ((IEventEmitter)publicEntity).Emit(Events.Entity.Spawn);
+        }
+
+        /// <summary>
+        /// Bridge collision events from StraightFour CollisionEmitter to the JS event system.
+        /// </summary>
+        private static void HandleCollisionCallback(string eventName,
+            StraightFour.Entity.BaseEntity ownerInternal, GameObject otherGameObject)
+        {
+            var ownerPublic = GetPublicEntity(ownerInternal);
+            if (ownerPublic == null) return;
+
+            // Performance guard: skip if no listeners registered for this event
+            if (!ownerPublic.Listeners.ContainsKey(eventName)) return;
+
+            // Resolve the other entity
+            var otherInternal = otherGameObject.GetComponentInParent<StraightFour.Entity.BaseEntity>();
+            Jint.Native.JsValue otherJsValue = Jint.Native.JsValue.Null;
+
+            if (otherInternal != null)
+            {
+                var otherPublic = GetPublicEntity(otherInternal);
+                if (otherPublic != null)
+                {
+                    try
+                    {
+                        var engine = Runtime.WebVerseRuntime.Instance?.javascriptHandler?.Engine;
+                        if (engine != null)
+                        {
+                            otherJsValue = Jint.Native.JsValue.FromObject(engine, otherPublic);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Logging.LogError(
+                            $"[EventSystem] Failed to convert other entity to JsValue: {ex.Message}");
+                    }
+                }
+            }
+
+            try
+            {
+                ((IEventEmitter)ownerPublic).Emit(eventName, otherJsValue);
+            }
+            catch (System.Exception ex)
+            {
+                Logging.LogError(
+                    $"[EventSystem] Collision emit error for '{eventName}': {ex.Message}");
+            }
         }
 
         /// <summary>

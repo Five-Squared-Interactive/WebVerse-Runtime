@@ -536,7 +536,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 WebVerseRuntime.Instance.inputManager.rightPrimaryPressValue = true;
                 if (WebVerseRuntime.Instance.inputManager.leftPrimaryPressValue == false)
                 {
-                    WebVerseRuntime.Instance.inputManager.TouchPadPress();
+                    WebVerseRuntime.Instance.inputManager.PrimaryPress();
                 }
             }
             else if (context.phase == InputActionPhase.Performed)
@@ -657,7 +657,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
                 WebVerseRuntime.Instance.inputManager.rightSecondaryPressValue = true;
                 if (WebVerseRuntime.Instance.inputManager.leftSecondaryPressValue == false)
                 {
-                    WebVerseRuntime.Instance.inputManager.TouchPadPress();
+                    WebVerseRuntime.Instance.inputManager.SecondaryPress();
                 }
             }
             else if (context.phase == InputActionPhase.Performed)
@@ -711,7 +711,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
             {
                 Vector2 value = context.ReadValue<Vector2>();
                 WebVerseRuntime.Instance.inputManager.RightStick();
-                WebVerseRuntime.Instance.inputManager.LeftStickValueChange(value);
+                WebVerseRuntime.Instance.inputManager.RightStickValueChange(value);
                 WebVerseRuntime.Instance.inputManager.rightStickValue = true;
             }
             else if (context.phase == InputActionPhase.Performed)
@@ -722,7 +722,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
             else if (context.phase == InputActionPhase.Canceled)
             {
                 WebVerseRuntime.Instance.inputManager.EndRightStick();
-                WebVerseRuntime.Instance.inputManager.LeftStickValueChange(Vector2.zero);
+                WebVerseRuntime.Instance.inputManager.RightStickValueChange(Vector2.zero);
                 WebVerseRuntime.Instance.inputManager.rightStickValue = false;
             }
         }
@@ -739,7 +739,7 @@ namespace FiveSQD.WebVerse.Input.SteamVR
             {
                 RaycastHit hit;
                 if (Physics.Raycast(leftControllerGO.transform.position,
-                    rightControllerGO.transform.rotation * direction, out hit))
+                    leftControllerGO.transform.rotation * direction, out hit))
                 {
                     return new Tuple<RaycastHit, Vector3>(hit, leftControllerGO.transform.position);
                 }

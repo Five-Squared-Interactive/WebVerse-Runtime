@@ -35,6 +35,11 @@ namespace FiveSQD.WebVerse.Input.Desktop
         public bool jumpEnabled { get; set; } = true;
 
         /// <summary>
+        /// Whether emote key bindings (1-3) are enabled.
+        /// </summary>
+        public bool emoteEnabled { get; set; } = true;
+
+        /// <summary>
         /// Translation of Unity keys to Javascript standard keys.
         /// </summary>
         private static readonly Dictionary<string, string> keyKeyTranslations = new Dictionary<string, string>()
@@ -348,6 +353,23 @@ namespace FiveSQD.WebVerse.Input.Desktop
                     }
                 }
 
+                // Handle emote key bindings (number keys 1-3)
+                if (emoteEnabled)
+                {
+                    switch (key)
+                    {
+                        case "1":
+                            TriggerEmote("Wave");
+                            break;
+                        case "2":
+                            TriggerEmote("Point");
+                            break;
+                        case "3":
+                            TriggerEmote("IdleVariation1");
+                            break;
+                    }
+                }
+
                 WebVerseRuntime.Instance.inputManager.Key(keyKeyTranslations[key], keyCodeTranslations[key]);
                 WebVerseRuntime.Instance.inputManager.pressedKeys.Add(keyKeyTranslations[key]);
                 WebVerseRuntime.Instance.inputManager.pressedKeyCodes.Add(keyCodeTranslations[key]);
@@ -379,6 +401,18 @@ namespace FiveSQD.WebVerse.Input.Desktop
                 WebVerseRuntime.Instance.inputManager.EndKey(keyKeyTranslations[key], keyCodeTranslations[key]);
                 WebVerseRuntime.Instance.inputManager.pressedKeys.Remove(keyKeyTranslations[key]);
                 WebVerseRuntime.Instance.inputManager.pressedKeyCodes.Remove(keyCodeTranslations[key]);
+            }
+        }
+
+        /// <summary>
+        /// Triggers an emote on the DesktopRig if available.
+        /// </summary>
+        /// <param name="emoteName">The emote trigger name.</param>
+        private void TriggerEmote(string emoteName)
+        {
+            if (WebVerseRuntime.Instance.inputManager.desktopRig != null)
+            {
+                WebVerseRuntime.Instance.inputManager.desktopRig.PlayEmote(emoteName);
             }
         }
 

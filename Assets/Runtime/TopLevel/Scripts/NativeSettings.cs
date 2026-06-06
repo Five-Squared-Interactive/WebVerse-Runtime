@@ -60,6 +60,11 @@ namespace FiveSQD.WebVerse.Runtime
         private readonly string tutorialStateKey = "TUTORIAL_STATE";
 
         /// <summary>
+        /// Key for Default Avatar Mode.
+        /// </summary>
+        private readonly string defaultAvatarKey = "DEFAULT_AVATAR";
+
+        /// <summary>
         /// Default Storage Mode.
         /// </summary>
         private readonly string defaultStorageMode = "persistent";
@@ -93,6 +98,11 @@ namespace FiveSQD.WebVerse.Runtime
         /// Default Tutorial State.
         /// </summary>
         private readonly TutorialState defaultTutorialState = TutorialState.UNINITIALIZED;
+
+        /// <summary>
+        /// Default Avatar Mode.
+        /// </summary>
+        private readonly string defaultDefaultAvatar = "rigged";
 
         /// <summary>
         /// Version number for sqlite.
@@ -401,6 +411,46 @@ namespace FiveSQD.WebVerse.Runtime
         }
 
         /// <summary>
+        /// Get the Default Avatar mode.
+        /// </summary>
+        /// <returns>The Default Avatar mode ("rigged" or "simple").</returns>
+        public string GetDefaultAvatar()
+        {
+            object rawResult = GetItem(defaultAvatarKey);
+            if (rawResult == null)
+            {
+                Logging.LogWarning("[NativeSettings->GetDefaultAvatar] Default Avatar not set. Defaulting.");
+                SetDefaultAvatar(defaultDefaultAvatar);
+                return defaultDefaultAvatar;
+            }
+            else if (rawResult is string)
+            {
+                if ((string) rawResult != "rigged" && (string) rawResult != "simple")
+                {
+                    Logging.LogWarning("[NativeSettings->GetDefaultAvatar] Default Avatar invalid. Defaulting.");
+                    SetDefaultAvatar(defaultDefaultAvatar);
+                    return defaultDefaultAvatar;
+                }
+                return (string) rawResult;
+            }
+            else
+            {
+                Logging.LogWarning("[NativeSettings->GetDefaultAvatar] Default Avatar not a string. Defaulting.");
+                SetDefaultAvatar(defaultDefaultAvatar);
+                return defaultDefaultAvatar;
+            }
+        }
+
+        /// <summary>
+        /// Set the Default Avatar mode.
+        /// </summary>
+        /// <param name="defaultAvatar">Default Avatar mode ("rigged" or "simple").</param>
+        public void SetDefaultAvatar(string defaultAvatar)
+        {
+            SetItem(defaultAvatarKey, defaultAvatar);
+        }
+
+        /// <summary>
         /// Set an item in settings.
         /// </summary>
         /// <param name="key">Entry key.</param>
@@ -509,6 +559,7 @@ namespace FiveSQD.WebVerse.Runtime
             GetCacheDirectory();
             GetWorldLoadTimeout();
             GetTutorialState();
+            GetDefaultAvatar();
 #endif
         }
 

@@ -1,5 +1,6 @@
-// Copyright (c) 2019-2026 Five Squared Interactive. All rights reserved.
+// Copyright (c) 2019-2025 Five Squared Interactive. All rights reserved.
 
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Utilities;
 using System;
@@ -154,7 +155,7 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
     /// <summary>
     /// Class for an MQTT Client.
     /// </summary>
-    public class MQTTClient
+    public class MQTTClient : IEventEmitter
     {
         /// <summary>
         /// Reference to internal MQTT client.
@@ -193,11 +194,17 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
                     return;
             }
 
+            // Aligned with HTTPNetworking's callback pattern (HTTPNetworking.cs:343):
+            // user passes a bare function name; we invoke it via
+            // timeHandler.CallAsynchronously with boxed args. Replaces the prior
+            // `Run(expr.Replace("?", "varNames"))` design which only worked when
+            // the substituted identifiers happened to be JS globals — they
+            // weren't, so callbacks like onMessage couldn't deliver data.
             Action<WebInterface.MQTT.MQTTClient> onConnectedAction = new Action<WebInterface.MQTT.MQTTClient>((client) =>
             {
                 if (!string.IsNullOrEmpty(onConnected))
                 {
-                    WebVerseRuntime.Instance.javascriptHandler.Run(onConnected.Replace("?", "this"));
+                    WebVerseRuntime.Instance.timeHandler.CallAsynchronously(onConnected, new object[] { });
                 }
             });
 
@@ -206,7 +213,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
             {
                 if (!string.IsNullOrEmpty(onDisconnected))
                 {
-                    WebVerseRuntime.Instance.javascriptHandler.Run(onDisconnected.Replace("?", "this, code, msg"));
+                    WebVerseRuntime.Instance.timeHandler.CallAsynchronously(
+                        onDisconnected, new object[] { code, msg ?? "" });
                 }
             });
 
@@ -217,7 +225,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
                 {
                     if (!string.IsNullOrEmpty(onStateChanged))
                     {
-                        WebVerseRuntime.Instance.javascriptHandler.Run(onStateChanged.Replace("?", "this, from, to"));
+                        WebVerseRuntime.Instance.timeHandler.CallAsynchronously(
+                            onStateChanged, new object[] { from.ToString(), to.ToString() });
                     }
                 });
 
@@ -226,7 +235,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
                 {
                     if (!string.IsNullOrEmpty(onError))
                     {
-                        WebVerseRuntime.Instance.javascriptHandler.Run(onError.Replace("?", "this, msg"));
+                        WebVerseRuntime.Instance.timeHandler.CallAsynchronously(
+                            onError, new object[] { msg ?? "" });
                     }
                 });
 
@@ -285,16 +295,28 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
             {
                 if (!string.IsNullOrEmpty(onAcknowledged))
                 {
-                    WebVerseRuntime.Instance.javascriptHandler.Run(onAcknowledged.Replace("?", "msg"));
+                    WebVerseRuntime.Instance.timeHandler.CallAsynchronously(
+                        onAcknowledged, new object[] { msg ?? "" });
                 }
             });
 
             Action<WebInterface.MQTT.MQTTClient, string, string, WebInterface.MQTT.MQTTMessage> onMessageAction
                 = new Action<WebInterface.MQTT.MQTTClient, string, string, WebInterface.MQTT.MQTTMessage>((client, topic, topicName, msg) =>
             {
-                if (!string.IsNullOrEmpty(onAcknowledged))
+                // FIXED: was checking onAcknowledged here; should be onMessage.
+                if (!string.IsNullOrEmpty(onMessage))
                 {
-                    WebVerseRuntime.Instance.javascriptHandler.Run(onMessage.Replace("?", "client, topic, topicName, msg"));
+                    // Decode payload from BufferSegment to UTF-8 string, mirroring
+                    // HTTPNetworking's pattern. Binary-only payloads would need a
+                    // separate API; chunk responses are JSON so UTF-8 is right.
+                    string payload = "";
+                    if (msg != null && msg.payload != null && msg.payload.data != null)
+                    {
+                        payload = System.Text.Encoding.UTF8.GetString(
+                            msg.payload.data, msg.payload.offset, msg.payload.count);
+                    }
+                    WebVerseRuntime.Instance.timeHandler.CallAsynchronously(
+                        onMessage, new object[] { topic ?? "", topicName ?? "", payload });
                 }
             });
 
@@ -320,7 +342,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
             {
                 if (!string.IsNullOrEmpty(onAcknowledged))
                 {
-                    WebVerseRuntime.Instance.javascriptHandler.Run(onAcknowledged.Replace("?", "msg"));
+                    WebVerseRuntime.Instance.timeHandler.CallAsynchronously(
+                        onAcknowledged, new object[] { msg ?? "" });
                 }
             });
 
@@ -345,6 +368,32 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Networking
             internalClient.Publish(topic, message);
             return true;
         }
+
+        #region IEventEmitter Implementation
+
+        private Dictionary<string, List<Jint.Native.JsValue>> _listeners;
+        public Dictionary<string, List<Jint.Native.JsValue>> Listeners
+            => _listeners ??= new Dictionary<string, List<Jint.Native.JsValue>>();
+
+        private HashSet<Jint.Native.JsValue> _onceListeners;
+        public HashSet<Jint.Native.JsValue> OnceListeners
+            => _onceListeners ??= new HashSet<Jint.Native.JsValue>();
+
+        private HashSet<string> _emittingEvents;
+        public HashSet<string> EmittingEvents
+            => _emittingEvents ??= new HashSet<string>();
+
+        private bool _isDisposed = false;
+        public bool IsDisposed => _isDisposed;
+
+        public void DisposeEvents()
+        {
+            if (_isDisposed) return;
+            ((IEventEmitter)this).DisposeAllListeners();
+            _isDisposed = true;
+        }
+
+        #endregion
     }
 #endif
 }

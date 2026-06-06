@@ -9,6 +9,7 @@ using FiveSQD.WebVerse.Handlers.Image;
 using FiveSQD.WebVerse.Handlers.Javascript;
 #if USE_WEBINTERFACE
 using FiveSQD.WebVerse.VOSSynchronization;
+using FiveSQD.WebVerse.WorldSync;
 #endif
 using System.IO;
 using FiveSQD.WebVerse.Handlers.VEML;
@@ -17,6 +18,7 @@ using FiveSQD.WebVerse.Input;
 using FiveSQD.WebVerse.WebInterface.HTTP;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Data;
+using FiveSQD.WebVerse.Handlers.Javascript.APIs.Core;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.WebView;
 using FiveSQD.WebVerse.Output;
@@ -129,17 +131,23 @@ namespace FiveSQD.WebVerse.Runtime
         /// <summary>
         /// WebVerse version.
         /// </summary>
-        public static readonly string versionString = "v2.2.0";
+        public static readonly string versionString = "v3.0.1";
 
         /// <summary>
         /// WebVerse codename.
         /// </summary>
-        public static readonly string codenameString = "Terra Firma";
+        public static readonly string codenameString = "Blastoff!";
 
         /// <summary>
         /// Static reference to the WebVerse runtime.
         /// </summary>
         public static WebVerseRuntime Instance;
+
+        /// <summary>
+        /// Default avatar mode. "rigged" uses the animated mannequin,
+        /// "simple" uses original entity renderers.
+        /// </summary>
+        public string defaultAvatarMode = "rigged";
 
         /// <summary>
         /// Current state of the WebVerse Runtime.
@@ -212,6 +220,17 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("The VOS Synchronization Manager.")]
         public VOSSynchronizationManager vosSynchronizationManager { get; private set; }
+
+        /// <summary>
+        /// WorldSync clients keyed by synchronizationservice id attribute from VEML.
+        /// </summary>
+        private Dictionary<string, WorldSyncClient> worldSyncClients = new Dictionary<string, WorldSyncClient>();
+
+        /// <summary>
+        /// WorldSync scene handlers keyed by synchronizationservice id.
+        /// </summary>
+        private Dictionary<string, Handlers.VEML.WorldSyncSceneHandler> worldSyncSceneHandlers
+            = new Dictionary<string, Handlers.VEML.WorldSyncSceneHandler>();
 #endif
 
         /// <summary>
@@ -292,6 +311,14 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         [Tooltip("Material to use for highlighting.")]
         public Material highlightMaterial;
+
+        /// <summary>
+        /// Material to use for the placement preview of entities (the "ghost" mesh shown while
+        /// the user is positioning an entity). If left unassigned, preview meshes render with
+        /// Unity's missing-material pink.
+        /// </summary>
+        [Tooltip("Material to use for entity placement previews.")]
+        public Material previewMaterial;
 
         /// <summary>
         /// Material to use for the sky.
@@ -671,13 +698,19 @@ namespace FiveSQD.WebVerse.Runtime
         /// </summary>
         /// <param name="url">URL containing the world to load.</param>
         /// <param name="onLoaded">Action to perform on load. Provides string containing loaded world name.</param>
-        public void LoadWorld(string url, Action<string> onLoaded)
+        /// <param name="requireScript">Optional. Either inline JavaScript logic or a URI ending in ".js"
+        /// pointing to a script resource. The script is prepended to the world's script list and runs in
+        /// the same JINT engine as the world's own scripts. Only honored for VEML worlds; a warning is
+        /// logged and the script is ignored for x3d and glTF worlds.</param>
+        public void LoadWorld(string url, Action<string> onLoaded, string requireScript = null)
         {
             if (straightFour == null)
             {
                 Logging.LogError("[WebVerseRuntime->LoadWorld] World Engine not initialized.");
                 return;
             }
+
+            currentURL = url;
 
             if (StraightFour.StraightFour.ActiveWorld != null)
             {
@@ -692,10 +725,23 @@ namespace FiveSQD.WebVerse.Runtime
                 queryParams = url.Substring(url.IndexOf('?') + 1);
             }
 
+            if (!string.IsNullOrEmpty(requireScript)
+                && (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv")
+                    || baseURL.EndsWith(".glb") || baseURL.EndsWith(".gltf")))
+            {
+                Logging.LogWarning("[WebVerseRuntime->LoadWorld] requireScript is only supported for "
+                    + "VEML worlds; ignoring for " + baseURL);
+            }
+
             if (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv"))
             {
                 x3dHandler.GetX3DTitle(baseURL, (title) =>
                 {
+                    // Emit load event BEFORE dispose so previous world's listeners
+                    // get notified that a new world is loading (acts as "beforeunload").
+                    // Then dispose clears all listeners for a clean slate.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
@@ -707,10 +753,15 @@ namespace FiveSQD.WebVerse.Runtime
                             reflectionProbe.enabled = true;
                             reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                             state = RuntimeState.LoadedWorld;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                         }
                         else
                         {
                             state = RuntimeState.Error;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                                Jint.Native.JsValue.FromObject(
+                                    WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                    new { message = "World loading failed (X3D)" }));
                         }
 
                         if (onLoaded != null)
@@ -725,6 +776,9 @@ namespace FiveSQD.WebVerse.Runtime
                 // Load glTF/GLB as OMI world
                 omiHandler.GetWorldTitle(baseURL, (title) =>
                 {
+                    // Emit load before dispose — previous world listeners get notified.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
@@ -736,10 +790,15 @@ namespace FiveSQD.WebVerse.Runtime
                             reflectionProbe.enabled = true;
                             reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                             state = RuntimeState.LoadedWorld;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                         }
                         else
                         {
                             state = RuntimeState.Error;
+                            Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                                Jint.Native.JsValue.FromObject(
+                                    WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                    new { message = "World loading failed (OMI)" }));
                         }
 
                         if (onLoaded != null)
@@ -759,10 +818,15 @@ namespace FiveSQD.WebVerse.Runtime
                         reflectionProbe.enabled = true;
                         reflectionProbe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
                         state = RuntimeState.LoadedWorld;
+                        Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Ready);
                     }
                     else
                     {
                         state = RuntimeState.Error;
+                        Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Error,
+                            Jint.Native.JsValue.FromObject(
+                                WebVerseRuntime.Instance.javascriptHandler.Engine,
+                                new { message = "World loading failed (VEML)" }));
                     }
 
                     if (onLoaded != null)
@@ -773,6 +837,9 @@ namespace FiveSQD.WebVerse.Runtime
 
                 Action<string> onFound = (title) =>
                 {
+                    // Emit load before dispose — previous world listeners get notified.
+                    Handlers.Javascript.APIs.Utilities.World.Emit(Events.World.Load);
+                    Handlers.Javascript.APIs.Utilities.World.DisposeAllWorldListeners();
                     state = RuntimeState.LoadingWorld;
                     currentBasePath = VEMLUtilities.FormatURI(Path.GetDirectoryName(baseURL));
                     StraightFour.Utilities.LoggingConfig loggingConfig = new StraightFour.Utilities.LoggingConfig()
@@ -783,11 +850,46 @@ namespace FiveSQD.WebVerse.Runtime
                         enableDefault = Logging.GetConfiguration().enableDefault
                     };
                     StraightFour.StraightFour.LoadWorld(title, queryParams);
-                    vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete);
+                    vemlHandler.LoadVEMLDocumentIntoWorld(baseURL, onLoadComplete, requireScript);
                 };
                 
                 vemlHandler.GetWorldName(baseURL, onFound);
             }
+        }
+
+        /// <summary>
+        /// Dry-run validation of a world's VEML document without switching to it. Downloads and
+        /// parses the VEML, downloads (but does not execute) referenced scripts, and HEAD-requests
+        /// referenced asset URIs. Does not unload the active world, mutate currentURL, change runtime
+        /// state, or touch the JINT engine.
+        /// </summary>
+        /// <param name="url">URL of the VEML world to test.</param>
+        /// <param name="onTestComplete">Invoked with (success, errorMessage, title). errorMessage is
+        /// null on success; on failure it is a newline-separated list of issues. title is the parsed
+        /// metadata.title if the document parsed, otherwise null.</param>
+        public void TestLoadWorld(string url, Action<bool, string, string> onTestComplete)
+        {
+            if (vemlHandler == null)
+            {
+                onTestComplete.Invoke(false, "VEML handler not initialized.", null);
+                return;
+            }
+
+            string baseURL = url;
+            if (url.Contains("?"))
+            {
+                baseURL = url.Substring(0, url.IndexOf('?'));
+            }
+
+            if (baseURL.EndsWith(".x3d") || baseURL.EndsWith(".x3db") || baseURL.EndsWith(".x3dv")
+                || baseURL.EndsWith(".glb") || baseURL.EndsWith(".gltf"))
+            {
+                onTestComplete.Invoke(false,
+                    "TestLoadWorld currently supports VEML worlds only.", null);
+                return;
+            }
+
+            vemlHandler.TestVEMLDocument(baseURL, onTestComplete);
         }
 
         /// <summary>
@@ -831,6 +933,7 @@ namespace FiveSQD.WebVerse.Runtime
             {
                 vosSynchronizationManager.Reset();
             }
+            ClearWorldSyncClients();
 #endif
             Logging.Log("[WebVerseRuntime->UnloadWorld] VOS Synchronization Manager reset. Resetting OMI Handler...");
 
@@ -876,6 +979,7 @@ namespace FiveSQD.WebVerse.Runtime
         /// <param name="onLoaded">Action to perform on load. Provides string indicating web page.</param>
         public void LoadWebPage(string url, Action<string> onLoaded)
         {
+            currentURL = url;
             state = RuntimeState.WebPage;
             webverseWebView.Show();
             webverseWebView.LoadURL(url);
@@ -924,16 +1028,23 @@ namespace FiveSQD.WebVerse.Runtime
             int maxEntries, int maxEntryLength, int maxKeyLength, string filesDirectory,
             float timeout = 120)
         {
-            #if UNITY_STANDALONE || UNITY_EDITOR
-                // On Windows and macOS, change the User-Agent to mobile:
-                Web.SetUserAgent(true);
-            #elif UNITY_IOS
-                // On iOS, change the User-Agent to desktop:
-                Web.SetUserAgent(false);
-            #elif UNITY_ANDROID
-                // On Android, change the User-Agent to "random":
-                Web.SetUserAgent("random");
-            #endif
+            try
+            {
+                #if UNITY_STANDALONE || UNITY_EDITOR
+                    // On Windows and macOS, change the User-Agent to mobile:
+                    Web.SetUserAgent(true);
+                #elif UNITY_IOS
+                    // On iOS, change the User-Agent to desktop:
+                    Web.SetUserAgent(false);
+                #elif UNITY_ANDROID
+                    // On Android, change the User-Agent to "random":
+                    Web.SetUserAgent("random");
+                #endif
+            }
+            catch (System.InvalidOperationException)
+            {
+                Logging.LogWarning("[WebVerseRuntime->InitializeComponents] Web.SetUserAgent called before Awake — skipping.");
+            }
 
             // Set up World Engine.
             GameObject StraightFourGO = new GameObject("StraightFour");
@@ -956,6 +1067,7 @@ namespace FiveSQD.WebVerse.Runtime
             }
             straightFour.airplaneEntityPrefab = airplaneEntityPrefab;
             straightFour.highlightMaterial = highlightMaterial;
+            straightFour.previewMaterial = previewMaterial;
             straightFour.skyMaterial = skyMaterial;
             straightFour.liteProceduralSkyMaterial = liteProceduralSkyMaterial;
             straightFour.liteProceduralSkyObject = liteProceduralSkyObject;
@@ -1149,6 +1261,9 @@ namespace FiveSQD.WebVerse.Runtime
             // Terminate VOS Synchronization Manager.
             vosSynchronizationManager.Terminate();
             Destroy(vosSynchronizationManager.gameObject);
+
+            // Terminate WorldSync clients.
+            ClearWorldSyncClients();
 #endif
 
             // Terminate Handlers.
@@ -1262,5 +1377,87 @@ namespace FiveSQD.WebVerse.Runtime
             
             fileHandler.ClearCache(seconds);
         }
+
+#if USE_WEBINTERFACE
+        /// <summary>
+        /// Register a WorldSyncClient by synchronizer id.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <param name="client">The WorldSyncClient instance.</param>
+        public void RegisterWorldSyncClient(string id, WorldSyncClient client)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                Logging.LogWarning("[WebVerseRuntime->RegisterWorldSyncClient] Cannot register WorldSyncClient with null or empty id.");
+                return;
+            }
+            if (worldSyncClients.ContainsKey(id))
+            {
+                Logging.LogWarning("[WebVerseRuntime->RegisterWorldSyncClient] Replacing existing WorldSyncClient with id: " + id);
+                try { _ = worldSyncClients[id].DisconnectAsync(); } catch { }
+            }
+            worldSyncClients[id] = client;
+        }
+
+        /// <summary>
+        /// Get a WorldSyncClient by synchronizer id.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <returns>The WorldSyncClient, or null if not found.</returns>
+        public WorldSyncClient GetWorldSyncClient(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return null;
+            }
+            return worldSyncClients.TryGetValue(id, out var client) ? client : null;
+        }
+
+        /// <summary>
+        /// Register a WorldSync scene handler for inbound entity materialization.
+        /// </summary>
+        public void RegisterWorldSyncSceneHandler(string id, Handlers.VEML.WorldSyncSceneHandler handler)
+        {
+            if (string.IsNullOrEmpty(id) || handler == null) return;
+            if (worldSyncSceneHandlers.ContainsKey(id))
+            {
+                worldSyncSceneHandlers[id].Dispose();
+            }
+            worldSyncSceneHandlers[id] = handler;
+        }
+
+        /// <summary>
+        /// Disconnect and remove all WorldSync clients and scene handlers.
+        /// </summary>
+        public void ClearWorldSyncClients()
+        {
+            foreach (var kvp in worldSyncSceneHandlers)
+            {
+                try { kvp.Value.Dispose(); } catch { }
+            }
+            worldSyncSceneHandlers.Clear();
+
+            foreach (var kvp in worldSyncClients)
+            {
+                try { _ = kvp.Value.DisconnectAsync(); } catch { }
+            }
+            worldSyncClients.Clear();
+        }
+
+        /// <summary>
+        /// Remove a WorldSyncClient from the registry without disconnecting it.
+        /// Caller is responsible for disconnect ordering.
+        /// </summary>
+        /// <param name="id">The synchronizationservice id from VEML.</param>
+        /// <returns>True if a client was removed, false if no client with that id was registered.</returns>
+        public bool UnregisterWorldSyncClient(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return false;
+            }
+            return worldSyncClients.Remove(id);
+        }
+#endif
     }
 }

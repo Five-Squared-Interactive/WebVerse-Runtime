@@ -317,6 +317,14 @@ namespace FiveSQD.StraightFour.Entity
             }
             SetRigidbody(rb);
 
+            // Attach collision emitter for World API collision events
+            CollisionEmitter collisionEmitter = gameObject.GetComponent<CollisionEmitter>();
+            if (collisionEmitter == null)
+            {
+                collisionEmitter = gameObject.AddComponent<CollisionEmitter>();
+            }
+            collisionEmitter.ownerEntity = this;
+
             List<Mesh> ms = new List<Mesh>();
             foreach (MeshFilter filt in gameObject.GetComponentsInChildren<MeshFilter>())
             {
@@ -369,6 +377,7 @@ namespace FiveSQD.StraightFour.Entity
 
             MakeHidden();
             SetUpHighlightVolume();
+            StopAllAnimations();
         }
 
         /// <summary>
@@ -629,11 +638,15 @@ namespace FiveSQD.StraightFour.Entity
 
             gameObject.SetActive(true);
             rigidBody.isKinematic = true;
+            // Disable colliders during placement so the placement raycast (camera/pointer) passes
+            // through the preview to hit world geometry. With colliders on, the entity blocks its
+            // own placement raycast, producing erratic positioning. Make* methods that exit Placing
+            // (Static/Physical) re-enable colliders normally.
             foreach (MeshCollider meshCollider in meshColliders)
             {
-                meshCollider.enabled = true;
+                meshCollider.enabled = false;
             }
-            boxCollider.enabled = true;
+            boxCollider.enabled = false;
             interactionState = InteractionState.Placing;
         }
 
@@ -710,17 +723,26 @@ namespace FiveSQD.StraightFour.Entity
                 DestroyImmediate(entity);
             }
 
-            Collider collider = previewObject.GetComponent<Collider>();
-            if (collider)
+            // Remove ALL colliders on the preview (root + descendants). The previous code only
+            // removed one Collider from the root, so entities with multiple colliders or any
+            // colliders on child GameObjects left the preview raycastable.
+            foreach (Collider c in previewObject.GetComponentsInChildren<Collider>(true))
             {
-                Destroy(collider);
+                DestroyImmediate(c);
             }
 
-            Rigidbody rbody = previewObject.GetComponent<Rigidbody>();
-            if (rbody)
+            // Remove Rigidbodies from root + descendants for consistency.
+            foreach (Rigidbody rb in previewObject.GetComponentsInChildren<Rigidbody>(true))
             {
-                Destroy(rbody);
-            }    
+                DestroyImmediate(rb);
+            }
+
+            // Strip CollisionEmitter from preview clone to prevent ghost events
+            CollisionEmitter emitter = previewObject.GetComponent<CollisionEmitter>();
+            if (emitter)
+            {
+                Destroy(emitter);
+            }
 
             foreach (MeshRenderer rend in previewObject.GetComponentsInChildren<MeshRenderer>())
             {

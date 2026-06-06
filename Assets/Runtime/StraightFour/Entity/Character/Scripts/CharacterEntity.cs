@@ -6,6 +6,7 @@ using TMPro;
 using FiveSQD.StraightFour.Materials;
 using FiveSQD.StraightFour.Tags;
 using FiveSQD.StraightFour.Utilities;
+using FiveSQD.WebVerse.Avatar;
 using System.Collections.Generic;
 
 namespace FiveSQD.StraightFour.Entity
@@ -131,9 +132,65 @@ namespace FiveSQD.StraightFour.Entity
         private GameObject highlightCube;
 
         /// <summary>
-        /// The current applied velocity.
+        /// The current horizontal displacement applied this tick (x and z). Resets after each
+        /// FixedUpdate. y is unused; vertical motion lives in verticalVelocity.
         /// </summary>
         private Vector3 currentVelocity = Vector3.zero;
+
+        /// <summary>
+        /// Vertical velocity in meters/second. Integrated by gravity each FixedUpdate; displacement
+        /// is verticalVelocity * Time.deltaTime applied via CharacterController.Move. Jump() and the
+        /// y component of Move(amount) treat this as velocity (m/s), not per-frame displacement.
+        /// </summary>
+        private float verticalVelocity = 0f;
+
+        /// <summary>
+        /// When true, FixedUpdate skips gravity, grounding, and Move() entirely. Some other system
+        /// (typically the VR rig writing position from rigOrigin every Update via UpdateFollowers)
+        /// is the sole writer of this entity's position, so the entity must not also write or the
+        /// two writers fight and the avatar flickers between positions. Wired via
+        /// Input.AddRigFollower / RemoveRigFollower.
+        /// </summary>
+        public bool externalPositionControl = false;
+
+        /// Avatar animation manager for this character.
+        /// </summary>
+        private AvatarAnimationManager _avatarAnimationManager;
+
+        /// <summary>
+        /// Avatar rig controller for VR IK (null in desktop mode).
+        /// </summary>
+        private AvatarRigController _avatarRigController;
+
+        /// <summary>
+        /// VR locomotion bridge for thumbstick input (null in desktop mode).
+        /// </summary>
+        private VRLocomotionBridge _vrLocomotionBridge;
+
+        /// <summary>
+        /// Whether this character is in VR mode.
+        /// </summary>
+        private bool _isVRMode;
+
+        /// <summary>
+        /// The avatar rig controller for VR IK, or null in desktop mode.
+        /// </summary>
+        public AvatarRigController AvatarRigController => _avatarRigController;
+
+        /// <summary>
+        /// The VR locomotion bridge for thumbstick input, or null in desktop mode.
+        /// </summary>
+        public VRLocomotionBridge VRLocomotionBridge => _vrLocomotionBridge;
+
+        /// <summary>
+        /// The avatar animation manager for this character.
+        /// </summary>
+        public AvatarAnimationManager AvatarAnimationManager => _avatarAnimationManager;
+
+        /// <summary>
+        /// Whether this character is currently in VR mode.
+        /// </summary>
+        public bool IsVRMode => _isVRMode;
 
         /// <summary>
         /// Get the character GameObject.
@@ -189,6 +246,20 @@ namespace FiveSQD.StraightFour.Entity
             if (oldCharacterGO != null)
             {
                 DestroyImmediate(oldCharacterGO);
+            }
+
+            // Update avatar subsystems with the new Animator
+            Animator newAnimator = characterGO.GetComponentInChildren<Animator>();
+            if (newAnimator != null)
+            {
+                if (_avatarAnimationManager != null)
+                {
+                    _avatarAnimationManager.SetAnimator(newAnimator);
+                }
+                if (_avatarRigController != null)
+                {
+                    _avatarRigController.UpdateAnimator(newAnimator);
+                }
             }
 
             GameObject characterLabel = Instantiate(StraightFour.ActiveWorld.entityManager.characterControllerLabelPrefab);
@@ -313,7 +384,8 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            currentVelocity = new Vector3(currentVelocity.x + amount.x, currentVelocity.y + amount.y, currentVelocity.z + amount.z);
+            currentVelocity.x += amount.x;
+            currentVelocity.z += amount.z;
             characterController.Move(amount);
 
             if (synchronizer != null && synchronize == true)
@@ -347,7 +419,7 @@ namespace FiveSQD.StraightFour.Entity
 
             if (IsOnSurface() || !discardIfFalling)
             {
-                currentVelocity.y += amount;
+                verticalVelocity += amount;
             }
 
             if (synchronizer != null && synchronize == true)
@@ -376,7 +448,16 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2, 0), Vector3.down, 0.25f);
+            // CharacterController.isGrounded is the canonical signal; it's updated each Move() with
+            // the controller's internal slope/penetration logic and accounts for skinWidth.
+            if (characterController.isGrounded) return true;
+
+            // Fallback raycast for the pre-first-Move case and as a small-gap safety net.
+            // Distance is skinWidth + a small margin so we catch the "just barely above floor"
+            // state without falsely reporting grounded at large gaps.
+            float rayDistance = characterController.skinWidth + 0.1f;
+            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2f, 0),
+                Vector3.down, rayDistance);
         }
 
         public bool IsAboveGround()
@@ -403,7 +484,179 @@ namespace FiveSQD.StraightFour.Entity
         /// <returns>Whether or not the setting was successful.</returns>
         public override bool Delete(bool synchronize = true)
         {
+            if (_vrLocomotionBridge != null)
+            {
+                _vrLocomotionBridge.Cleanup();
+            }
+            if (_avatarRigController != null)
+            {
+                _avatarRigController.Cleanup();
+            }
+            if (_avatarAnimationManager != null)
+            {
+                _avatarAnimationManager.Cleanup();
+            }
             return base.Delete(synchronize);
+        }
+
+        /// <summary>
+        /// Enable or disable VR mode. When enabled, creates and initializes
+        /// an AvatarRigController for IK-driven VR avatar embodiment.
+        /// </summary>
+        /// <param name="vrMode">True to enable VR mode, false for desktop.</param>
+        public void SetVRMode(bool vrMode)
+        {
+            _isVRMode = vrMode;
+
+            if (vrMode && _avatarRigController == null)
+            {
+                _avatarRigController = gameObject.AddComponent<AvatarRigController>();
+                _avatarRigController.Initialize(_avatarAnimationManager);
+
+                // Disable HeadTrackingDriver to prevent conflict with IK MultiAimConstraint
+                if (_avatarAnimationManager != null && _avatarAnimationManager.HeadTrackingDriver != null)
+                {
+                    _avatarAnimationManager.HeadTrackingDriver.SetEnabled(false);
+                }
+
+                // Enable first-person visibility (hide head from local VR camera)
+                _avatarRigController.SetFirstPersonMode(true);
+
+                // Create VRLocomotionBridge for thumbstick → LocomotionDriver forwarding
+                if (_vrLocomotionBridge == null && _avatarAnimationManager != null
+                    && _avatarAnimationManager.LocomotionDriver != null)
+                {
+                    _vrLocomotionBridge = gameObject.AddComponent<VRLocomotionBridge>();
+                    _vrLocomotionBridge.Initialize(_avatarAnimationManager.LocomotionDriver);
+                }
+            }
+            else if (!vrMode && _avatarRigController != null)
+            {
+                // Restore head visibility before disabling VR
+                _avatarRigController.SetFirstPersonMode(false);
+                _avatarRigController.SetRigWeight(0f);
+
+                // Re-enable HeadTrackingDriver for desktop mode
+                if (_avatarAnimationManager != null && _avatarAnimationManager.HeadTrackingDriver != null)
+                {
+                    _avatarAnimationManager.HeadTrackingDriver.SetEnabled(true);
+                }
+
+                // Cleanup and destroy VRLocomotionBridge
+                if (_vrLocomotionBridge != null)
+                {
+                    _vrLocomotionBridge.Cleanup();
+                    Destroy(_vrLocomotionBridge);
+                    _vrLocomotionBridge = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the current avatar state for serialization and sync broadcasting.
+        /// Orchestrates the distributed PopulateState pattern across all avatar drivers.
+        /// </summary>
+        /// <returns>An AvatarState struct with current animation, IK, and metadata.</returns>
+        public AvatarState GetCurrentState()
+        {
+            var state = default(AvatarState);
+
+            if (_avatarAnimationManager != null && _avatarAnimationManager.IsInitialized)
+            {
+                if (_avatarAnimationManager.LocomotionDriver != null)
+                {
+                    _avatarAnimationManager.LocomotionDriver.PopulateState(ref state);
+                }
+
+                if (_avatarAnimationManager.EmoteDriver != null)
+                {
+                    _avatarAnimationManager.EmoteDriver.PopulateState(ref state);
+                }
+
+                if (_avatarAnimationManager.HeadTrackingDriver != null)
+                {
+                    _avatarAnimationManager.HeadTrackingDriver.PopulateState(ref state);
+                }
+
+                if (_avatarAnimationManager.AvatarLoader != null)
+                {
+                    state.AvatarModelUri = _avatarAnimationManager.AvatarLoader.CurrentAvatarUri;
+                }
+            }
+
+            if (_isVRMode && _avatarRigController != null)
+            {
+                _avatarRigController.PopulateState(ref state);
+            }
+
+            return state;
+        }
+
+        /// <summary>
+        /// Apply a received avatar state to reconstruct animation on a remote avatar.
+        /// Sets locomotion, emote, head tracking, and IK target state.
+        /// </summary>
+        /// <param name="state">The AvatarState to apply.</param>
+        public void ApplyState(AvatarState state)
+        {
+            if (_avatarAnimationManager == null || !_avatarAnimationManager.IsInitialized)
+            {
+                return;
+            }
+
+            // Apply locomotion
+            if (_avatarAnimationManager.LocomotionDriver != null)
+            {
+                float radians = state.LocomotionDirection * Mathf.Deg2Rad;
+                Vector2 input = new Vector2(
+                    Mathf.Sin(radians),
+                    Mathf.Cos(radians)) * state.LocomotionSpeed;
+                _avatarAnimationManager.LocomotionDriver.SetMovementInput(input);
+            }
+
+            // Apply emote
+            if (_avatarAnimationManager.EmoteDriver != null)
+            {
+                if (!string.IsNullOrEmpty(state.ActiveEmote))
+                {
+                    if (state.ActiveEmote != _avatarAnimationManager.EmoteDriver.CurrentEmote)
+                    {
+                        _avatarAnimationManager.EmoteDriver.PlayEmote(state.ActiveEmote);
+                    }
+                }
+                else if (_avatarAnimationManager.EmoteDriver.IsPlayingEmote)
+                {
+                    _avatarAnimationManager.EmoteDriver.StopEmote();
+                }
+            }
+
+            // Apply head tracking
+            if (_avatarAnimationManager.HeadTrackingDriver != null)
+            {
+                _avatarAnimationManager.HeadTrackingDriver.SetHeadLookInput(state.HeadYaw, state.HeadPitch);
+            }
+
+            // Apply IK targets
+            if (state.IsVRMode && _avatarRigController != null)
+            {
+                if (_avatarRigController.HeadTarget != null)
+                {
+                    _avatarRigController.HeadTarget.position = state.HeadPosition;
+                    _avatarRigController.HeadTarget.rotation = state.HeadRotation;
+                }
+
+                if (_avatarRigController.LeftHandTarget != null)
+                {
+                    _avatarRigController.LeftHandTarget.position = state.LeftHandPosition;
+                    _avatarRigController.LeftHandTarget.rotation = state.LeftHandRotation;
+                }
+
+                if (_avatarRigController.RightHandTarget != null)
+                {
+                    _avatarRigController.RightHandTarget.position = state.RightHandPosition;
+                    _avatarRigController.RightHandTarget.rotation = state.RightHandRotation;
+                }
+            }
         }
 
         /// <summary>
@@ -657,16 +910,27 @@ namespace FiveSQD.StraightFour.Entity
         /// <returns>Whether or not the setting was successful.</returns>
         public override bool SetVisibility(bool visible, bool synchronize = true)
         {
-            // Use base functionality.
-            //return base.SetVisibility(visible);
-            if (meshes != null)
+            // When the rigged avatar is active, only toggle renderers on the avatar instance
+            // (not the original characterGO renderers, which the avatar system disabled).
+            if (_avatarAnimationManager != null && _avatarAnimationManager.IsInitialized
+                && _avatarAnimationManager.Animator != null
+                && _avatarAnimationManager.Animator.gameObject != gameObject)
             {
+                // Toggle rigged avatar renderers
+                foreach (MeshRenderer ms in _avatarAnimationManager.Animator.gameObject
+                    .GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    ms.enabled = visible;
+                }
+            }
+            else if (meshes != null)
+            {
+                // No rigged avatar — toggle original characterGO renderers
                 foreach (MeshRenderer ms in characterGO.gameObject.GetComponentsInChildren<MeshRenderer>(true))
                 {
                     ms.enabled = visible;
                 }
             }
-            //characterGO.gameObject.SetActive(visible);
             if (synchronizer != null && synchronize == true)
             {
                 synchronizer.SetVisibility(this, visible);
@@ -809,6 +1073,9 @@ namespace FiveSQD.StraightFour.Entity
             }
 
             SetController(characterController);
+
+            _avatarAnimationManager = gameObject.AddComponent<AvatarAnimationManager>();
+            _avatarAnimationManager.Initialize(AvatarAnimationManager.DefaultAvatarMode);
 
             MakeHidden();
             SetUpHighlightVolume();
@@ -964,6 +1231,19 @@ namespace FiveSQD.StraightFour.Entity
             }
 
             gameObject.SetActive(true);
+            // Keep Rigidbody kinematic in Physical state — character motion is owned by
+            // CharacterController.Move() in FixedUpdate. A non-kinematic Rigidbody on the same
+            // GameObject causes per-frame position fighting (visible as the avatar/label rendering
+            // at two flickering positions). Defends against SetMotion(Moving) flipping this.
+            if (rigidBody != null)
+            {
+                rigidBody.isKinematic = true;
+            }
+            // Leave capsuleCollider disabled — the CharacterController is the canonical collider
+            // for character motion. Enabling the CapsuleCollider on the same GameObject made the
+            // character settle ~0.5 m above the floor (the CapsuleCollider's center.y) because the
+            // two colliders fight during depenetration. MakeHidden and MakeStatic both disable it
+            // for the same reason; Physical should match.
             interactionState = InteractionState.Physical;
         }
 
@@ -1027,38 +1307,45 @@ namespace FiveSQD.StraightFour.Entity
             highlightCube.SetActive(false);
         }
 
-        private float timeToWaitForUpdate = 0.025f;
-        private float timeWaitedForUpdate = 0;
         private int stepToRaise = 1;
         private int maxStepToRaise = 1024;
         void FixedUpdate()
         {
-            timeWaitedForUpdate += Time.deltaTime;
-            if (timeWaitedForUpdate >= timeToWaitForUpdate)
-            {
-                timeWaitedForUpdate = 0;
-            }
-            else
-            {
-                return;
-            }
-
+            // No throttling here — FixedUpdate already runs at the fixed physics rate (50 Hz by
+            // default), which is the correct cadence for gravity integration. The previous throttle
+            // (0.025s) caused FixedUpdate to fire only every other tick at fixedDeltaTime=0.02s but
+            // still used Time.deltaTime=0.02s in the integration math — producing gravity at half
+            // the intended rate.
             if (characterController == null)
             {
                 //LogSystem.LogError("[CharacterEntity->Update] No character controller for character entity.");
                 return;
             }
 
-            if (IsOnSurface() && currentVelocity.y < 0)
+            // If some other system (typically the VR rig via UpdateFollowers) is writing this
+            // entity's position each frame, don't add a second writer here — they would fight and
+            // the avatar would flicker between the two writers' positions.
+            if (externalPositionControl)
             {
-                currentVelocity.y = 0f;
+                return;
+            }
+
+            // Reset vertical velocity when grounded and falling — prevents gravity from compounding
+            // while on a surface, and zeroes any tiny residual downward velocity from prior ticks.
+            if (IsOnSurface() && verticalVelocity < 0)
+            {
+                verticalVelocity = 0f;
             }
 
             if (rigidBody.useGravity)
             {
-                currentVelocity.y += -9.81f * Time.deltaTime; // TODO: Magic number, tie into larger gravity system.
+                verticalVelocity += -9.81f * Time.deltaTime; // TODO: tie into larger gravity system.
             }
-            characterController.Move(currentVelocity);
+
+            // currentVelocity.x/z are per-frame displacement (legacy semantics callers depend on).
+            // verticalVelocity is in m/s — multiply by dt to convert to displacement-this-tick.
+            characterController.Move(new Vector3(
+                currentVelocity.x, verticalVelocity * Time.deltaTime, currentVelocity.z));
             currentVelocity.x = currentVelocity.z = 0;
 
             if (fixHeight)

@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using FiveSQD.StraightFour.WorldState;
 using FiveSQD.WebVerse.Utilities;
+using FiveSQD.WebVerse.VR.Comfort;
 using UnityEngine;
 using UnityEngine.Profiling;
 
@@ -82,6 +83,13 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         [Tooltip("Home URL to load on startup.")]
         private string homeUrl;
 
+        /// <summary>
+        /// Force mobile mode regardless of platform detection.
+        /// Set this before initialization (e.g. from MobileMode.Awake).
+        /// </summary>
+        [Tooltip("Force mobile mode regardless of platform.")]
+        public bool forceMobile;
+
         #endregion
 
         #region Private Fields
@@ -92,6 +100,7 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         private TabUIController vrTabUIController;
         private TabUIInputHandler inputHandler;
         private bool isVRMode;
+        private FadeController _fadeController;
 
         // Data providers — set by DesktopMode to supply data from NativeHistory/NativeSettings
         private Func<object> historyProvider;
@@ -191,6 +200,16 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         public void SetVRCamera(Camera camera)
         {
             vrCamera = camera;
+        }
+
+        /// <summary>
+        /// Set the fade controller for world transition effects.
+        /// Called by Quest3Mode after FadeController initialization.
+        /// </summary>
+        /// <param name="fc">The FadeController instance, or null to disable fade.</param>
+        public void SetFadeController(FadeController fc)
+        {
+            _fadeController = fc;
         }
 
         /// <summary>
@@ -378,6 +397,34 @@ namespace FiveSQD.WebVerse.Interface.TabUI
                 UnloadWorldForTab
             );
 
+            // Wire control flag restoration for VR tab switches
+            tabManager.OnWorldReadyForControlFlags = (world) =>
+            {
+                var vrRig = Runtime.WebVerseRuntime.Instance?.vrRig;
+                if (vrRig == null) return;
+
+                if (world != null && world.CachedControlFlags != null && world.CachedControlFlags.Count > 0)
+                {
+                    vrRig.ApplyCachedControlFlags(world.CachedControlFlags);
+                    Logging.Log("[TabUIIntegration] Restored " + world.CachedControlFlags.Count + " cached control flags");
+                }
+                else
+                {
+                    vrRig.ApplyDefaultControlFlags();
+                    Logging.Log("[TabUIIntegration] No cached control flags — applied defaults");
+                }
+            };
+
+            // Wire fade controller for tab switch transitions
+            tabManager.OnFadeOutRequested = (onComplete) =>
+            {
+                if (_fadeController != null)
+                    _fadeController.FadeOut(onComplete);
+                else
+                    onComplete?.Invoke();
+            };
+            tabManager.OnFadeInRequested = () => _fadeController?.FadeIn();
+
             // Handle tab switch navigation for webpage tabs
             tabManager.OnTabNavigateRequested += HandleTabNavigateRequested;
 
@@ -401,6 +448,29 @@ namespace FiveSQD.WebVerse.Interface.TabUI
             GameObject desktopTabUIGO = new GameObject("DesktopTabUI");
             desktopTabUIGO.transform.SetParent(transform);
             desktopTabUIController = desktopTabUIGO.AddComponent<TabUIController>();
+
+            // Mobile platform detection
+            bool isMobilePlatform = forceMobile
+                || Application.platform == RuntimePlatform.Android
+                || Application.platform == RuntimePlatform.IPhonePlayer;
+            if (isMobilePlatform)
+            {
+                desktopTabUIController.IsMobile = true;
+                // Tablet detection: screen diagonal >= 6.5 inches
+                float dpi = Screen.dpi;
+                if (dpi > 0)
+                {
+                    float diagonalInches = Mathf.Sqrt(
+                        (float)Screen.width * Screen.width + (float)Screen.height * Screen.height
+                    ) / dpi;
+                    desktopTabUIController.IsTablet = diagonalInches >= 6.5f;
+                }
+
+                // Chrome position persistence
+                desktopTabUIController.ChromePosition =
+                    PlayerPrefs.GetString("TabUI_ChromePosition", "bottom");
+            }
+
             desktopTabUIController.Initialize(tabManager, tabUIWebViewPrefab);
 
             // Wire up events
@@ -975,6 +1045,19 @@ namespace FiveSQD.WebVerse.Interface.TabUI
         /// </summary>
         private void HandleSaveSettings(Dictionary<string, object> settings)
         {
+            // Persist chrome position if included
+            if (settings != null && settings.TryGetValue("chromePosition", out object posObj))
+            {
+                string pos = posObj?.ToString();
+                if (pos == "top" || pos == "bottom")
+                {
+                    PlayerPrefs.SetString("TabUI_ChromePosition", pos);
+                    PlayerPrefs.Save();
+                    if (desktopTabUIController != null)
+                        desktopTabUIController.ChromePosition = pos;
+                }
+            }
+
             OnSaveSettingsRequested?.Invoke(settings);
         }
 

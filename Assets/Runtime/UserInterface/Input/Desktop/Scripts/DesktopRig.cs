@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using FiveSQD.StraightFour.Entity;
+using FiveSQD.WebVerse.Avatar;
 using UnityEngine;
 
 namespace FiveSQD.WebVerse.Input.Desktop
@@ -86,6 +87,17 @@ namespace FiveSQD.WebVerse.Input.Desktop
         /// </summary>
         private float xRotation = 0f;
         
+        /// <summary>
+        /// Cached reference to the avatar's AvatarAnimationManager (avoids per-frame GetComponent).
+        /// </summary>
+        private AvatarAnimationManager _cachedAnimationManager;
+
+        /// <summary>
+        /// The avatar entity that _cachedAnimationManager was resolved from.
+        /// Used to detect when avatarEntity changes and the cache needs refreshing.
+        /// </summary>
+        private CharacterEntity _cachedAnimationManagerEntity;
+
         /// <summary>
         /// Current movement input for continuous movement.
         /// </summary>
@@ -383,6 +395,34 @@ namespace FiveSQD.WebVerse.Input.Desktop
         }
 
         /// <summary>
+        /// Feeds current movement input to the avatar's locomotion driver for blend tree animation.
+        /// Always called, even with zero input, so the driver can smoothly decelerate.
+        /// Sends Vector2.zero when WASD motion is disabled so animation matches actual movement.
+        /// </summary>
+        private void UpdateAvatarLocomotion()
+        {
+            if (avatarEntity == null)
+            {
+                return;
+            }
+
+            // Refresh cached reference when avatar entity changes
+            if (_cachedAnimationManagerEntity != avatarEntity)
+            {
+                _cachedAnimationManager = avatarEntity.GetComponent<AvatarAnimationManager>();
+                _cachedAnimationManagerEntity = avatarEntity;
+            }
+
+            if (_cachedAnimationManager != null && _cachedAnimationManager.LocomotionDriver != null)
+            {
+                // Only feed actual input when WASD motion is enabled;
+                // otherwise send zero so the driver decelerates to idle.
+                Vector2 input = wasdMotionEnabled ? currentMovementInput : Vector2.zero;
+                _cachedAnimationManager.LocomotionDriver.SetMovementInput(input);
+            }
+        }
+
+        /// <summary>
         /// Apply the stored movement input. Called from Update() for continuous movement.
         /// </summary>
         private void ProcessMovement()
@@ -492,12 +532,99 @@ namespace FiveSQD.WebVerse.Input.Desktop
             xRotation -= mouseY;
             xRotation = Mathf.Clamp(xRotation, -90f, 90f);
             cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+
+            // Feed head pitch to avatar head tracking driver.
+            // Yaw is 0 because the avatar body already rotates to face the camera direction.
+            // Sign inversion: xRotation is negative when looking up (Unity camera convention),
+            // but the driver expects positive = up, so we negate.
+            UpdateAvatarHeadTracking(0f, -xRotation);
+        }
+
+        /// <summary>
+        /// Feeds yaw and pitch to the avatar's head tracking driver for procedural head bone rotation.
+        /// Sends zero when mouseLook is disabled so the head returns to neutral.
+        /// </summary>
+        private void UpdateAvatarHeadTracking(float yaw, float pitch)
+        {
+            if (avatarEntity == null)
+            {
+                return;
+            }
+
+            // Refresh cached reference when avatar entity changes
+            if (_cachedAnimationManagerEntity != avatarEntity)
+            {
+                _cachedAnimationManager = avatarEntity.GetComponent<AvatarAnimationManager>();
+                _cachedAnimationManagerEntity = avatarEntity;
+            }
+
+            if (_cachedAnimationManager != null && _cachedAnimationManager.HeadTrackingDriver != null)
+            {
+                _cachedAnimationManager.HeadTrackingDriver.SetHeadLookInput(yaw, pitch);
+            }
+        }
+
+        /// <summary>
+        /// Plays an emote on the avatar's emote driver.
+        /// Called by DesktopInput when an emote key is pressed.
+        /// </summary>
+        /// <param name="emoteName">The name of the emote trigger.</param>
+        public void PlayEmote(string emoteName)
+        {
+            if (avatarEntity == null)
+            {
+                return;
+            }
+
+            // Refresh cached reference when avatar entity changes
+            if (_cachedAnimationManagerEntity != avatarEntity)
+            {
+                _cachedAnimationManager = avatarEntity.GetComponent<AvatarAnimationManager>();
+                _cachedAnimationManagerEntity = avatarEntity;
+            }
+
+            if (_cachedAnimationManager != null && _cachedAnimationManager.EmoteDriver != null)
+            {
+                _cachedAnimationManager.EmoteDriver.PlayEmote(emoteName);
+            }
+        }
+
+        /// <summary>
+        /// Stops the currently playing emote on the avatar's emote driver.
+        /// </summary>
+        public void StopEmote()
+        {
+            if (avatarEntity == null)
+            {
+                return;
+            }
+
+            // Refresh cached reference when avatar entity changes
+            if (_cachedAnimationManagerEntity != avatarEntity)
+            {
+                _cachedAnimationManager = avatarEntity.GetComponent<AvatarAnimationManager>();
+                _cachedAnimationManagerEntity = avatarEntity;
+            }
+
+            if (_cachedAnimationManager != null && _cachedAnimationManager.EmoteDriver != null)
+            {
+                _cachedAnimationManager.EmoteDriver.StopEmote();
+            }
         }
 
         void Update()
         {
             // Process continuous movement
             ProcessMovement();
+
+            // Feed movement input to avatar locomotion driver for blend tree animation
+            UpdateAvatarLocomotion();
+
+            // Reset head tracking to neutral when mouse look is disabled
+            if (!mouseLookEnabled)
+            {
+                UpdateAvatarHeadTracking(0f, 0f);
+            }
 
             // Process continuous jumping
             ProcessJump();

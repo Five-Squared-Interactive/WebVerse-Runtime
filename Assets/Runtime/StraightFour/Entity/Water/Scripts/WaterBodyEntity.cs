@@ -689,7 +689,9 @@ namespace FiveSQD.StraightFour.Entity
             gameObject.SetActive(true);
             rigidBody.isKinematic = true;
 
-            meshCollider.enabled = true;
+            // Disable colliders during placement so the placement raycast passes through the
+            // preview to hit world geometry. See MeshEntity.MakePlacing for context.
+            meshCollider.enabled = false;
             interactionState = InteractionState.Placing;
         }
 
@@ -766,17 +768,16 @@ namespace FiveSQD.StraightFour.Entity
                 DestroyImmediate(entity);
             }
 
-            Collider collider = previewObject.GetComponent<Collider>();
-            if (collider)
+            // Remove ALL colliders on the preview (root + descendants). See MeshEntity for context.
+            foreach (Collider c in previewObject.GetComponentsInChildren<Collider>(true))
             {
-                Destroy(collider);
+                DestroyImmediate(c);
             }
 
-            Rigidbody rbody = previewObject.GetComponent<Rigidbody>();
-            if (rbody)
+            foreach (Rigidbody rb in previewObject.GetComponentsInChildren<Rigidbody>(true))
             {
-                Destroy(rbody);
-            }    
+                DestroyImmediate(rb);
+            }
 
             foreach (MeshRenderer rend in previewObject.GetComponentsInChildren<MeshRenderer>())
             {

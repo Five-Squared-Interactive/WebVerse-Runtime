@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using FiveSQD.StraightFour.Entity;
 using FiveSQD.WebVerse.Utilities;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Inputs;
@@ -91,6 +93,14 @@ namespace FiveSQD.WebVerse.Input
         /// </summary>
         [Tooltip("Enable dynamic move provider.")]
         public bool enableDynamicMove = false;
+
+        /// <summary>
+        /// Euler rotation offset applied to controller tracking data via Input System processor.
+        /// Corrects OpenXR pose convention differences (e.g., SteamVR/Quest Link backwards controllers).
+        /// Set to (0,180,0) to fix 180-degree Y-axis rotation issue. Set to (0,0,0) to disable.
+        /// </summary>
+        [Tooltip("Euler rotation offset for controller tracking correction. (0,180,0) fixes backwards controllers.")]
+        public Vector3 controllerRotationOffset = Vector3.zero;
 
         #endregion
 
@@ -594,7 +604,84 @@ namespace FiveSQD.WebVerse.Input
             // Set up platform-specific controller models
             SetupPlatformControllerModels();
 
-            Logging.Log($"[VRRig] Initialized. RayType={rayInteractorType}, HandTracking={enableHandTracking}");
+            // Apply controller rotation correction via Input System processor
+            ApplyControllerRotationOffset();
+
+            Logging.Log($"[VRRig] Initialized. RayType={rayInteractorType}, HandTracking={enableHandTracking}, RotationOffset={controllerRotationOffset}");
+        }
+
+        /// <summary>
+        /// Apply sensible default control flags for VR locomotion and interaction.
+        /// Called after Initialize() to set correct defaults for worlds without VEML control flags.
+        /// Also used by WorldStateRestorer as fallback when switching to unflagged worlds.
+        /// </summary>
+        public void ApplyDefaultControlFlags()
+        {
+            leftPointerMode = PointerMode.Teleport;   // FIX: Initialize() sets None
+            rightPointerMode = PointerMode.UI;
+            joystickMotionEnabled = true;              // FIX: Initialize() sets conditional
+            turnLocomotionMode = TurnLocomotionMode.Snap;
+            Logging.Log("[VRRig] Applied default control flags");
+        }
+
+        /// <summary>
+        /// Apply cached control flags from a world's CachedControlFlags dictionary.
+        /// Used during tab switch to restore the world author's intended VR configuration.
+        /// Falls back to ApplyDefaultControlFlags() if cachedFlags is null or empty.
+        /// </summary>
+        /// <param name="cachedFlags">Dictionary of flag key → string value pairs from World.CachedControlFlags.</param>
+        public void ApplyCachedControlFlags(Dictionary<string, string> cachedFlags)
+        {
+            // Always reset to defaults first to prevent stale flags from previous worlds
+            ApplyDefaultControlFlags();
+
+            if (cachedFlags == null || cachedFlags.Count == 0)
+                return;
+
+            if (cachedFlags.TryGetValue("joystickmotion", out string jm))
+                if (bool.TryParse(jm, out bool jmVal)) joystickMotionEnabled = jmVal;
+            if (cachedFlags.TryGetValue("leftgrabmove", out string lgm))
+                if (bool.TryParse(lgm, out bool lgmVal)) leftGrabMoveEnabled = lgmVal;
+            if (cachedFlags.TryGetValue("rightgrabmove", out string rgm))
+                if (bool.TryParse(rgm, out bool rgmVal)) rightGrabMoveEnabled = rgmVal;
+            if (cachedFlags.TryGetValue("lefthandinteraction", out string lhi))
+                if (bool.TryParse(lhi, out bool lhiVal)) leftInteractionEnabled = lhiVal;
+            if (cachedFlags.TryGetValue("righthandinteraction", out string rhi))
+                if (bool.TryParse(rhi, out bool rhiVal)) rightInteractionEnabled = rhiVal;
+            if (cachedFlags.TryGetValue("leftvrpointer", out string lvp))
+                leftPointerMode = ParsePointerMode(lvp);
+            if (cachedFlags.TryGetValue("rightvrpointer", out string rvp))
+                rightPointerMode = ParsePointerMode(rvp);
+            if (cachedFlags.TryGetValue("leftvrpoker", out string lpk))
+                if (bool.TryParse(lpk, out bool lpkVal)) leftPokerEnabled = lpkVal;
+            if (cachedFlags.TryGetValue("rightvrpoker", out string rpk))
+                if (bool.TryParse(rpk, out bool rpkVal)) rightPokerEnabled = rpkVal;
+            if (cachedFlags.TryGetValue("turnlocomotion", out string tl))
+                turnLocomotionMode = ParseTurnLocomotionMode(tl);
+            if (cachedFlags.TryGetValue("twohandedgrabmove", out string thgm))
+                if (bool.TryParse(thgm, out bool thgmVal)) twoHandedGrabMoveEnabled = thgmVal;
+
+            Logging.Log("[VRRig] Applied " + cachedFlags.Count + " cached control flags");
+        }
+
+        private static PointerMode ParsePointerMode(string value)
+        {
+            switch (value)
+            {
+                case "teleport": return PointerMode.Teleport;
+                case "ui": return PointerMode.UI;
+                default: return PointerMode.None;
+            }
+        }
+
+        private static TurnLocomotionMode ParseTurnLocomotionMode(string value)
+        {
+            switch (value)
+            {
+                case "snap": return TurnLocomotionMode.Snap;
+                case "smooth": return TurnLocomotionMode.Smooth;
+                default: return TurnLocomotionMode.None;
+            }
         }
 
         /// <summary>
@@ -696,7 +783,66 @@ namespace FiveSQD.WebVerse.Input
                     }
                 }
             }
-            // For non-Quest platforms, use the existing XRI controller models (no changes needed)
+
+        }
+
+        /// <summary>
+        /// Apply rotation offset processor to controller TrackedPoseDriver rotation inputs.
+        /// This corrects the pose data at the Input System level, before TrackedPoseDriver
+        /// and XRI interactors read it, ensuring all systems see the corrected orientation.
+        /// </summary>
+        private void ApplyControllerRotationOffset()
+        {
+            if (controllerRotationOffset == Vector3.zero)
+            {
+                Logging.Log("[VRRig] controllerRotationOffset is zero, skipping processor.");
+                return;
+            }
+
+            string processorStr = $"QuaternionRotate(x={controllerRotationOffset.x},y={controllerRotationOffset.y},z={controllerRotationOffset.z})";
+
+            Transform[] controllers = { leftController, rightController };
+            foreach (var controller in controllers)
+            {
+                if (controller == null)
+                {
+                    Logging.LogWarning("[VRRig] Controller transform is null, skipping rotation offset.");
+                    continue;
+                }
+
+                var tpd = controller.GetComponent<TrackedPoseDriver>();
+                if (tpd == null)
+                {
+                    Logging.LogWarning($"[VRRig] No TrackedPoseDriver on {controller.name}");
+                    continue;
+                }
+
+                var rotAction = tpd.rotationInput.action;
+                if (rotAction == null)
+                {
+                    Logging.LogWarning($"[VRRig] rotationInput.action is null on {controller.name}");
+                    continue;
+                }
+
+                // Disable the action before modifying bindings, then re-enable
+                bool wasEnabled = rotAction.enabled;
+                if (wasEnabled) rotAction.Disable();
+
+                int applied = 0;
+                for (int i = 0; i < rotAction.bindings.Count; i++)
+                {
+                    var binding = rotAction.bindings[i];
+                    // Skip composite parent bindings — only override leaf bindings
+                    if (binding.isComposite) continue;
+
+                    rotAction.ApplyBindingOverride(i, new InputBinding { overrideProcessors = processorStr });
+                    applied++;
+                }
+
+                if (wasEnabled) rotAction.Enable();
+
+                Logging.Log($"[VRRig] Applied '{processorStr}' to {controller.name}: {applied}/{rotAction.bindings.Count} bindings overridden. Action={rotAction.name}, enabled={rotAction.enabled}");
+            }
         }
 
         /// <summary>

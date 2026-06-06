@@ -16,6 +16,7 @@ using System.Collections;
 using System.Collections.Generic;
 using FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0;
 using FiveSQD.WebVerse.VOSSynchronization;
+using FiveSQD.WebVerse.WorldSync;
 using FiveSQD.StraightFour.Utilities;
 using FiveSQD.StraightFour.Entity;
 using System.Xml;
@@ -121,7 +122,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         /// <param name="resourceURI">URI of the world file.</param>
         /// <param name="onComplete">Action to invoke upon completion of world loading.
         /// Provides a success/fail indication.</param>
-        public void LoadVEMLDocumentIntoWorld(string resourceURI, Action<bool> onComplete)
+        public void LoadVEMLDocumentIntoWorld(string resourceURI, Action<bool> onComplete, string requireScript = null)
         {
             Action onDownloaded = () =>
             {
@@ -135,10 +136,284 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 }
                 else
                 {
-                    StartCoroutine(ApplyVEMLDocument(veml, Path.GetDirectoryName(resourceURI), onComplete));
+                    StartCoroutine(ApplyVEMLDocument(veml, Path.GetDirectoryName(resourceURI), onComplete, requireScript));
                 }
             };
             DownloadVEML(resourceURI, onDownloaded);
+        }
+
+        /// <summary>
+        /// Dry-run validation of a VEML document. Downloads and parses the VEML, downloads (but does
+        /// not execute) referenced scripts, and HEAD-requests referenced asset URIs (meshes, textures,
+        /// audio, images, html links, panorama, sky textures, terrain-layer textures). Does not touch
+        /// the active world, runtime state, currentURL, or the JINT engine.
+        /// </summary>
+        /// <param name="resourceURI">URI of the VEML document to test.</param>
+        /// <param name="onTestComplete">Invoked with (success, errorMessage, title). errorMessage is
+        /// null on success; on failure it is a newline-separated list of issues. title is the parsed
+        /// metadata.title if the document parsed, otherwise null.</param>
+        public void TestVEMLDocument(string resourceURI, Action<bool, string, string> onTestComplete)
+        {
+            Action onDownloaded = () =>
+            {
+                Schema.V3_0.veml veml;
+                try
+                {
+                    veml = LoadVEML(Path.Combine(runtime.fileHandler.fileDirectory,
+                        FileHandler.ToFileURI(resourceURI)));
+                }
+                catch (Exception ex)
+                {
+                    onTestComplete.Invoke(false,
+                        "Failed to parse VEML at " + resourceURI + ": " + ex.Message, null);
+                    return;
+                }
+
+                if (veml == null)
+                {
+                    onTestComplete.Invoke(false,
+                        "Not a valid VEML document: " + resourceURI, null);
+                    return;
+                }
+
+                StartCoroutine(TestApplyVEMLDocument(veml,
+                    Path.GetDirectoryName(resourceURI), onTestComplete));
+            };
+            DownloadVEML(resourceURI, onDownloaded);
+        }
+
+        /// <summary>
+        /// Dry-run coroutine for a parsed VEML document. See TestVEMLDocument for the contract.
+        /// </summary>
+        private IEnumerator TestApplyVEMLDocument(Schema.V3_0.veml veml, string baseURI,
+            Action<bool, string, string> onTestComplete)
+        {
+            string formattedBaseURI = VEMLUtilities.FormatURI(baseURI);
+            List<string> errors = new List<string>();
+            string title = null;
+
+            // Metadata structural validation.
+            if (veml.metadata == null)
+            {
+                errors.Add("Missing required field: metadata.");
+            }
+            else
+            {
+                title = veml.metadata.title;
+                if (string.IsNullOrEmpty(title))
+                {
+                    errors.Add("Missing required field: metadata.title.");
+                }
+            }
+
+            // Download all script URIs (we never execute them). Inline scripts are skipped — nothing
+            // to check at the URI level.
+            Dictionary<string, string> scriptResults = new Dictionary<string, string>();
+            if (veml.metadata != null && veml.metadata.script != null)
+            {
+                foreach (string script in veml.metadata.script)
+                {
+                    if (string.IsNullOrEmpty(script) || !script.EndsWith(".js"))
+                    {
+                        continue;
+                    }
+                    string fullURI = VEMLUtilities.FullyQualifyURI(script, formattedBaseURI);
+                    if (scriptResults.ContainsKey(fullURI))
+                    {
+                        continue;
+                    }
+                    scriptResults[fullURI] = null;
+                    string capturedURI = fullURI;
+                    LoadScriptResourceAsString(fullURI, new Action<string>((content) =>
+                    {
+                        scriptResults[capturedURI] = content ?? "";
+                    }));
+                }
+            }
+
+            // Walk entity tree, collecting asset URIs to HEAD-check.
+            List<string> assetURIs = new List<string>();
+            if (veml.environment != null && veml.environment.entity != null)
+            {
+                foreach (Schema.V3_0.entity ent in veml.environment.entity)
+                {
+                    CollectEntityAssetURIs(ent, formattedBaseURI, assetURIs);
+                }
+            }
+
+            // Background-level asset URIs (panorama image, lite procedural sky textures).
+            if (veml.environment != null && veml.environment.background != null)
+            {
+                Schema.V3_0.background bg = veml.environment.background;
+                if (bg.ItemElementName == Schema.V3_0.ItemChoiceType.panorama
+                    && bg.Item is string panoramaURI && !string.IsNullOrEmpty(panoramaURI))
+                {
+                    assetURIs.Add(VEMLUtilities.FullyQualifyURI(panoramaURI, formattedBaseURI));
+                }
+                else if (bg.ItemElementName == Schema.V3_0.ItemChoiceType.liteproceduralsky
+                    && bg.Item is Schema.V3_0.liteproceduralsky lps)
+                {
+                    if (!string.IsNullOrEmpty(lps.startextureuri))
+                    {
+                        assetURIs.Add(VEMLUtilities.FullyQualifyURI(lps.startextureuri, formattedBaseURI));
+                    }
+                    if (!string.IsNullOrEmpty(lps.cloudstextureuri))
+                    {
+                        assetURIs.Add(VEMLUtilities.FullyQualifyURI(lps.cloudstextureuri, formattedBaseURI));
+                    }
+                }
+            }
+
+            // HEAD-request each unique asset URI. 0 = pending, -1 = HEAD not supported in this build.
+            Dictionary<string, int> headResults = new Dictionary<string, int>();
+            foreach (string uri in assetURIs)
+            {
+                if (string.IsNullOrEmpty(uri) || headResults.ContainsKey(uri))
+                {
+                    continue;
+                }
+                headResults[uri] = 0;
+#if USE_WEBINTERFACE
+                string capturedURI = uri;
+                Action<int, Dictionary<string, string>, byte[]> onHeadResponse =
+                    new Action<int, Dictionary<string, string>, byte[]>((code, headers, data) =>
+                    {
+                        headResults[capturedURI] = code == 0 ? -2 : code;
+                    });
+                HTTPRequest headReq = new HTTPRequest(uri, HTTPRequest.HTTPMethod.Head, onHeadResponse);
+                headReq.Send();
+#else
+                headResults[uri] = -1;
+#endif
+            }
+
+            // Wait for all scripts and HEAD-requests to settle, or for timeout.
+            float elapsed = 0f;
+            while (elapsed < timeout)
+            {
+                bool allDone = true;
+                foreach (KeyValuePair<string, string> kv in scriptResults)
+                {
+                    if (kv.Value == null) { allDone = false; break; }
+                }
+                if (allDone)
+                {
+                    foreach (KeyValuePair<string, int> kv in headResults)
+                    {
+                        if (kv.Value == 0) { allDone = false; break; }
+                    }
+                }
+                if (allDone) break;
+                yield return new WaitForSeconds(0.25f);
+                elapsed += 0.25f;
+            }
+
+            // Aggregate failures.
+            foreach (KeyValuePair<string, string> kv in scriptResults)
+            {
+                if (kv.Value == null)
+                {
+                    errors.Add("Script load timeout: " + kv.Key);
+                }
+                else if (kv.Value.Length == 0)
+                {
+                    errors.Add("Script empty or unreachable: " + kv.Key);
+                }
+            }
+            foreach (KeyValuePair<string, int> kv in headResults)
+            {
+                if (kv.Value == 0)
+                {
+                    errors.Add("Asset URI request timeout: " + kv.Key);
+                }
+                else if (kv.Value == -1)
+                {
+                    // Build lacks USE_WEBINTERFACE; we couldn't verify. Don't flag as error.
+                }
+                else if (kv.Value == -2)
+                {
+                    errors.Add("Asset URI request failed (network/no response): " + kv.Key);
+                }
+                else if (kv.Value > 399)
+                {
+                    errors.Add("Asset URI returned " + kv.Value + ": " + kv.Key);
+                }
+            }
+
+            bool success = errors.Count == 0;
+            string errorMessage = success ? null : string.Join("\n", errors);
+            onTestComplete.Invoke(success, errorMessage, title);
+        }
+
+        /// <summary>
+        /// Recursively collect asset URIs referenced by an entity and its descendants. NOTE: when new
+        /// entity types are added to the V3.0 schema with new URI fields, extend this method to pick
+        /// them up — otherwise TestVEMLDocument's asset checks will silently miss them.
+        /// </summary>
+        private void CollectEntityAssetURIs(Schema.V3_0.entity ent, string baseURI, List<string> output)
+        {
+            if (ent == null) return;
+
+            // Mesh-based entity types each carry a meshresource[] array.
+            string[] meshResources = null;
+            if (ent is Schema.V3_0.mesh m) meshResources = m.meshresource;
+            else if (ent is Schema.V3_0.airplane a) meshResources = a.meshresource;
+            else if (ent is Schema.V3_0.automobile au) meshResources = au.meshresource;
+            else if (ent is Schema.V3_0.character c) meshResources = c.meshresource;
+
+            if (meshResources != null)
+            {
+                foreach (string mr in meshResources)
+                {
+                    if (!string.IsNullOrEmpty(mr))
+                    {
+                        output.Add(VEMLUtilities.FullyQualifyURI(mr, baseURI));
+                    }
+                }
+            }
+
+            if (ent is Schema.V3_0.image img && !string.IsNullOrEmpty(img.imagefile))
+            {
+                output.Add(VEMLUtilities.FullyQualifyURI(img.imagefile, baseURI));
+            }
+            if (ent is Schema.V3_0.audio aud && !string.IsNullOrEmpty(aud.audiofile))
+            {
+                output.Add(VEMLUtilities.FullyQualifyURI(aud.audiofile, baseURI));
+            }
+            if (ent is Schema.V3_0.html h && !string.IsNullOrEmpty(h.url))
+            {
+                output.Add(VEMLUtilities.FullyQualifyURI(h.url, baseURI));
+            }
+
+            // Terrain-layer textures.
+            if (ent is Schema.V3_0.terrain t && t.layer != null)
+            {
+                foreach (Schema.V3_0.terrainlayer layer in t.layer)
+                {
+                    if (layer == null) continue;
+                    if (!string.IsNullOrEmpty(layer.diffusetexture))
+                    {
+                        output.Add(VEMLUtilities.FullyQualifyURI(layer.diffusetexture, baseURI));
+                    }
+                    if (!string.IsNullOrEmpty(layer.normaltexture))
+                    {
+                        output.Add(VEMLUtilities.FullyQualifyURI(layer.normaltexture, baseURI));
+                    }
+                    if (!string.IsNullOrEmpty(layer.masktexture))
+                    {
+                        output.Add(VEMLUtilities.FullyQualifyURI(layer.masktexture, baseURI));
+                    }
+                }
+            }
+
+            // Recurse into children (the schema names this field "entity1" because "entity" is taken).
+            if (ent.entity1 != null)
+            {
+                foreach (Schema.V3_0.entity child in ent.entity1)
+                {
+                    CollectEntityAssetURIs(child, baseURI, output);
+                }
+            }
         }
 
         /// <summary>
@@ -607,7 +882,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         /// <param name="baseURI">Base URI of the VEML document.</param>
         /// <param name="onComplete">Action to invoke upon completion of world loading.
         /// Provides a success/fail indication.</param>
-        private IEnumerator ApplyVEMLDocument(Schema.V3_0.veml vemlDocument, string baseURI, Action<bool> onComplete)
+        private IEnumerator ApplyVEMLDocument(Schema.V3_0.veml vemlDocument, string baseURI, Action<bool> onComplete, string requireScript = null)
         {
             string formattedBaseURI = VEMLUtilities.FormatURI(baseURI);
 
@@ -620,7 +895,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 scriptsDoneProcessing = true;
             });
 
-            if (ProcessMetadata(vemlDocument, baseURI, onScriptsProcessed) == false)
+            if (ProcessMetadata(vemlDocument, baseURI, onScriptsProcessed, requireScript) == false)
             {
                 Logging.LogWarning("[VEMLHandler->ApplyVEMLDocument] Error processing metadata.");
                 onComplete.Invoke(false);
@@ -697,7 +972,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         /// <param name="onScriptsProcessed">Action to invoke when scripts are processed. Provides an array of
         /// strings containing the script contents.</param>
         /// <returns>Whether or not the operation succeeded.</returns>
-        private bool ProcessMetadata(Schema.V3_0.veml vemlDocument, string baseURI, Action<string[]> onScriptsProcessed)
+        private bool ProcessMetadata(Schema.V3_0.veml vemlDocument, string baseURI, Action<string[]> onScriptsProcessed, string requireScript = null)
         {
             string formattedBaseURI = VEMLUtilities.FormatURI(baseURI);
 
@@ -725,7 +1000,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     return false;
                 }
 
-                StartCoroutine(ProcessScripts(vemlDocument, baseURI, onScriptsProcessed));
+                StartCoroutine(ProcessScripts(vemlDocument, baseURI, onScriptsProcessed, requireScript));
 
                 if (ProcessInputEvents(vemlDocument, baseURI) == false)
                 {
@@ -821,11 +1096,32 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         /// <param name="baseURI">Base URI of the VEML document.</param>
         /// <param name="onProcessed">Action to invoke when scripts are processed. Provides an array of
         /// strings containing the script contents.</param>
-        private IEnumerator ProcessScripts(Schema.V3_0.veml vemlDocument, string baseURI, Action<string[]> onProcessed)
+        private IEnumerator ProcessScripts(Schema.V3_0.veml vemlDocument, string baseURI, Action<string[]> onProcessed, string requireScript = null)
         {
             string formattedBaseURI = VEMLUtilities.FormatURI(baseURI);
 
             Dictionary<Guid, string> scriptsToRun = new Dictionary<Guid, string>();
+
+            // Set up requireScript (loaded ahead of VEML's own scripts so it runs first).
+            string resolvedRequireScript = null;
+            bool requireScriptLoaded = string.IsNullOrEmpty(requireScript);
+            if (!string.IsNullOrEmpty(requireScript))
+            {
+                if (requireScript.EndsWith(".js"))
+                {
+                    LoadScriptResourceAsString(VEMLUtilities.FullyQualifyURI(requireScript, formattedBaseURI),
+                        new Action<string>((scr) =>
+                        {
+                            resolvedRequireScript = scr;
+                            requireScriptLoaded = true;
+                        }));
+                }
+                else
+                {
+                    resolvedRequireScript = requireScript;
+                    requireScriptLoaded = true;
+                }
+            }
 
             // Set up scripts.
             if (vemlDocument.metadata.script != null)
@@ -857,20 +1153,30 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             bool allLoaded = true;
             do
             {
-                allLoaded = true;
-                foreach (string script in scriptsToRun.Values)
+                allLoaded = requireScriptLoaded;
+                if (allLoaded)
                 {
-                    if (script == null)
+                    foreach (string script in scriptsToRun.Values)
                     {
-                        allLoaded = false;
-                        yield return new WaitForSeconds(0.25f);
-                        elapsedTime += 0.25f;
-                        break;
+                        if (script == null)
+                        {
+                            allLoaded = false;
+                            break;
+                        }
                     }
+                }
+                if (!allLoaded)
+                {
+                    yield return new WaitForSeconds(0.25f);
+                    elapsedTime += 0.25f;
                 }
             } while (allLoaded == false && elapsedTime < timeout);
 
             List<string> scripts = new List<string>();
+            if (!string.IsNullOrEmpty(resolvedRequireScript))
+            {
+                scripts.Add(resolvedRequireScript);
+            }
             foreach (string script in scriptsToRun.Values)
             {
                 scripts.Add(script);
@@ -1049,6 +1355,38 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                         WebVerseRuntime.Instance.vrRig.twoHandedGrabMoveEnabled = vemlDocument.metadata.controlflags.twohandedgrabmove;
                     }
 
+                    // Cache VR control flags for tab-switch restoration
+                    var cachedFlags = new System.Collections.Generic.Dictionary<string, string>();
+
+                    if (vemlDocument.metadata.controlflags.joystickmotionSpecified)
+                        cachedFlags["joystickmotion"] = vemlDocument.metadata.controlflags.joystickmotion.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.leftgrabmoveSpecified)
+                        cachedFlags["leftgrabmove"] = vemlDocument.metadata.controlflags.leftgrabmove.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.rightgrabmoveSpecified)
+                        cachedFlags["rightgrabmove"] = vemlDocument.metadata.controlflags.rightgrabmove.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.lefthandinteractionSpecified)
+                        cachedFlags["lefthandinteraction"] = vemlDocument.metadata.controlflags.lefthandinteraction.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.righthandinteractionSpecified)
+                        cachedFlags["righthandinteraction"] = vemlDocument.metadata.controlflags.righthandinteraction.ToString().ToLower();
+                    if (!string.IsNullOrEmpty(vemlDocument.metadata.controlflags.leftvrpointer))
+                        cachedFlags["leftvrpointer"] = vemlDocument.metadata.controlflags.leftvrpointer.ToLower().Replace("\"", "");
+                    if (!string.IsNullOrEmpty(vemlDocument.metadata.controlflags.rightvrpointer))
+                        cachedFlags["rightvrpointer"] = vemlDocument.metadata.controlflags.rightvrpointer.ToLower().Replace("\"", "");
+                    if (vemlDocument.metadata.controlflags.leftvrpokerSpecified)
+                        cachedFlags["leftvrpoker"] = vemlDocument.metadata.controlflags.leftvrpoker.ToString().ToLower();
+                    if (vemlDocument.metadata.controlflags.rightvrpokerSpecified)
+                        cachedFlags["rightvrpoker"] = vemlDocument.metadata.controlflags.rightvrpoker.ToString().ToLower();
+                    if (!string.IsNullOrEmpty(vemlDocument.metadata.controlflags.turnlocomotion))
+                        cachedFlags["turnlocomotion"] = vemlDocument.metadata.controlflags.turnlocomotion.ToLower().Replace("\"", "");
+                    if (vemlDocument.metadata.controlflags.twohandedgrabmoveSpecified)
+                        cachedFlags["twohandedgrabmove"] = vemlDocument.metadata.controlflags.twohandedgrabmove.ToString().ToLower();
+
+                    if (cachedFlags.Count > 0 && StraightFour.StraightFour.ActiveWorld != null)
+                    {
+                        StraightFour.StraightFour.ActiveWorld.CachedControlFlags = cachedFlags;
+                        Logging.Log("[VEMLHandler] Cached " + cachedFlags.Count + " VR control flags");
+                    }
+
                     // Set up desktop control flags.
                     if (WebVerseRuntime.Instance.platformInput is Input.Desktop.DesktopInput)
                     {
@@ -1176,6 +1514,62 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                             WebVerseRuntime.Instance.vosSynchronizationManager.AddSynchronizerAndSession(
                                 synchronizationservice.id, parts[0], int.Parse(parts[1]), tls, WebInterface.MQTT.MQTTClient.Transports.TCP,
                                 Vector3.zero, synchronizationservice.session);
+#endif
+                            break;
+
+                        case "wsync":
+#if USE_WEBINTERFACE
+                            bool wsyncTls = false;
+                            string wsyncHostPortSection = "";
+                            if (synchronizationservice.address.StartsWith("wsync://"))
+                            {
+                                wsyncTls = false;
+                                wsyncHostPortSection = synchronizationservice.address.Substring(8);
+                            }
+                            else if (synchronizationservice.address.StartsWith("wsyncs://"))
+                            {
+                                wsyncTls = true;
+                                wsyncHostPortSection = synchronizationservice.address.Substring(9);
+                            }
+                            else
+                            {
+                                wsyncHostPortSection = synchronizationservice.address;
+                            }
+                            string[] wsyncParts = wsyncHostPortSection.Split(':');
+                            if (wsyncParts.Length != 2)
+                            {
+                                Logging.LogWarning("[VEMLHandler->ProcessSynchronizers] VEML document contains invalid WorldSync address: "
+                                    + synchronizationservice.address);
+                                break;
+                            }
+                            string wsyncHost = wsyncParts[0];
+                            if (!int.TryParse(wsyncParts[1], out int wsyncPort))
+                            {
+                                Logging.LogWarning("[VEMLHandler->ProcessSynchronizers] VEML document contains invalid WorldSync port: "
+                                    + synchronizationservice.address);
+                                break;
+                            }
+                            string wsyncTag = synchronizationservice.tag;
+                            string wsyncSession = synchronizationservice.session;
+                            string wsyncId = synchronizationservice.id;
+
+                            try
+                            {
+                                var wsyncConfig = WorldSyncConfig.Builder()
+                                    .WithHost(wsyncHost)
+                                    .WithPort(wsyncPort)
+                                    .WithTls(wsyncTls)
+                                    .WithClientTag(wsyncTag ?? wsyncId)
+                                    .Build();
+                                var wsyncClient = new WorldSyncClient(wsyncConfig);
+                                WebVerseRuntime.Instance.RegisterWorldSyncClient(wsyncId, wsyncClient);
+                                _ = ConnectAndCreateSessionAsync(wsyncClient, wsyncTag, wsyncSession, wsyncId);
+                                Logging.Log($"[VEMLHandler->ProcessSynchronizers] WorldSync client created: id={wsyncId}, host={wsyncHost}, port={wsyncPort}, tls={wsyncTls}, tag={wsyncTag}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logging.LogWarning($"[VEMLHandler->ProcessSynchronizers] Failed to create WorldSync client for id={wsyncId}: {ex.Message}");
+                            }
 #endif
                             break;
 
@@ -4132,5 +4526,44 @@ namespace FiveSQD.WebVerse.Handlers.VEML
 
             return true;
         }
+
+#if USE_WEBINTERFACE
+        /// <summary>
+        /// Asynchronously connect a WorldSyncClient and create or join a session.
+        /// Fire-and-forget from ProcessSynchronizers (which is synchronous).
+        /// </summary>
+        private async System.Threading.Tasks.Task ConnectAndCreateSessionAsync(
+            WorldSyncClient client, string tag, string session, string id)
+        {
+            try
+            {
+                await client.ConnectAsync();
+                if (!string.IsNullOrEmpty(session))
+                {
+                    await client.JoinSessionAsync(session);
+                }
+                else
+                {
+                    await client.CreateSessionAsync(tag ?? id);
+                }
+
+                // Attach scene handler for inbound entity materialization
+                if (client.CurrentSession != null)
+                {
+                    var sceneHandler = new WorldSyncSceneHandler(
+                        client.CurrentSession, client.Config.ClientId);
+                    WebVerseRuntime.Instance.RegisterWorldSyncSceneHandler(id, sceneHandler);
+                    Logging.Log($"[VEMLHandler->ProcessSynchronizers] WorldSync scene handler attached: id={id}");
+                }
+
+                Logging.Log($"[VEMLHandler->ProcessSynchronizers] WorldSync client connected: id={id}");
+            }
+            catch (Exception ex)
+            {
+                Logging.LogWarning($"[VEMLHandler->ProcessSynchronizers] WorldSync connection failed for id={id}: {ex.Message}");
+            }
+        }
+#endif
     }
+
 }
