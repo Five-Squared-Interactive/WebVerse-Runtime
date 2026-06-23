@@ -165,5 +165,40 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 deepStart, deepEnd, distortion, smoothness, numWaves, waveAmplitude, waveSteepness, waveSpeed,
                 waveLength, scale, intensity);
         }
+
+        /// <summary>
+        /// Whether a world-space point is underwater (below the surface and inside the footprint).
+        /// </summary>
+        /// <param name="point">World-space point to test.</param>
+        /// <returns>True if the point is underwater.</returns>
+        public bool IsUnderwater(Vector3 point)
+        {
+            if (IsValid() == false)
+            {
+                Logging.LogError("[WaterEntity:IsUnderwater] Unknown entity.");
+                return false;
+            }
+
+            return ((StraightFour.Entity.WaterBodyEntity) internalEntity).GetWaterVolume()
+                .IsUnderwater(new UnityEngine.Vector3(point.x, point.y, point.z));
+        }
+
+        /// <summary>
+        /// Depth of a world-space point below the surface, or 0 if at/above the surface or
+        /// outside the footprint.
+        /// </summary>
+        /// <param name="point">World-space point to test.</param>
+        /// <returns>Submerged depth in world units (>= 0).</returns>
+        public float GetSubmergedDepth(Vector3 point)
+        {
+            if (IsValid() == false)
+            {
+                Logging.LogError("[WaterEntity:GetSubmergedDepth] Unknown entity.");
+                return 0f;
+            }
+
+            return ((StraightFour.Entity.WaterBodyEntity) internalEntity).GetWaterVolume()
+                .SubmergedDepth(new UnityEngine.Vector3(point.x, point.y, point.z));
+        }
     }
 }

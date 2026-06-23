@@ -62,13 +62,9 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            Material mat = meshRenderer.material;
-            mat.SetColor("_Color", shallowColor);
-            mat.SetColor("_DepthColor", deepColor);
-            mat.SetFloat("_DepthStart", depthStart);
-            mat.SetFloat("_DepthEnd", depthEnd);
-            mat.SetFloat("_Distortion", distortion);
-            
+            WaterMaterialAdapter.ApplyDepth(meshRenderer.material, shallowColor, deepColor,
+                depthStart, depthEnd, distortion);
+
             return true;
         }
 

@@ -20,6 +20,22 @@ namespace FiveSQD.StraightFour.Entity
         public MeshRenderer meshRenderer;
 
         /// <summary>
+        /// The filled volume (surface level + XZ footprint) this water body represents.
+        /// Set by <see cref="FitToBounds"/> / <see cref="FitToEntity"/>.
+        /// </summary>
+        private WaterVolume waterVolume;
+
+        /// <summary>
+        /// Whether a water volume has been assigned via a fill operation.
+        /// </summary>
+        private bool hasWaterVolume = false;
+
+        /// <summary>
+        /// Buoyancy profile applied to bodies floating in this water (used by the authoring layer).
+        /// </summary>
+        private BuoyancyProfile buoyancyProfile = BuoyancyProfile.Default;
+
+        /// <summary>
         /// Box colliders used by the entity.
         /// </summary>
         private MeshCollider meshCollider;
@@ -137,24 +153,25 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            Material mat = meshRenderer.material;
-            mat.SetColor("_Color", shallowColor);
-            mat.SetColor("_DepthColor", deepColor);
-            mat.SetColor("_SpecColor", specularColor);
-            mat.SetColor("_ScatteringColor", scatteringColor);
-            mat.SetFloat("_DepthStart", deepStart);
-            mat.SetFloat("_DepthEnd", deepEnd);
-            mat.SetFloat("_Distortion", distortion);
-            mat.SetFloat("_Smoothness", smoothness);
-            mat.SetFloat("_WaveCount", numWaves);
-            mat.SetFloat("_WaveAmplitude", waveAmplitude);
-            mat.SetFloat("_WaveSteepness", waveSteepness);
-            mat.SetFloat("_WaveSpeed", waveSpeed);
-            mat.SetFloat("_WaveLength", waveLength);
-            mat.SetVector("_NormalMapATilings", new Vector4(scale, scale, scale * 0.75f, scale * 0.75f));
-            mat.SetVector("_NormalMapASpeeds", new Vector4(waveSpeed, waveSpeed, waveSpeed * 0.75f, waveSpeed * 0.75f));
-            mat.SetFloat("_NormalMapAIntensity", intensity);
-            
+            WaterMaterialAdapter.Apply(meshRenderer.material, new WaterSurfaceProperties
+            {
+                shallowColor = shallowColor,
+                deepColor = deepColor,
+                specularColor = specularColor,
+                scatteringColor = scatteringColor,
+                deepStart = deepStart,
+                deepEnd = deepEnd,
+                distortion = distortion,
+                smoothness = smoothness,
+                numWaves = numWaves,
+                waveAmplitude = waveAmplitude,
+                waveSteepness = waveSteepness,
+                waveSpeed = waveSpeed,
+                waveLength = waveLength,
+                scale = scale,
+                intensity = intensity
+            });
+
             return true;
         }
 
@@ -166,14 +183,149 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            Material mat = meshRenderer.material;
-            mat.SetColor("_Color", shallowColor);
-            mat.SetColor("_DepthColor", deepColor);
-            mat.SetFloat("_DepthStart", depthStart);
-            mat.SetFloat("_DepthEnd", depthEnd);
-            mat.SetFloat("_Distortion", distortion);
-            
+            WaterMaterialAdapter.ApplyDepth(meshRenderer.material, shallowColor, deepColor,
+                depthStart, depthEnd, distortion);
+
             return true;
+        }
+
+        /// <summary>
+        /// Fill the volume defined by a world-space AABB up to a water level. The surface is
+        /// positioned at <paramref name="waterLevel"/> and scaled to the footprint XZ. The
+        /// depth-color gradient fades against any geometry rising through the surface.
+        /// </summary>
+        /// <param name="worldBounds">World-space AABB of the basin/region to fill.</param>
+        /// <param name="waterLevel">World-space Y of the water surface.</param>
+        /// <returns>Whether the fill was applied. False for degenerate (zero-area) bounds.</returns>
+        public bool FitToBounds(Bounds worldBounds, float waterLevel)
+        {
+            WaterFill.FillPlan plan = WaterFill.Plan(worldBounds, waterLevel);
+            if (plan.result != WaterFill.FillResult.Ok)
+            {
+                LogSystem.LogWarning("[WaterBodyEntity->FitToBounds] Degenerate (zero-area) or non-finite fill parameters; not filling.");
+                return false;
+            }
+
+            transform.position = plan.surfacePosition;
+            transform.localScale = plan.surfaceScale;
+            waterVolume = plan.volume;
+            hasWaterVolume = true;
+            BuoyancyController.Instance.RegisterWater(this);
+
+            if (plan.levelBelowFloor)
+            {
+                LogSystem.Log("[WaterBodyEntity->FitToBounds] Water level is below the basin floor; volume is empty.");
+            }
+            if (plan.levelAboveTop)
+            {
+                LogSystem.Log("[WaterBodyEntity->FitToBounds] Water level is above the basin top; overfilling.");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Fill the volume of a target mesh entity up to a water level. The footprint is the
+        /// target's world-space AABB. A rotated target produces a world AABB larger than its
+        /// silhouette (by design) and logs an over-fill warning.
+        /// </summary>
+        /// <param name="meshEntity">Target whose bounds define the fill footprint.</param>
+        /// <param name="waterLevel">World-space Y of the water surface.</param>
+        /// <returns>Whether the fill was applied.</returns>
+        public bool FitToEntity(BaseEntity meshEntity, float waterLevel)
+        {
+            if (meshEntity == null)
+            {
+                LogSystem.LogError("[WaterBodyEntity->FitToEntity] Null target entity.");
+                return false;
+            }
+
+            if (!WaterFill.TryGetWorldRendererBounds(meshEntity.gameObject, out Bounds worldBounds))
+            {
+                LogSystem.LogError("[WaterBodyEntity->FitToEntity] Target entity has no renderer bounds.");
+                return false;
+            }
+
+            if (meshEntity.transform.rotation != Quaternion.identity)
+            {
+                LogSystem.LogWarning("[WaterBodyEntity->FitToEntity] Target has non-identity rotation; "
+                    + "using its world AABB, which may over-fill beyond the mesh silhouette.");
+            }
+
+            return FitToBounds(worldBounds, waterLevel);
+        }
+
+        /// <summary>
+        /// Move the water surface to a new world-space Y without changing the footprint or
+        /// recreating the entity.
+        /// </summary>
+        /// <param name="waterLevel">New world-space Y of the surface.</param>
+        /// <returns>Always true.</returns>
+        public bool SetWaterLevel(float waterLevel)
+        {
+            Vector3 p = transform.position;
+            transform.position = new Vector3(p.x, waterLevel, p.z);
+            if (hasWaterVolume)
+            {
+                waterVolume.waterLevel = waterLevel;
+                BuoyancyController.Instance.RegisterWater(this);
+            }
+            else
+            {
+                // No footprint yet: record the level so a later fill can honour it, but do not
+                // fabricate a zero-area volume or register a non-functional water body.
+                waterVolume = new WaterVolume(waterLevel, waterVolume.footprint);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Get the current water volume (surface level + footprint).
+        /// </summary>
+        public WaterVolume GetWaterVolume()
+        {
+            return waterVolume;
+        }
+
+        /// <summary>
+        /// Whether a water volume has been assigned via a fill operation.
+        /// </summary>
+        public bool HasWaterVolume()
+        {
+            return hasWaterVolume;
+        }
+
+        /// <summary>
+        /// Get the current water level (world-space Y of the surface).
+        /// </summary>
+        public float GetWaterLevel()
+        {
+            return waterVolume.waterLevel;
+        }
+
+        /// <summary>
+        /// Get the current XZ footprint bounds.
+        /// </summary>
+        public Bounds GetFootprint()
+        {
+            return waterVolume.footprint;
+        }
+
+        /// <summary>
+        /// Set the buoyancy profile applied to bodies floating in this water.
+        /// </summary>
+        /// <param name="profile">Buoyancy profile.</param>
+        public void SetBuoyancyProfile(BuoyancyProfile profile)
+        {
+            buoyancyProfile = profile;
+        }
+
+        /// <summary>
+        /// Get the buoyancy profile for this water body.
+        /// </summary>
+        public BuoyancyProfile GetBuoyancyProfile()
+        {
+            return buoyancyProfile;
         }
 
         /// <summary>
@@ -468,6 +620,20 @@ namespace FiveSQD.StraightFour.Entity
         public override void TearDown()
         {
             base.TearDown();
+        }
+
+        /// <summary>
+        /// Unity callback on GameObject destruction. Entities are destroyed via
+        /// Delete() -> Destroy(gameObject); TearDown() is not called on world unload, so
+        /// buoyancy unregistration must happen here to avoid leaking stale water references
+        /// in the BuoyancyController across world loads.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (BuoyancyController.HasInstance)
+            {
+                BuoyancyController.Instance.UnregisterWater(this);
+            }
         }
 
         /// <summary>
