@@ -4,6 +4,7 @@ using System;
 using FiveSQD.WebVerse.Runtime;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.Utilities;
 using FiveSQD.WebVerse.Handlers.Javascript.APIs.WorldTypes;
+using FiveSQD.StraightFour.Materials;
 
 namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
 {
@@ -82,6 +83,57 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 new UnityEngine.Color(scatteringColor.r, scatteringColor.g, scatteringColor.b, scatteringColor.a),
                 deepStart, deepEnd, distortion, smoothness, numWaves, waveAmplitude, waveSteepness, waveSpeed,
                 waveLength, waveScale, intensity, null, pos, rot, guid, tag, onLoadAction);
+
+            return we;
+        }
+
+        /// <summary>
+        /// Fill the volume of a target mesh entity up to a water level, using a named preset
+        /// for appearance. The water footprint auto-fits the target's world-space bounds. This
+        /// is the one-line authoring verb: start from a feeling (preset) instead of tuning
+        /// fifteen parameters.
+        /// </summary>
+        /// <param name="parent">Parent of the water entity (may be null for world root).</param>
+        /// <param name="meshEntity">Target whose world-space bounds define the fill footprint.</param>
+        /// <param name="waterLevel">World-space Y of the water surface.</param>
+        /// <param name="preset">Named preset: calm-lake, tropical-shallows, murky-pond, stormy-ocean.</param>
+        /// <param name="id">Optional ID. One will be created if not provided.</param>
+        /// <param name="tag">Optional tag.</param>
+        /// <param name="onLoaded">Optional JS callback receiving the created water entity.</param>
+        /// <returns>The water entity.</returns>
+        public static WaterEntity FillVolume(BaseEntity parent, BaseEntity meshEntity, float waterLevel,
+            string preset = null, string id = null, string tag = null, string onLoaded = null)
+        {
+            Guid guid = string.IsNullOrEmpty(id) ? Guid.NewGuid() : Guid.Parse(id);
+
+            if (!WaterPresets.TryResolve(preset, out WaterSurfaceProperties props)
+                && !string.IsNullOrEmpty(preset))
+            {
+                Logging.LogWarning("[WaterEntity:FillVolume] Unknown preset '" + preset + "'; using default.");
+            }
+
+            StraightFour.Entity.BaseEntity pBE = EntityAPIHelper.GetPrivateEntity(parent);
+            StraightFour.Entity.BaseEntity meshBE = EntityAPIHelper.GetPrivateEntity(meshEntity);
+
+            WaterEntity we = new WaterEntity();
+
+            System.Action onLoadAction = () =>
+            {
+                we.internalEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(guid);
+                EntityAPIHelper.AddEntityMapping(we.internalEntity, we);
+                ((StraightFour.Entity.WaterBodyEntity) we.internalEntity).FitToEntity(meshBE, waterLevel);
+                if (!string.IsNullOrEmpty(onLoaded))
+                {
+                    WebVerseRuntime.Instance.javascriptHandler.CallWithParams(onLoaded, new object[] { we });
+                }
+            };
+
+            StraightFour.StraightFour.ActiveWorld.entityManager.LoadWaterBodyEntity(
+                props.shallowColor, props.deepColor, props.specularColor, props.scatteringColor,
+                props.deepStart, props.deepEnd, props.distortion, props.smoothness, props.numWaves,
+                props.waveAmplitude, props.waveSteepness, props.waveSpeed, props.waveLength, props.scale,
+                props.intensity, pBE, UnityEngine.Vector3.zero, UnityEngine.Quaternion.identity,
+                guid, tag, onLoadAction);
 
             return we;
         }

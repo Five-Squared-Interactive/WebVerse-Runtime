@@ -254,6 +254,53 @@ public class VEMLHandlerTests
     }
 
     [Test]
+    public void VEMLHandler_LoadVEML_ParsesWaterFillAttributes()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Arrange - a V3 document with a <water> element carrying the volumetric-fill attributes.
+        string vemlContent = VEMLUtilities.xmlHeadingTag + "\n" +
+            "<veml xmlns=\"http://www.fivesqd.com/schemas/veml/3.0\" " +
+            "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">" +
+            "<metadata><title>Water Fill</title></metadata>" +
+            "<environment>" +
+            "<entity xsi:type=\"water\" tag=\"lagoon\" id=\"550e8400-e29b-41d4-a716-446655440099\">" +
+            "<transform xsi:type=\"scaletransform\">" +
+            "<position x=\"0\" y=\"0\" z=\"0\" />" +
+            "<rotation x=\"0\" y=\"0\" z=\"0\" w=\"1\" />" +
+            "<scale x=\"1\" y=\"1\" z=\"1\" />" +
+            "</transform>" +
+            "<preset>stormy-ocean</preset>" +
+            "<fit-to>basin</fit-to>" +
+            "<water-level>3</water-level>" +
+            "<buoyant>true</buoyant>" +
+            "</entity>" +
+            "</environment></veml>";
+
+        string testPath = Path.Combine(vemlHandler.runtime.fileHandler.fileDirectory, "waterfill.veml");
+        Directory.CreateDirectory(Path.GetDirectoryName(testPath));
+        File.WriteAllText(testPath, vemlContent);
+
+        // Act
+        var result = vemlHandler.LoadVEML(testPath);
+
+        // Assert - the new fill attributes deserialize onto the water element.
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.environment);
+        Assert.IsNotNull(result.environment.entity);
+        Assert.GreaterOrEqual(result.environment.entity.Length, 1);
+
+        var waterEntity = result.environment.entity[0]
+            as FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0.water;
+        Assert.IsNotNull(waterEntity, "Entity should deserialize as a water element.");
+        Assert.AreEqual("stormy-ocean", waterEntity.preset);
+        Assert.AreEqual("basin", waterEntity.fitto);
+        Assert.IsTrue(waterEntity.waterlevelSpecified, "water-level should be marked present.");
+        Assert.AreEqual(3f, waterEntity.waterlevel, 0.0001f);
+        Assert.IsTrue(waterEntity.buoyantSpecified && waterEntity.buoyant, "buoyant should parse true.");
+    }
+
+    [Test]
     public void VEMLHandler_LoadVEML_ParsesValidV1Document()
     {
         LogAssert.ignoreFailingMessages = true;

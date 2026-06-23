@@ -3812,6 +3812,36 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 return false;
             }
 
+            // Resolve appearance from a named preset if provided; otherwise from element values.
+            FiveSQD.StraightFour.Materials.WaterSurfaceProperties wsp;
+            if (string.IsNullOrEmpty(entity.preset)
+                || !FiveSQD.StraightFour.Materials.WaterPresets.TryResolve(entity.preset, out wsp))
+            {
+                if (!string.IsNullOrEmpty(entity.preset))
+                {
+                    Logging.LogWarning("[VEMLHandler->ProcessWaterEntity] Unknown preset '"
+                        + entity.preset + "'; using element values.");
+                }
+                wsp = new FiveSQD.StraightFour.Materials.WaterSurfaceProperties
+                {
+                    shallowColor = ProcessColor(entity.shallowcolor),
+                    deepColor = ProcessColor(entity.deepcolor),
+                    specularColor = ProcessColor(entity.specularcolor),
+                    scatteringColor = ProcessColor(entity.scatteringcolor),
+                    deepStart = entity.deepstart,
+                    deepEnd = entity.deepend,
+                    distortion = entity.distortion,
+                    smoothness = entity.smoothness,
+                    numWaves = entity.numwaves,
+                    waveAmplitude = entity.waveamplitude,
+                    waveSteepness = entity.wavesteepness,
+                    waveSpeed = entity.wavespeed,
+                    waveLength = entity.wavelength,
+                    scale = entity.wavescale,
+                    intensity = entity.waveintensity
+                };
+            }
+
             Action onLoadEvent = new Action(() =>
             {
                 BaseEntity loadedEntity = StraightFour.StraightFour.ActiveWorld.entityManager.FindEntity(Guid.Parse(entity.id));
@@ -3824,6 +3854,41 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 loadedEntity.SetVisibility(true);
                 loadedEntity.SetInteractionState(BaseEntity.InteractionState.Static);
                 loadedEntity.SetScale(sizeValue);
+
+                // Volumetric-fill authoring: fill a target's volume to a height and/or enable buoyancy.
+                FiveSQD.StraightFour.Entity.WaterBodyEntity waterBody =
+                    loadedEntity as FiveSQD.StraightFour.Entity.WaterBodyEntity;
+                if (waterBody != null)
+                {
+                    if (entity.waterlevelSpecified)
+                    {
+                        if (!string.IsNullOrEmpty(entity.fitto))
+                        {
+                            BaseEntity fitTarget =
+                                StraightFour.StraightFour.ActiveWorld.entityManager.FindEntityByTag(entity.fitto);
+                            if (fitTarget != null)
+                            {
+                                waterBody.FitToEntity(fitTarget, entity.waterlevel);
+                            }
+                            else
+                            {
+                                LogSystem.LogWarning("[VEMLHandler->ProcessWaterEntity] fit-to target '"
+                                    + entity.fitto + "' not found; declare it before the water element. "
+                                    + "Falling back to setting water level only.");
+                                waterBody.SetWaterLevel(entity.waterlevel);
+                            }
+                        }
+                        else
+                        {
+                            waterBody.SetWaterLevel(entity.waterlevel);
+                        }
+                    }
+
+                    if (entity.buoyantSpecified && entity.buoyant)
+                    {
+                        waterBody.SetBuoyancyProfile(FiveSQD.StraightFour.Entity.BuoyancyProfile.Default);
+                    }
+                }
 #if USE_WEBINTERFACE
                 if (!string.IsNullOrEmpty(entity.synchronizer))
                 {
@@ -3842,10 +3907,10 @@ namespace FiveSQD.WebVerse.Handlers.VEML
             });
 
             StraightFour.StraightFour.ActiveWorld.entityManager.LoadWaterBodyEntity(
-                ProcessColor(entity.shallowcolor), ProcessColor(entity.deepcolor), ProcessColor(entity.specularcolor),
-                ProcessColor(entity.scatteringcolor), entity.deepstart, entity.deepend, entity.distortion, entity.smoothness,
-                entity.numwaves, entity.waveamplitude, entity.wavesteepness, entity.wavespeed, entity.wavelength, entity.wavescale,
-                entity.waveintensity, null, positionValue, rotationValue, Guid.Parse(entity.id), entity.tag, onLoadEvent);
+                wsp.shallowColor, wsp.deepColor, wsp.specularColor,
+                wsp.scatteringColor, wsp.deepStart, wsp.deepEnd, wsp.distortion, wsp.smoothness,
+                wsp.numWaves, wsp.waveAmplitude, wsp.waveSteepness, wsp.waveSpeed, wsp.waveLength, wsp.scale,
+                wsp.intensity, null, positionValue, rotationValue, Guid.Parse(entity.id), entity.tag, onLoadEvent);
 
             return true;
         }
