@@ -1450,6 +1450,42 @@ public class JSONEntityHandlerTests
         Assert.AreEqual(8f, deserialized.numWaves);
     }
 
+    [Test]
+    public void JSONWaterEntity_FillFields_RoundTripAndDefaults()
+    {
+        LogAssert.ignoreFailingMessages = true;
+
+        // Defaults: fill fields absent.
+        var def = new JSONWaterEntity();
+        Assert.IsNull(def.preset);
+        Assert.IsNull(def.fitTo);
+        Assert.IsFalse(def.waterLevel.HasValue);
+        Assert.IsFalse(def.buoyant);
+
+        // Round-trip with fill fields set.
+        var entity = new JSONWaterEntity
+        {
+            tag = "Lagoon",
+            preset = "tropical-shallows",
+            fitTo = "basin",
+            waterLevel = 3.0f,
+            buoyant = true
+        };
+        string serialized = JsonConvert.SerializeObject(entity);
+        var deserialized = JsonConvert.DeserializeObject<JSONWaterEntity>(serialized);
+
+        Assert.AreEqual("tropical-shallows", deserialized.preset);
+        Assert.AreEqual("basin", deserialized.fitTo);
+        Assert.IsTrue(deserialized.waterLevel.HasValue);
+        Assert.AreEqual(3.0f, deserialized.waterLevel.Value, 0.0001f);
+        Assert.IsTrue(deserialized.buoyant);
+
+        // A JSON document omitting fill fields leaves waterLevel unspecified.
+        var minimal = JsonConvert.DeserializeObject<JSONWaterEntity>("{\"type\":\"water\",\"tag\":\"Pond\"}");
+        Assert.IsFalse(minimal.waterLevel.HasValue);
+        Assert.IsNull(minimal.preset);
+    }
+
     #endregion
 
     #region JSONWaterBlockerEntity Tests

@@ -1109,6 +1109,12 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
         public float waveLength = 10.0f;
         public float waveScale = 1.0f;
 
+        // Volumetric-fill authoring (optional). When present, override appearance/behaviour.
+        public string preset;           // calm-lake, tropical-shallows, murky-pond, stormy-ocean
+        public string fitTo;            // tag of the mesh/entity whose bounds the water fills
+        public float? waterLevel;       // world-space Y to fill up to (null = not specified)
+        public bool buoyant = false;    // whether bodies in this water should float
+
         public JSONWaterEntity()
         {
             position = new JSONVector3 { x = 0.0f, y = 0.0f, z = 0.0f };
@@ -6972,6 +6978,54 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
 
                 // Get the internal entity for the callback
                 var internalEntity = FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity.EntityAPIHelper.GetPrivateEntity(waterEntity);
+
+                // Volumetric-fill authoring (optional): preset appearance, fill-to-height, buoyancy.
+                FiveSQD.StraightFour.Entity.WaterBodyEntity waterBody =
+                    internalEntity as FiveSQD.StraightFour.Entity.WaterBodyEntity;
+                if (waterBody != null)
+                {
+                    if (!string.IsNullOrEmpty(waterData.preset)
+                        && FiveSQD.StraightFour.Materials.WaterPresets.TryResolve(
+                            waterData.preset, out FiveSQD.StraightFour.Materials.WaterSurfaceProperties pp))
+                    {
+                        waterBody.SetProperties(pp.shallowColor, pp.deepColor, pp.specularColor, pp.scatteringColor,
+                            pp.deepStart, pp.deepEnd, pp.distortion, pp.smoothness, pp.numWaves, pp.waveAmplitude,
+                            pp.waveSteepness, pp.waveSpeed, pp.waveLength, pp.scale, pp.intensity);
+                    }
+                    else if (!string.IsNullOrEmpty(waterData.preset))
+                    {
+                        Logging.LogWarning("[JSONEntityHandler->CreateWaterEntity] Unknown preset '"
+                            + waterData.preset + "'; using JSON appearance values.");
+                    }
+
+                    if (waterData.waterLevel.HasValue)
+                    {
+                        if (!string.IsNullOrEmpty(waterData.fitTo))
+                        {
+                            FiveSQD.StraightFour.Entity.BaseEntity fitTarget =
+                                StraightFour.StraightFour.ActiveWorld.entityManager.FindEntityByTag(waterData.fitTo);
+                            if (fitTarget != null)
+                            {
+                                waterBody.FitToEntity(fitTarget, waterData.waterLevel.Value);
+                            }
+                            else
+                            {
+                                Logging.LogWarning("[JSONEntityHandler->CreateWaterEntity] fit-to target '"
+                                    + waterData.fitTo + "' not found; setting water level only.");
+                                waterBody.SetWaterLevel(waterData.waterLevel.Value);
+                            }
+                        }
+                        else
+                        {
+                            waterBody.SetWaterLevel(waterData.waterLevel.Value);
+                        }
+                    }
+
+                    if (waterData.buoyant)
+                    {
+                        waterBody.SetBuoyancyProfile(FiveSQD.StraightFour.Entity.BuoyancyProfile.Default);
+                    }
+                }
 
                 onComplete?.Invoke(internalEntity.id, internalEntity);
             }
