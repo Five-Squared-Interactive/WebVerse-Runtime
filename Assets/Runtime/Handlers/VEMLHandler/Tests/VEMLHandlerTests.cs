@@ -264,16 +264,13 @@ public class VEMLHandlerTests
             "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">" +
             "<metadata><title>Water Fill</title></metadata>" +
             "<environment>" +
-            "<entity xsi:type=\"water\" tag=\"lagoon\" id=\"550e8400-e29b-41d4-a716-446655440099\">" +
+            "<entity xsi:type=\"water\" tag=\"lagoon\" id=\"550e8400-e29b-41d4-a716-446655440099\" " +
+            "preset=\"stormy-ocean\" fit-to=\"basin\" water-level=\"3\" buoyant=\"true\">" +
             "<transform xsi:type=\"scaletransform\">" +
             "<position x=\"0\" y=\"0\" z=\"0\" />" +
             "<rotation x=\"0\" y=\"0\" z=\"0\" w=\"1\" />" +
             "<scale x=\"1\" y=\"1\" z=\"1\" />" +
             "</transform>" +
-            "<preset>stormy-ocean</preset>" +
-            "<fit-to>basin</fit-to>" +
-            "<water-level>3</water-level>" +
-            "<buoyant>true</buoyant>" +
             "</entity>" +
             "</environment></veml>";
 

@@ -15,15 +15,15 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
     public partial class water
     {
         /// <summary>Named appearance preset (calm-lake, tropical-shallows, murky-pond, stormy-ocean).</summary>
-        [System.Xml.Serialization.XmlElementAttribute("preset")]
+        [System.Xml.Serialization.XmlAttributeAttribute("preset")]
         public string preset { get; set; }
 
         /// <summary>Tag of the mesh/entity whose world bounds the water fills.</summary>
-        [System.Xml.Serialization.XmlElementAttribute("fit-to")]
+        [System.Xml.Serialization.XmlAttributeAttribute("fit-to")]
         public string fitto { get; set; }
 
         /// <summary>World-space Y up to which the volume fills.</summary>
-        [System.Xml.Serialization.XmlElementAttribute("water-level")]
+        [System.Xml.Serialization.XmlAttributeAttribute("water-level")]
         public float waterlevel { get; set; }
 
         /// <summary>Whether water-level was present in the document.</summary>
@@ -31,7 +31,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
         public bool waterlevelSpecified { get; set; }
 
         /// <summary>Whether bodies in this water should float.</summary>
-        [System.Xml.Serialization.XmlElementAttribute("buoyant")]
+        [System.Xml.Serialization.XmlAttributeAttribute("buoyant")]
         public bool buoyant { get; set; }
 
         /// <summary>Whether buoyant was present in the document.</summary>

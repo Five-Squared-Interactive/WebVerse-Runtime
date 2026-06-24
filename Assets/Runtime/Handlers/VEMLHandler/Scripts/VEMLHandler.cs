@@ -3812,12 +3812,18 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                 return false;
             }
 
-            // Resolve appearance from a named preset if provided; otherwise from element values.
+            // Resolve appearance: a named preset, else explicitly-authored element values, else a
+            // sensible default. (Appearance elements are optional now, so never assume they exist.)
             FiveSQD.StraightFour.Materials.WaterSurfaceProperties wsp;
-            if (string.IsNullOrEmpty(entity.preset)
-                || !FiveSQD.StraightFour.Materials.WaterPresets.TryResolve(entity.preset, out wsp))
+            bool hasPreset = !string.IsNullOrEmpty(entity.preset);
+            bool hasElementAppearance = !string.IsNullOrEmpty(entity.shallowcolor);
+            if (hasPreset && FiveSQD.StraightFour.Materials.WaterPresets.TryResolve(entity.preset, out wsp))
             {
-                if (!string.IsNullOrEmpty(entity.preset))
+                // Use the preset.
+            }
+            else if (hasElementAppearance)
+            {
+                if (hasPreset)
                 {
                     Logging.LogWarning("[VEMLHandler->ProcessWaterEntity] Unknown preset '"
                         + entity.preset + "'; using element values.");
@@ -3840,6 +3846,16 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                     scale = entity.wavescale,
                     intensity = entity.waveintensity
                 };
+            }
+            else
+            {
+                if (hasPreset)
+                {
+                    Logging.LogWarning("[VEMLHandler->ProcessWaterEntity] Unknown preset '"
+                        + entity.preset + "'; using default appearance.");
+                }
+                FiveSQD.StraightFour.Materials.WaterPresets.TryResolve(
+                    FiveSQD.StraightFour.Materials.WaterPresets.CalmLake, out wsp);
             }
 
             Action onLoadEvent = new Action(() =>
@@ -4341,6 +4357,11 @@ namespace FiveSQD.WebVerse.Handlers.VEML
         /// <returns>A color matching the string.</returns>
         private Color ProcessColor(string color)
         {
+            if (string.IsNullOrEmpty(color))
+            {
+                return Color.white;
+            }
+
             switch (color.ToLower())
             {
                 case "white":
