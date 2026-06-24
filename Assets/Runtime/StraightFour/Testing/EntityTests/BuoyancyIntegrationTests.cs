@@ -260,4 +260,44 @@ public class BuoyancyIntegrationTests
         Assert.That(rb.linearVelocity.y, Is.EqualTo(expected).Within(0.2f),
             "Only the highest-level volume governs; forces are not summed.");
     }
+
+    // End-to-end: fill a basin MESH to a height, confirm the underwater predicate, and watch a
+    // dropped object float. Ties Story 1a (WaterVolume predicate), 1b (fit-to-bounds), and 2
+    // (buoyancy) together — the epic's core authoring-to-behavior loop.
+    [UnityTest]
+    public IEnumerator Epic_FloodBasinMeshAndFloatObject()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        yield return SetUpWorldWithWater();
+
+        // A basin mesh (cube) whose world bounds the water fills to.
+        GameObject basin = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        basin.transform.position = Vector3.zero;
+        basin.transform.localScale = new Vector3(20f, 4f, 20f);
+        spawned.Add(basin);
+        yield return null;
+
+        WaterBodyEntity water = null;
+        yield return MakeWater(1f, w => water = w);
+        Assert.IsNotNull(water);
+
+        // Fill to the basin mesh's world AABB at y = 1 (exercises TryGetWorldRendererBounds + FitToBounds).
+        Assert.IsTrue(WaterFill.TryGetWorldRendererBounds(basin, out Bounds basinBounds));
+        Assert.IsTrue(water.FitToBounds(basinBounds, 1f));
+        water.SetBuoyancyProfile(BuoyancyProfile.Default);
+
+        // The JS-exposed predicate agrees with the fill.
+        Assert.IsTrue(water.GetWaterVolume().IsUnderwater(new Vector3(0f, -1f, 0f)));
+        Assert.IsFalse(water.GetWaterVolume().IsUnderwater(new Vector3(0f, 3f, 0f)));
+
+        // Drop a buoyant object below the surface — it should float, not sink or launch.
+        Rigidbody ball = NewBody(new Vector3(0f, -2f, 0f), 1f, true);
+        BuoyancyController.Instance.RegisterBody(ball, FloatyProfile());
+
+        yield return Step(250);
+
+        Assert.Greater(ball.position.y, -2f, "Object rose due to buoyancy.");
+        Assert.Greater(ball.position.y, -1.5f, "Object floats near the surface, did not sink.");
+        Assert.Less(ball.position.y, 1.2f, "Object did not launch above the waterline.");
+    }
 }
