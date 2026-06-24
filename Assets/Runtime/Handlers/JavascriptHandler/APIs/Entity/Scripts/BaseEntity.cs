@@ -1053,6 +1053,46 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         }
 
         /// <summary>
+        /// Make this entity float in water. The entity must be physical (a non-kinematic
+        /// rigidbody) to actually float. Strength is the upward force per metre of submersion;
+        /// drag is the resistance applied while submerged.
+        /// </summary>
+        /// <param name="strength">Upward force per metre of submerged depth (default 30).</param>
+        /// <param name="drag">Linear drag applied while submerged (default 2).</param>
+        /// <returns>Whether the setting was applied (false if the entity has no rigidbody).</returns>
+        public bool MakeBuoyant(float strength = 30f, float drag = 2f)
+        {
+            if (IsValid() == false)
+            {
+                Logging.LogError("[BaseEntity:MakeBuoyant] Unknown entity.");
+                return false;
+            }
+
+            StraightFour.Entity.BuoyancyProfile profile = new StraightFour.Entity.BuoyancyProfile
+            {
+                strength = strength,
+                submersionDepthCap = 1f,
+                submergedLinearDrag = drag,
+                submergedAngularDrag = 1f
+            };
+            return internalEntity.SetBuoyant(true, profile);
+        }
+
+        /// <summary>
+        /// Stop this entity from floating in water.
+        /// </summary>
+        /// <returns>Whether the setting was applied.</returns>
+        public bool MakeNonBuoyant()
+        {
+            if (IsValid() == false)
+            {
+                Logging.LogError("[BaseEntity:MakeNonBuoyant] Unknown entity.");
+                return false;
+            }
+            return internalEntity.SetBuoyant(false);
+        }
+
+        /// <summary>
         /// Set the interaction state for the entity.
         /// </summary>
         /// <param name="stateToSet">Interaction state to set.</param>

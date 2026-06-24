@@ -582,6 +582,44 @@ namespace FiveSQD.StraightFour.Entity
         }
 
         /// <summary>
+        /// Make this entity buoyant (or not) in any water it is in. Buoyancy acts on the
+        /// entity's rigidbody, so the entity must be physical (have a non-kinematic Rigidbody)
+        /// for it to actually float.
+        /// </summary>
+        /// <param name="buoyant">Whether the entity should float in water.</param>
+        /// <param name="profile">Buoyancy profile (strength, drag, submersion cap).</param>
+        /// <returns>Whether the setting was applied (false if the entity has no Rigidbody).</returns>
+        public virtual bool SetBuoyant(bool buoyant, BuoyancyProfile profile)
+        {
+            Rigidbody rb = GetComponentInChildren<Rigidbody>();
+            if (rb == null)
+            {
+                Utilities.LogSystem.LogWarning("[BaseEntity->SetBuoyant] Entity has no Rigidbody; cannot make buoyant.");
+                return false;
+            }
+
+            if (buoyant)
+            {
+                BuoyancyController.Instance.RegisterBody(rb, profile);
+            }
+            else if (BuoyancyController.HasInstance)
+            {
+                BuoyancyController.Instance.UnregisterBody(rb);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Make this entity buoyant (or not) using the default buoyancy profile.
+        /// </summary>
+        /// <param name="buoyant">Whether the entity should float in water.</param>
+        /// <returns>Whether the setting was applied.</returns>
+        public bool SetBuoyant(bool buoyant)
+        {
+            return SetBuoyant(buoyant, BuoyancyProfile.Default);
+        }
+
+        /// <summary>
         /// Set the motion state for this entity.
         /// </summary>
         /// <param name="motionToSet">Motion state to set.</param>

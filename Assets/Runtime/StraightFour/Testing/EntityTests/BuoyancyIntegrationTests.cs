@@ -300,4 +300,41 @@ public class BuoyancyIntegrationTests
         Assert.Greater(ball.position.y, -1.5f, "Object floats near the surface, did not sink.");
         Assert.Less(ball.position.y, 1.2f, "Object did not launch above the waterline.");
     }
+
+    [UnityTest]
+    public IEnumerator Compaction_RemovesDestroyedBody()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        yield return SetUpWorldWithWater();
+
+        Rigidbody rb = NewBody(Vector3.zero, 1f, false);
+        BuoyancyController.Instance.RegisterBody(rb, FloatyProfile());
+        Assert.AreEqual(1, BuoyancyController.Instance.BodyCount);
+
+        UnityEngine.Object.DestroyImmediate(rb.gameObject);
+        yield return Step(1);
+
+        Assert.AreEqual(0, BuoyancyController.Instance.BodyCount,
+            "A destroyed body should be compacted out of the controller.");
+    }
+
+    [UnityTest]
+    public IEnumerator Entity_SetBuoyant_RegistersAndUnregistersRigidbody()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        yield return SetUpWorldWithWater();
+
+        // A WaterBodyEntity has a rigidbody on its root, so it stands in for a physical entity
+        // to exercise BaseEntity.SetBuoyant (the path MakeBuoyant uses from JS).
+        WaterBodyEntity entityWithBody = null;
+        yield return MakeWater(0f, w => entityWithBody = w);
+        Assert.IsNotNull(entityWithBody);
+
+        int before = BuoyancyController.Instance.BodyCount;
+        Assert.IsTrue(entityWithBody.SetBuoyant(true));
+        Assert.AreEqual(before + 1, BuoyancyController.Instance.BodyCount, "SetBuoyant should register the rigidbody.");
+
+        Assert.IsTrue(entityWithBody.SetBuoyant(false));
+        Assert.AreEqual(before, BuoyancyController.Instance.BodyCount, "SetBuoyant(false) should unregister it.");
+    }
 }

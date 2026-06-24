@@ -141,6 +141,24 @@ namespace FiveSQD.StraightFour.Entity
 
         private void FixedUpdate()
         {
+            // Compact entries whose Unity objects were destroyed without an explicit unregister
+            // (e.g. an entity deleted on world unload). Prevents the lists growing unbounded.
+            for (int i = bodies.Count - 1; i >= 0; i--)
+            {
+                if (bodies[i].rigidBody == null)
+                {
+                    bodyLookup.Remove(bodies[i].rigidBody);
+                    bodies.RemoveAt(i);
+                }
+            }
+            for (int i = waters.Count - 1; i >= 0; i--)
+            {
+                if (waters[i] == null)
+                {
+                    waters.RemoveAt(i);
+                }
+            }
+
             volumeScratch.Clear();
             for (int i = 0; i < waters.Count; i++)
             {
