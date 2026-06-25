@@ -1059,8 +1059,10 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
         /// </summary>
         /// <param name="strength">Upward force per metre of submerged depth (default 30).</param>
         /// <param name="drag">Linear drag applied while submerged (default 2).</param>
+        /// <param name="lateral">Horizontal push from wave slope — how hard the water shoves it
+        /// along (default 12). 0 = only bob in place, no drift.</param>
         /// <returns>Whether the setting was applied (false if the entity has no rigidbody).</returns>
-        public bool MakeBuoyant(float strength = 30f, float drag = 2f)
+        public bool MakeBuoyant(float strength = 30f, float drag = 2f, float lateral = 12f)
         {
             if (IsValid() == false)
             {
@@ -1073,7 +1075,8 @@ namespace FiveSQD.WebVerse.Handlers.Javascript.APIs.Entity
                 strength = strength,
                 submersionDepthCap = 1f,
                 submergedLinearDrag = drag,
-                submergedAngularDrag = 1f
+                submergedAngularDrag = 1f,
+                lateralStrength = lateral
             };
             return internalEntity.SetBuoyant(true, profile);
         }

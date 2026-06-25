@@ -92,5 +92,50 @@ namespace FiveSQD.StraightFour.Entity
 
             return waveAmplitude * sumY;
         }
+
+        /// <summary>
+        /// Horizontal gradient of the surface height (dH/dx, dH/dz) at a world-space XZ and
+        /// shader time — the analytic derivative of <see cref="HeightOffset"/>. Water pushes a
+        /// floating body "downhill" (opposite this gradient), so passing waves shove it along.
+        /// Returns zero when the surface is flat.
+        /// </summary>
+        /// <param name="worldX">World-space X.</param>
+        /// <param name="worldZ">World-space Z.</param>
+        /// <param name="shaderTime">Unity `_Time.x` (Time.time / 20).</param>
+        /// <returns>Surface slope as (dH/dx, dH/dz).</returns>
+        public Vector2 SurfaceSlope(float worldX, float worldZ, float shaderTime)
+        {
+            int count = Mathf.Clamp(Mathf.RoundToInt(waveCount), 0, 32);
+            if (count <= 0 || waveAmplitude == 0f || waveLength <= 0f)
+            {
+                return Vector2.zero;
+            }
+
+            float gx = 0f;
+            float gz = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                float steepnessMul = Mathf.Lerp(1.0f, 0.1f, (1.0f / 32.0f) * i);
+                float length = Lengths[i % Lengths.Length] * waveLength;
+                if (length <= 0f)
+                {
+                    continue;
+                }
+                float steepness = SteepnessRange[i % SteepnessRange.Length] * waveSteepness * steepnessMul;
+                float speed = Speeds[i % Speeds.Length] * waveSpeed;
+                Vector2 d = Directions[i % Directions.Length].normalized;
+
+                float dispersion = TwoPi / length;
+                float c = Mathf.Sqrt(Gravity / dispersion) * speed;
+                float f = dispersion * (d.x * worldX + d.y * worldZ - c * shaderTime);
+                float a = steepness / (dispersion * 1.5f);
+                // d(a*sin(f))/dx = a*cos(f)*dispersion*d.x  (f is linear in x via dispersion*d.x).
+                float term = a * Mathf.Cos(f) * dispersion;
+                gx += term * d.x;
+                gz += term * d.y;
+            }
+
+            return new Vector2(waveAmplitude * gx, waveAmplitude * gz);
+        }
     }
 }

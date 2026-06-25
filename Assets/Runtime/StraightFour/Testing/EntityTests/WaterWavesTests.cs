@@ -76,6 +76,37 @@ public class WaterWavesTests
     }
 
     [Test]
+    public void SurfaceSlope_FlatWhenCalm()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        WaterWaves calm = WaterWaves.FromProperties(6f, 8f, 0.6f, 1.5f, 0f);
+        Assert.AreEqual(Vector2.zero, calm.SurfaceSlope(2f, 3f, 0.5f));
+    }
+
+    [Test]
+    public void SurfaceSlope_NonZeroAndVariesOverSpace_WhenWavy()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        WaterWaves w = WavyWater();
+        Vector2 sa = w.SurfaceSlope(0f, 0f, 0.5f);
+        Vector2 sb = w.SurfaceSlope(6f, -3f, 0.5f);
+        Assert.Greater(sa.magnitude, 0f, "A wavy surface has a non-zero slope (lateral push).");
+        Assert.AreNotEqual(sa, sb, "Slope (and thus the push) varies across the footprint.");
+    }
+
+    [Test]
+    public void SurfaceSlope_ApproximatesFiniteDifferenceOfHeight()
+    {
+        LogAssert.ignoreFailingMessages = true;
+        WaterWaves w = WavyWater();
+        const float e = 0.01f;
+        float t = 0.3f;
+        float dHdx = (w.HeightOffset(1f + e, 2f, t) - w.HeightOffset(1f - e, 2f, t)) / (2f * e);
+        Vector2 slope = w.SurfaceSlope(1f, 2f, t);
+        Assert.AreEqual(dHdx, slope.x, 0.01f, "Analytic slope.x should match the finite difference of height.");
+    }
+
+    [Test]
     public void WaterVolume_SubmergedDepth_OutsideFootprint_IsZeroEvenWithWaves()
     {
         LogAssert.ignoreFailingMessages = true;

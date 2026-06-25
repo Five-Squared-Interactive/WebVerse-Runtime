@@ -22,6 +22,12 @@ namespace FiveSQD.StraightFour.Entity
         /// <summary>Angular damping applied while submerged.</summary>
         public float submergedAngularDrag;
 
+        /// <summary>
+        /// Strength of the horizontal force from wave slope (water shoving the body along the
+        /// surface). 0 = no lateral push (objects only bob in place).
+        /// </summary>
+        public float lateralStrength;
+
         /// <summary>A reasonable default profile for a ~1 m, near-neutral object.</summary>
         public static BuoyancyProfile Default
         {
@@ -32,7 +38,8 @@ namespace FiveSQD.StraightFour.Entity
                     strength = 30f,
                     submersionDepthCap = 1f,
                     submergedLinearDrag = 2f,
-                    submergedAngularDrag = 1f
+                    submergedAngularDrag = 1f,
+                    lateralStrength = 12f
                 };
             }
         }

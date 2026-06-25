@@ -183,10 +183,22 @@ namespace FiveSQD.StraightFour.Entity
                 {
                     // Sample the wavy surface (matches the rendered Gerstner waves) so floating
                     // bodies bob. shaderTime mirrors Unity's _Time.x (Time.time / 20).
-                    float depth = volumeScratch[idx].SubmergedDepth(com, Time.time / 20f);
+                    float shaderTime = Time.time / 20f;
+                    float depth = volumeScratch[idx].SubmergedDepth(com, shaderTime);
                     if (depth > 0f)
                     {
                         body.rigidBody.AddForce(Vector3.up * Buoyancy.UpwardForce(depth, body.profile), ForceMode.Force);
+
+                        // Horizontal shove from the wave slope: water pushes the body downhill
+                        // (opposite the surface gradient), so passing crests move it along.
+                        if (body.profile.lateralStrength > 0f)
+                        {
+                            Vector2 slope = volumeScratch[idx].waves.SurfaceSlope(com.x, com.z, shaderTime);
+                            Vector3 lateral = new Vector3(-slope.x, 0f, -slope.y) * (body.profile.lateralStrength * depth);
+                            lateral = Vector3.ClampMagnitude(lateral, body.profile.lateralStrength * 3f);
+                            body.rigidBody.AddForce(lateral, ForceMode.Force);
+                        }
+
                         body.rigidBody.linearDamping = body.profile.submergedLinearDrag;
                         body.rigidBody.angularDamping = body.profile.submergedAngularDrag;
                         submerged = true;
