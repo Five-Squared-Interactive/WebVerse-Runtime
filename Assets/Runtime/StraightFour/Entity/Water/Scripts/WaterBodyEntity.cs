@@ -36,6 +36,12 @@ namespace FiveSQD.StraightFour.Entity
         private BuoyancyProfile buoyancyProfile = BuoyancyProfile.Default;
 
         /// <summary>
+        /// Current Gerstner wave parameters (mirrors the shader) so buoyancy can sample the
+        /// wavy surface and floating bodies ride the visible waves. Captured in SetProperties.
+        /// </summary>
+        private WaterWaves currentWaves;
+
+        /// <summary>
         /// Box colliders used by the entity.
         /// </summary>
         private MeshCollider meshCollider;
@@ -172,6 +178,12 @@ namespace FiveSQD.StraightFour.Entity
                 intensity = intensity
             });
 
+            currentWaves = WaterWaves.FromProperties(numWaves, waveLength, waveSteepness, waveSpeed, waveAmplitude);
+            if (hasWaterVolume)
+            {
+                waterVolume.waves = currentWaves;
+            }
+
             return true;
         }
 
@@ -209,6 +221,7 @@ namespace FiveSQD.StraightFour.Entity
             transform.position = plan.surfacePosition;
             transform.localScale = plan.surfaceScale;
             waterVolume = plan.volume;
+            waterVolume.waves = currentWaves;
             hasWaterVolume = true;
             BuoyancyController.Instance.RegisterWater(this);
 
@@ -275,6 +288,7 @@ namespace FiveSQD.StraightFour.Entity
                 // No footprint yet: record the level so a later fill can honour it, but do not
                 // fabricate a zero-area volume or register a non-functional water body.
                 waterVolume = new WaterVolume(waterLevel, waterVolume.footprint);
+                waterVolume.waves = currentWaves;
             }
             return true;
         }

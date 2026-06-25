@@ -181,7 +181,9 @@ namespace FiveSQD.StraightFour.Entity
                 bool submerged = false;
                 if (Buoyancy.SelectGoverningVolume(com, volumeScratch, out int idx))
                 {
-                    float depth = volumeScratch[idx].waterLevel - com.y;
+                    // Sample the wavy surface (matches the rendered Gerstner waves) so floating
+                    // bodies bob. shaderTime mirrors Unity's _Time.x (Time.time / 20).
+                    float depth = volumeScratch[idx].SubmergedDepth(com, Time.time / 20f);
                     if (depth > 0f)
                     {
                         body.rigidBody.AddForce(Vector3.up * Buoyancy.UpwardForce(depth, body.profile), ForceMode.Force);

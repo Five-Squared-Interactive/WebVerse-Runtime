@@ -72,7 +72,8 @@ public class BuoyancyIntegrationTests
         bool loaded = false;
         Guid id = StraightFour.ActiveWorld.entityManager.LoadWaterBodyEntity(
             Color.cyan, Color.blue, Color.white, Color.cyan,
-            0.5f, 10f, 32f, 0.8f, 4f, 0.3f, 0.5f, 1f, 10f, 1f, 0.7f,
+            // waveAmplitude = 0 -> calm/flat surface so buoyancy assertions are deterministic.
+            0.5f, 10f, 32f, 0.8f, 4f, 0f, 0.5f, 1f, 10f, 1f, 0.7f,
             null, Vector3.zero, Quaternion.identity, onLoaded: () => { loaded = true; });
         float elapsed = 0f;
         while (!loaded && elapsed < 5f)

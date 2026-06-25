@@ -26,6 +26,12 @@ namespace FiveSQD.StraightFour.Entity
         public Bounds footprint;
 
         /// <summary>
+        /// Gerstner wave parameters. When non-zero, the surface height varies over the
+        /// footprint and time so floating bodies ride the waves (matches the rendered surface).
+        /// </summary>
+        public WaterWaves waves;
+
+        /// <summary>
         /// Create a water volume.
         /// </summary>
         /// <param name="waterLevel">World-space Y of the water surface.</param>
@@ -71,6 +77,34 @@ namespace FiveSQD.StraightFour.Entity
                 return 0f;
             }
             return Mathf.Max(0f, waterLevel - worldPoint.y);
+        }
+
+        /// <summary>
+        /// World-space height of the water surface at a point and shader time, including
+        /// Gerstner wave displacement. Equals <see cref="waterLevel"/> when waves are flat.
+        /// </summary>
+        /// <param name="worldPoint">Point whose XZ is sampled.</param>
+        /// <param name="shaderTime">Unity `_Time.x` (Time.time / 20).</param>
+        /// <returns>World-space surface Y.</returns>
+        public float SurfaceHeight(Vector3 worldPoint, float shaderTime)
+        {
+            return waterLevel + waves.HeightOffset(worldPoint.x, worldPoint.z, shaderTime);
+        }
+
+        /// <summary>
+        /// Depth of a point below the wavy surface at a given time, or 0 if at/above the
+        /// surface or outside the footprint. This is what makes floating bodies bob with waves.
+        /// </summary>
+        /// <param name="worldPoint">Point to test.</param>
+        /// <param name="shaderTime">Unity `_Time.x` (Time.time / 20).</param>
+        /// <returns>Submerged depth in world units (>= 0).</returns>
+        public float SubmergedDepth(Vector3 worldPoint, float shaderTime)
+        {
+            if (!InsideFootprint(worldPoint))
+            {
+                return 0f;
+            }
+            return Mathf.Max(0f, SurfaceHeight(worldPoint, shaderTime) - worldPoint.y);
         }
     }
 }
