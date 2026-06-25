@@ -40,6 +40,7 @@ namespace FiveSQD.StraightFour.Entity
         {
             this.waterLevel = waterLevel;
             this.footprint = footprint;
+            this.waves = default;
         }
 
         /// <summary>
