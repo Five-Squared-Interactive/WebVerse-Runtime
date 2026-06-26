@@ -1113,7 +1113,6 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
         public string preset;           // calm-lake, tropical-shallows, murky-pond, stormy-ocean
         public string fitTo;            // tag of the mesh/entity whose bounds the water fills
         public float? waterLevel;       // world-space Y to fill up to (null = not specified)
-        public bool buoyant = false;    // whether bodies in this water should float
 
         public JSONWaterEntity()
         {
@@ -7019,11 +7018,6 @@ namespace FiveSQD.WebVerse.Handlers.JSONEntity
                         {
                             waterBody.SetWaterLevel(waterData.waterLevel.Value);
                         }
-                    }
-
-                    if (waterData.buoyant)
-                    {
-                        waterBody.SetBuoyancyProfile(FiveSQD.StraightFour.Entity.BuoyancyProfile.Default);
                     }
                 }
 

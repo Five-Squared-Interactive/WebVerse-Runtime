@@ -8,7 +8,7 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
     /// a &lt;water&gt; element without them behaves exactly as before (back-compat).
     ///
     /// Example:
-    ///   &lt;water tag="lagoon" preset="tropical-shallows" fit-to="basin" water-level="3" buoyant="true"&gt;
+    ///   &lt;water tag="lagoon" preset="tropical-shallows" fit-to="basin" water-level="3"&gt;
     ///     &lt;transform&gt;...&lt;/transform&gt;
     ///   &lt;/water&gt;
     /// </summary>
@@ -29,13 +29,5 @@ namespace FiveSQD.WebVerse.Handlers.VEML.Schema.V3_0
         /// <summary>Whether water-level was present in the document.</summary>
         [System.Xml.Serialization.XmlIgnoreAttribute]
         public bool waterlevelSpecified { get; set; }
-
-        /// <summary>Whether bodies in this water should float.</summary>
-        [System.Xml.Serialization.XmlAttributeAttribute("buoyant")]
-        public bool buoyant { get; set; }
-
-        /// <summary>Whether buoyant was present in the document.</summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute]
-        public bool buoyantSpecified { get; set; }
     }
 }

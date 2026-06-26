@@ -31,11 +31,6 @@ namespace FiveSQD.StraightFour.Entity
         private bool hasWaterVolume = false;
 
         /// <summary>
-        /// Buoyancy profile applied to bodies floating in this water (used by the authoring layer).
-        /// </summary>
-        private BuoyancyProfile buoyancyProfile = BuoyancyProfile.Default;
-
-        /// <summary>
         /// Current Gerstner wave parameters (mirrors the shader) so buoyancy can sample the
         /// wavy surface and floating bodies ride the visible waves. Captured in SetProperties.
         /// </summary>
@@ -323,23 +318,6 @@ namespace FiveSQD.StraightFour.Entity
         public Bounds GetFootprint()
         {
             return waterVolume.footprint;
-        }
-
-        /// <summary>
-        /// Set the buoyancy profile applied to bodies floating in this water.
-        /// </summary>
-        /// <param name="profile">Buoyancy profile.</param>
-        public void SetBuoyancyProfile(BuoyancyProfile profile)
-        {
-            buoyancyProfile = profile;
-        }
-
-        /// <summary>
-        /// Get the buoyancy profile for this water body.
-        /// </summary>
-        public BuoyancyProfile GetBuoyancyProfile()
-        {
-            return buoyancyProfile;
         }
 
         /// <summary>

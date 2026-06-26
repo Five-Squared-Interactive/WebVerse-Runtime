@@ -183,7 +183,9 @@ namespace FiveSQD.StraightFour.Entity
                 {
                     // Sample the wavy surface (matches the rendered Gerstner waves) so floating
                     // bodies bob. shaderTime mirrors Unity's _Time.x (Time.time / 20).
-                    float shaderTime = Time.time / 20f;
+                    // Match the URPWater shader's _Time.x, which is timeSinceLevelLoad / 20,
+                    // so the physics surface stays in phase with the rendered crests.
+                    float shaderTime = Time.timeSinceLevelLoad / 20f;
                     float depth = volumeScratch[idx].SubmergedDepth(com, shaderTime);
                     if (depth > 0f)
                     {

@@ -285,7 +285,6 @@ public class BuoyancyIntegrationTests
         // Fill to the basin mesh's world AABB at y = 1 (exercises TryGetWorldRendererBounds + FitToBounds).
         Assert.IsTrue(WaterFill.TryGetWorldRendererBounds(basin, out Bounds basinBounds));
         Assert.IsTrue(water.FitToBounds(basinBounds, 1f));
-        water.SetBuoyancyProfile(BuoyancyProfile.Default);
 
         // The JS-exposed predicate agrees with the fill.
         Assert.IsTrue(water.GetWaterVolume().IsUnderwater(new Vector3(0f, -1f, 0f)));

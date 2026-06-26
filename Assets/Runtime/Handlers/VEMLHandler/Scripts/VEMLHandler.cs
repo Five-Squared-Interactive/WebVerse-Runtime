@@ -3899,11 +3899,6 @@ namespace FiveSQD.WebVerse.Handlers.VEML
                             waterBody.SetWaterLevel(entity.waterlevel);
                         }
                     }
-
-                    if (entity.buoyantSpecified && entity.buoyant)
-                    {
-                        waterBody.SetBuoyancyProfile(FiveSQD.StraightFour.Entity.BuoyancyProfile.Default);
-                    }
                 }
 #if USE_WEBINTERFACE
                 if (!string.IsNullOrEmpty(entity.synchronizer))

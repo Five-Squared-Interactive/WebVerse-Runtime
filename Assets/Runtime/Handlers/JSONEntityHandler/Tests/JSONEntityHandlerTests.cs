@@ -1460,7 +1460,6 @@ public class JSONEntityHandlerTests
         Assert.IsNull(def.preset);
         Assert.IsNull(def.fitTo);
         Assert.IsFalse(def.waterLevel.HasValue);
-        Assert.IsFalse(def.buoyant);
 
         // Round-trip with fill fields set.
         var entity = new JSONWaterEntity
@@ -1468,8 +1467,7 @@ public class JSONEntityHandlerTests
             tag = "Lagoon",
             preset = "tropical-shallows",
             fitTo = "basin",
-            waterLevel = 3.0f,
-            buoyant = true
+            waterLevel = 3.0f
         };
         string serialized = JsonConvert.SerializeObject(entity);
         var deserialized = JsonConvert.DeserializeObject<JSONWaterEntity>(serialized);
@@ -1478,7 +1476,6 @@ public class JSONEntityHandlerTests
         Assert.AreEqual("basin", deserialized.fitTo);
         Assert.IsTrue(deserialized.waterLevel.HasValue);
         Assert.AreEqual(3.0f, deserialized.waterLevel.Value, 0.0001f);
-        Assert.IsTrue(deserialized.buoyant);
 
         // A JSON document omitting fill fields leaves waterLevel unspecified.
         var minimal = JsonConvert.DeserializeObject<JSONWaterEntity>("{\"type\":\"water\",\"tag\":\"Pond\"}");

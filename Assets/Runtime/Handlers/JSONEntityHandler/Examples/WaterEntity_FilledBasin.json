@@ -5,7 +5,6 @@
   "preset": "tropical-shallows",
   "fitTo": "basin",
   "waterLevel": 3.0,
-  "buoyant": true,
   "position": {
     "x": 0.0,
     "y": 0.0,

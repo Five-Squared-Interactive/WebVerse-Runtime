@@ -265,7 +265,7 @@ public class VEMLHandlerTests
             "<metadata><title>Water Fill</title></metadata>" +
             "<environment>" +
             "<entity xsi:type=\"water\" tag=\"lagoon\" id=\"550e8400-e29b-41d4-a716-446655440099\" " +
-            "preset=\"stormy-ocean\" fit-to=\"basin\" water-level=\"3\" buoyant=\"true\">" +
+            "preset=\"stormy-ocean\" fit-to=\"basin\" water-level=\"3\">" +
             "<transform xsi:type=\"scaletransform\">" +
             "<position x=\"0\" y=\"0\" z=\"0\" />" +
             "<rotation x=\"0\" y=\"0\" z=\"0\" w=\"1\" />" +
@@ -294,7 +294,6 @@ public class VEMLHandlerTests
         Assert.AreEqual("basin", waterEntity.fitto);
         Assert.IsTrue(waterEntity.waterlevelSpecified, "water-level should be marked present.");
         Assert.AreEqual(3f, waterEntity.waterlevel, 0.0001f);
-        Assert.IsTrue(waterEntity.buoyantSpecified && waterEntity.buoyant, "buoyant should parse true.");
     }
 
     [Test]
