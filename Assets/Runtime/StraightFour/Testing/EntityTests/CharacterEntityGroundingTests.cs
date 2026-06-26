@@ -80,9 +80,16 @@ public class CharacterEntityGroundingTests
     {
         LogAssert.ignoreFailingMessages = true;
 
+        // Isolate from the origin: other PlayMode tests in the suite leave stray primitive
+        // colliders (Cube/PlacementSocket) at ~y=0.5 near (0,0,0), and a falling character would
+        // land on those instead of our floor. Run far from origin where the scene is clean.
+        // Only the X/Z position is offset; the foot-height assertions are Y-only and unaffected.
+        Vector3 sceneOffset = new Vector3(1000f, 0f, 1000f);
+        Vector3 spawn = spawnPosition + sceneOffset;
+
         cameraGO = new GameObject("TestCamera");
         Camera camera = cameraGO.AddComponent<Camera>();
-        camera.transform.position = new Vector3(0, 0, -10);
+        camera.transform.position = sceneOffset + new Vector3(0, 0, -10);
         cameraGO.tag = "MainCamera";
 
         if (buildFloor)
@@ -90,7 +97,7 @@ public class CharacterEntityGroundingTests
             // A wide flat box collider with its top surface at y=0.
             floorGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             floorGO.name = "TestFloor";
-            floorGO.transform.position = new Vector3(0, -0.5f, 0);
+            floorGO.transform.position = sceneOffset + new Vector3(0, -0.5f, 0);
             floorGO.transform.localScale = new Vector3(20f, 1f, 20f);
         }
 
@@ -106,7 +113,7 @@ public class CharacterEntityGroundingTests
         bool loaded = false;
         Guid charId = StraightFour.ActiveWorld.entityManager.LoadCharacterEntity(
             null, null, Vector3.zero, Quaternion.identity, new Vector3(0, 2, 0),
-            spawnPosition, Quaternion.identity, Vector3.one,
+            spawn, Quaternion.identity, Vector3.one,
             tag: "test-char",
             onLoaded: () => { loaded = true; });
 
@@ -126,7 +133,7 @@ public class CharacterEntityGroundingTests
         ce.fixHeight = false; // Disable rescue warp so we observe raw grounding behavior.
 
         // Re-apply spawn position after going Physical, in case prior state changed transform.
-        ce.SetPosition(spawnPosition, local: true, synchronize: false);
+        ce.SetPosition(spawn, local: true, synchronize: false);
 
         // Give one fixed tick for the controller to register.
         yield return new WaitForFixedUpdate();

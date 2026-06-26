@@ -455,8 +455,13 @@ namespace FiveSQD.StraightFour.Entity
             // Fallback raycast for the pre-first-Move case and as a small-gap safety net.
             // Distance is skinWidth + a small margin so we catch the "just barely above floor"
             // state without falsely reporting grounded at large gaps.
+            // Origin is the capsule BOTTOM in world space: transform + (center.y - height/2).
+            // Omitting center.y starts the ray center.y (~0.5m for a humanoid) below the foot,
+            // which falsely reports grounded and leaves the character hovering ~center.y up.
             float rayDistance = characterController.skinWidth + 0.1f;
-            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2f, 0),
+            return Physics.Raycast(
+                transform.position + new Vector3(0,
+                    characterController.center.y - characterController.height / 2f, 0),
                 Vector3.down, rayDistance);
         }
 
@@ -474,7 +479,10 @@ namespace FiveSQD.StraightFour.Entity
                 return false;
             }
 
-            return Physics.Raycast(transform.position - new Vector3(0, characterController.height / 2, 0), Vector3.down);
+            return Physics.Raycast(
+                transform.position + new Vector3(0,
+                    characterController.center.y - characterController.height / 2f, 0),
+                Vector3.down);
         }
 
         /// <summary>
@@ -1148,6 +1156,10 @@ namespace FiveSQD.StraightFour.Entity
             characterController.minMoveDistance = 0;
             characterController.radius = radius;
             characterController.height = height;
+            // Center the collision capsule on the character (matches the CapsuleCollider). Without
+            // this the CC center defaults to 0, so the capsule sits ~center below the feet and the
+            // character grounds while its visual foot floats ~center above the floor.
+            characterController.center = new Vector3(0, center, 0);
         }
 
         /// <summary>
